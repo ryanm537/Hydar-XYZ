@@ -79,7 +79,7 @@ try{
 	// SCRIPT TO AUTO UPDATE POSTS
 	
 	
-	%></div>
+	%>
 		<script>
 			document.addEventListener('click',()=>{document.getElementById("bar").setAttribute("hidden",true);});
 			function refresh(a){
