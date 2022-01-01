@@ -119,7 +119,7 @@ try{
 				refresh(false);	
 			}function post(){
 				var x=document.location.toString();
-				var n=x.substring(0,x.indexOf('?')).replace("Homepage.jsp","submitPost.jsp");
+				var n=x.substring(0,x.indexOf('?')).replace("Homepage.jsp","SubmitPost.jsp");
 				var q=x.substring(x.indexOf("board=")+6);
 				$.get(n+"?input_text="+encodeURIComponent(document.forms[1].input_text.value)+"&board_num="+q).then(fullRefresh).fail(function(){document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
 			}
