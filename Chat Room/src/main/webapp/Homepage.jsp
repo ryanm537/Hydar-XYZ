@@ -60,9 +60,26 @@ try{
 	
 	out.print("</center>");
 	
+	
+	%>
+	<style>
+		.fix-div{
+			background-color:rgb(61, 67, 73);
+			position:fixed; 
+			width:100%; 
+			left:0; 
+			top:0;}
+		.margin{
+			margin-top:210px;
+		}
+	</style>
+	<div class = "fix-div">
+	
+	<%
+	
 	//TOP BAR
 	
-	out.print("<h1 style = \"color:rgb(255,255,255); font-size:15px; font-family:arial; text-align:right;\"></style>");
+	out.print("<h1 style = \"color:rgb(255,255,255); font-size:15px; font-family:arial; text-align:right;position:relative;\"></style>");
 	out.print("Hello " + session.getAttribute("username").toString() + "! | ");
 	out.print("<style type=\"text/css\"> a{color:LightGrey; font-family:arial; text-align:right; font-size:15px}</style>");
 	out.print("<a href=\"Profile.jsp\"> Profile</a>&nbsp;| ");
@@ -80,10 +97,10 @@ try{
 	out.print("<input value=\"Go\"  type=\"submit\"></select></form>");
 	
 	out.print("</h1>");
-	
+
 	// GREY TEXT BAR
 	
-	out.print("<style> p{color:LightSlateGrey; font-family:arial; text-align:center; font-size:25px;}</style>");
+	out.print("<style> p{color:LightSlateGrey; font-family:arial; text-align:center; font-size:25px; position:relative;}</style>");
 	switch(board){
 		case 1:
 			out.print("<p>Viewing board: Everything else");
@@ -126,17 +143,20 @@ try{
 
 	%>
 	<input type="text" name="input_text" size="60" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px;border-radius:8px;" autofocus="autofocus" onfocus="this.select()"/>
+	
 	<%
 	
 	out.print("<input value=\"" + board + "\"  type=\"hidden\" name=\"board_num\">");	
 	
 	%>
 	<input value="  Post  "  type="submit" style="background-color:rgb(81, 87, 93);color:white;border:none;padding:8px; position:relative; left:3px; border-radius:8px" >
+	
+	</div>
+	<div class="margin">
 	</form>
 	</li>
 	</ul>
 	<br>
-		
 	<!-- NEW MESSAGES  BAR -->
 	
 	<style> body{color:rgb(255,255,255); font-family:arial; text-align:left; font-size:15px;}</style>
@@ -173,7 +193,7 @@ try{
 		out.print("<img src=\"" + result.getString("user.pfp") +"\" alt=\"hydar\" width = \"40px\" height = \"40px\" align = \"left\" hspace = \"10\" vspace = \"15\">");
 		//other contents
 		out.print("<style> body{color:LightGrey; font-family:arial; text-align:left; font-size:15px; display:block}</style>");
-		out.print("<br><b><div id=\"msgUser\" style=\"display:inline\">"+ result.getString("user.username") + "</div></b> <p id=\"three\">");
+		out.print("<br><b><div id=\"msgUser\" style=\"display:inline\">"+ result.getString("user.username") + "</div></b> <div id=\"three\" style=\"display:inline\">");
 		out.print("<style> #three{color:Grey; font-family:arial; text-align:left; font-size:15px; display:inline}</style>");
 		if((timePassed * 60) < 1){
 			out.print("&nbsp;(just now): ");
@@ -188,7 +208,7 @@ try{
 		//html = html.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 		String fixedString = result.getString("post.contents").replaceAll("<", "&lt;");
 		fixedString=fixedString.replaceAll("&lt;href", "<href").replaceAll("&lt;img", "<img");
-		out.print("</p><br><div id=\"msgText\" style=\"display:inline\">" + fixedString +"</div><br clear = \"left\">");
+		out.print("</div><br><div id=\"msgText\" style=\"display:inline\">" + fixedString +"</div><br clear = \"left\">");
 	
 		count-=1;
 	}
@@ -198,7 +218,7 @@ try{
 	// SCRIPT TO AUTO UPDATE POSTS
 	
 	
-	%>
+	%></div>
 		<script>
 			document.addEventListener('click',()=>{document.getElementById("bar").setAttribute("hidden",true);});
 			function refresh(a){
