@@ -237,7 +237,7 @@ try{
 					hdar.setAttribute("id","msgs");
 					hdar.innerHTML=doc.getElementById("msgs").innerHTML;var x=(parseInt(doc.getElementById("lastID").innerHTML)-parseInt(document.getElementById("lastID").innerHTML));
 					document.querySelectorAll("[id='two']")[1].innerHTML="Instant update</a>";
-					if(document.querySelectorAll("[id='two']")[0].innerHTML.includes("Off")){
+					if(!b&&document.querySelectorAll("[id='two']")[0].innerHTML.includes("Off")){
 						document.getElementById("txtHint").innerHTML=""+(x>0?x:"No")+" new posts.<br>Post"+(x==1?"":"s")+" will be listed here...";
 						//setTimeout(() => {
 						//	document.getElementById("txtHint").innerHTML="Posts will be listed here...";
