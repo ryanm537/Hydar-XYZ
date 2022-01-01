@@ -192,7 +192,7 @@ try{
 	out.print("<form onsubmit=\"post()\" action=\"\" target=\"dummyframe\">");
 
 	%>
-	<input id="input_text" type="text" name="input_text" size="60" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px;border-radius:8px;" autofocus="autofocus" onfocus="this.select()"/>
+	<input id="input_text" type="text" name="input_text" size="80" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px;border-radius:8px;" autofocus="autofocus" onfocus="this.select()"/>
 	
 	<%
 	
