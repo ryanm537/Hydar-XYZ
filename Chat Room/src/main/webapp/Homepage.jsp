@@ -266,11 +266,11 @@ try{
 			}function extraRefresh(){
 				refresh(true,false);
 			}function post(){
-				document.forms[1].input_text.value="";
 				var x=document.location.toString();
 				var n=x.substring(0,x.indexOf('?')).replace("Homepage.jsp","SubmitPost.jsp");
 				var q=x.substring(x.indexOf("board=")+6);
 				$.get(n+"?input_text="+encodeURIComponent(document.forms[1].input_text.value)+"&board_num="+q).then(extraRefresh).fail(function(){document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
+				document.forms[1].input_text.value="";
 			}
 			document.querySelectorAll("[id='two']")[1].addEventListener('click',fullRefresh);
 		</script>
