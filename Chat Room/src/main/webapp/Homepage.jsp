@@ -222,7 +222,13 @@ try{
 		<script>
 			document.addEventListener('click',()=>{document.getElementById("bar").setAttribute("hidden",true);});
 			function refresh(a,b){
-				$.get(document.location.toString()).then(function (data) {
+				var x=document.location.toString();
+				var n=x.substring(0,x.indexOf('?'));
+				if(x.indexOf('?')<0)n=x;
+				var q=x.substring(x.indexOf("board=")+6);
+				if(x.indexOf("board=")<0)q=1; 
+				if(x.includes("input_text"))return;
+				$.get(n+"?board="+q+"&autoOn=autoOff").then(function (data) {
 					var parser = new DOMParser();
 					var doc = parser.parseFromString(data, "text/html");
 					const hdar = document.createElement("div");
@@ -266,10 +272,13 @@ try{
 			}function extraRefresh(){
 				refresh(true,false);
 			}function post(){
+				
 				var x=document.location.toString();
 				var n=x.substring(0,x.indexOf('?')).replace("Homepage.jsp","SubmitPost.jsp");
+				if(x.indexOf('?')<0)n=x.replace("Homepage.jsp","SubmitPost.jsp");
 				var q=x.substring(x.indexOf("board=")+6);
-				$.get(n+"?input_text="+encodeURIComponent(document.forms[1].input_text.value)+"&board_num="+q).then(extraRefresh).fail(function(){document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
+				if(x.indexOf("board=")<0)q=1;
+				$.get(n+"?autoOn=autoOff&input_text="+encodeURIComponent(document.forms[1].input_text.value)+"&board_num="+q).then().fail(function(){document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
 				document.forms[1].input_text.value="";
 			}
 			document.querySelectorAll("[id='two']")[1].addEventListener('click',fullRefresh);
