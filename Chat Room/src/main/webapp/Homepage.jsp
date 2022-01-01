@@ -221,7 +221,7 @@ try{
 	%>
 		<script>
 			document.addEventListener('click',()=>{document.getElementById("bar").setAttribute("hidden",true);});
-			function refresh(a){
+			function refresh(a,b){
 				$.get(document.location.toString()).then(function (data) {
 					var parser = new DOMParser();
 					var doc = parser.parseFromString(data, "text/html");
@@ -235,32 +235,42 @@ try{
 						//	document.getElementById("txtHint").innerHTML="Posts will be listed here...";
 						//},8000);
 					}
-					if(!(hdar.innerHTML==document.getElementById("msgs").innerHTML)){
-						for(i in document.getElementById("msgs").querySelectorAll("[id = 'three']")){
-							if(hdar.querySelectorAll("[id = 'three']").length>0){
-								document.getElementById("msgs").querySelectorAll("[id = 'three']")[i].parentNode.replaceChild(hdar.querySelectorAll("[id = 'three']")[0],document.getElementById("msgs").querySelectorAll("[id = 'three']")[i]);
+					if(!b){
+						if(!(hdar.innerHTML==document.getElementById("msgs").innerHTML)){
+							document.getElementById("msgs").parentNode.replaceChild(hdar,document.getElementById("msgs"));
+						}
+					}else{
+						if(!(hdar.innerHTML==document.getElementById("msgs").innerHTML)){
+							for(i in document.getElementById("msgs").querySelectorAll("[id = 'three']")){
+								if(hdar.querySelectorAll("[id = 'three']").length>0){
+									document.getElementById("msgs").querySelectorAll("[id = 'three']")[i].parentNode.replaceChild(hdar.querySelectorAll("[id = 'three']")[0],document.getElementById("msgs").querySelectorAll("[id = 'three']")[i]);
+								}
+							}hdar.innerHTML=doc.getElementById("msgs").innerHTML;
+						if(!(hdar.innerHTML==document.getElementById("msgs").innerHTML)&&a){
+							document.getElementById("bar").removeAttribute("hidden");
+							document.getElementById("msgs").parentNode.replaceChild(hdar,document.getElementById("msgs"));
+							try{
+
+								h=new Notification(document.getElementById("msgUser").innerHTML,{body:document.getElementById("msgText").innerHTML,icon:"https://cdn.discordapp.com/attachments/315971359102599168/921456500747173908/h.png"});
+							}catch(e){
+
 							}
-						}hdar.innerHTML=doc.getElementById("msgs").innerHTML;
-					if(!(hdar.innerHTML==document.getElementById("msgs").innerHTML)&&a){
-						document.getElementById("bar").removeAttribute("hidden");
-						document.getElementById("msgs").parentNode.replaceChild(hdar,document.getElementById("msgs"));
-						try{
-							h=new Notification(document.getElementById("msgUser").innerHTML,{body:document.getElementById("msgText").innerHTML,icon:"https://cdn.discordapp.com/attachments/315971359102599168/921456500747173908/h.png"});
-						}catch(e){
-							
 						}
 					}
 				}	
 				}).fail(function () {document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
 			}function fullRefresh(){
-				refresh(true);	
+				refresh(true,true);	
 			}function halfRefresh(){
-				refresh(false);	
+				refresh(false,true);	
+			}function extraRefresh(){
+				refresh(true,false);
 			}function post(){
+				document.forms[1].input_text.value="";
 				var x=document.location.toString();
 				var n=x.substring(0,x.indexOf('?')).replace("Homepage.jsp","SubmitPost.jsp");
 				var q=x.substring(x.indexOf("board=")+6);
-				$.get(n+"?input_text="+encodeURIComponent(document.forms[1].input_text.value)+"&board_num="+q).then(fullRefresh).fail(function(){document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
+				$.get(n+"?input_text="+encodeURIComponent(document.forms[1].input_text.value)+"&board_num="+q).then(extraRefresh).fail(function(){document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
 			}
 			document.querySelectorAll("[id='two']")[1].addEventListener('click',fullRefresh);
 		</script>
