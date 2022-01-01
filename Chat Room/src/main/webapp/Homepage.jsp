@@ -256,7 +256,7 @@ try{
 							document.getElementById("bar").removeAttribute("hidden");
 							document.getElementById("msgs").parentNode.replaceChild(hdar,document.getElementById("msgs"));
 							try{
-
+							
 								h=new Notification(document.getElementById("msgUser").innerHTML,{body:document.getElementById("msgText").innerHTML,icon:"https://cdn.discordapp.com/attachments/315971359102599168/921456500747173908/h.png"});
 							}catch(e){
 
@@ -278,7 +278,7 @@ try{
 				if(x.indexOf('?')<0)n=x.replace("Homepage.jsp","SubmitPost.jsp");
 				var q=x.substring(x.indexOf("board=")+6);
 				if(x.indexOf("board=")<0)q=1;
-				$.get(n+"?autoOn=autoOff&input_text="+encodeURIComponent(document.forms[1].input_text.value)+"&board_num="+q).then().fail(function(){document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
+				$.get(n+"?autoOn=autoOff&input_text="+encodeURIComponent(document.forms[1].input_text.value)+"&board_num="+q).then(extraRefresh).fail(function(){document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
 				document.forms[1].input_text.value="";
 			}
 			document.querySelectorAll("[id='two']")[1].addEventListener('click',fullRefresh);
