@@ -23,7 +23,7 @@ form{ display: inline-block; }
 </div>
 <%
 Class.forName("com.mysql.jdbc.Driver").newInstance();
-Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatroom?autoReconnect=true&useSSL=false", "root", "hydar");
+Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatroom?autoReconnect=true&useSSL=true", "root", "hydar");
 try{
 	//CHECK IF BOARD IS SPECIFIED, and redirect if the user does not have perms.
 	
@@ -199,19 +199,19 @@ try{
 	%>
 		<script>
 			document.addEventListener('click',()=>{document.getElementById("bar").setAttribute("hidden",true);});
-			function refresh(){
+			function refresh(a){
 				$.get(document.location.toString()).then(function (data) {
 					var parser = new DOMParser();
 					var doc = parser.parseFromString(data, "text/html");
 					const hdar = document.createElement("div");
 					hdar.setAttribute("id","msgs");
 					hdar.innerHTML=doc.getElementById("msgs").innerHTML;var x=(hdar.children.length-document.getElementById("msgs").children.length)/8;
-					
+					document.querySelectorAll("[id='two']")[1].innerHTML="Instant update</a>";
 					if(document.querySelectorAll("[id='two']")[0].innerHTML.includes("Off")){
-						document.getElementById("txtHint").innerHTML=""+(x>0?x:"No")+" new posts.<br>Posts will be listed here...";
-						setTimeout(() => {
-							document.getElementById("txtHint").innerHTML="Posts will be listed here...";
-						},8000);
+						document.getElementById("txtHint").innerHTML=""+(x>0?x:"No")+" new posts.<br>Post"+(x==1?"":"s")+" will be listed here...";
+						//setTimeout(() => {
+						//	document.getElementById("txtHint").innerHTML="Posts will be listed here...";
+						//},8000);
 					}
 					if(!(hdar.innerHTML==document.getElementById("msgs").innerHTML)){
 						for(i in document.getElementById("msgs").querySelectorAll("[id = 'three']")){
@@ -219,7 +219,7 @@ try{
 								document.getElementById("msgs").querySelectorAll("[id = 'three']")[i].parentNode.replaceChild(hdar.querySelectorAll("[id = 'three']")[0],document.getElementById("msgs").querySelectorAll("[id = 'three']")[i]);
 							}
 						}hdar.innerHTML=doc.getElementById("msgs").innerHTML;
-					if(!(hdar.innerHTML==document.getElementById("msgs").innerHTML)){
+					if(!(hdar.innerHTML==document.getElementById("msgs").innerHTML)&&a){
 						document.getElementById("bar").removeAttribute("hidden");
 						document.getElementById("msgs").parentNode.replaceChild(hdar,document.getElementById("msgs"));
 						try{
@@ -229,9 +229,9 @@ try{
 						}
 					}
 				}	
-				}).fail(function () {document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>"});
+				}).fail(function () {document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
 			}
-			document.querySelectorAll("[id='two']")[1].addEventListener('click',refresh);
+			document.querySelectorAll("[id='two']")[1].addEventListener('click',refresh(true));
 		</script>
 	
 	<%
@@ -240,7 +240,11 @@ try{
 	
 	if(autoRefresh.equals("autoOn")){
 		out.print("<script>");
-		out.print("setInterval(refresh,1000);");
+		out.print("setInterval(refresh(true),1000);");
+		out.print("</script>");
+	}else{
+		out.print("<script>");
+		out.print("setInterval(refresh(false),30000);");
 		out.print("</script>");
 	}
 	
