@@ -253,13 +253,14 @@ try{
 								}
 							}hdar.innerHTML=doc.getElementById("msgs").innerHTML;
 						if(!(hdar.innerHTML==document.getElementById("msgs").innerHTML)&&a){
-							document.getElementById("bar").removeAttribute("hidden");
 							document.getElementById("msgs").parentNode.replaceChild(hdar,document.getElementById("msgs"));
-							try{
-								if(document.getElementById("profileName").innerHTML!=document.getElementById("msgUser").innerHTML)
+							if(document.getElementById("profileName").innerHTML!=document.getElementById("msgUser").innerHTML){
+								document.getElementById("bar").removeAttribute("hidden");
+								try{
 									h=new Notification(document.getElementById("msgUser").innerHTML,{body:document.getElementById("msgText").innerHTML,icon:"https://cdn.discordapp.com/attachments/315971359102599168/921456500747173908/h.png"});
-							}catch(e){
+								}catch(e){
 
+								}
 							}
 						}
 					}
