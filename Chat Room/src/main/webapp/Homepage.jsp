@@ -163,8 +163,8 @@ try{
 		
 	
 	<div hidden id='bar' style='width: 100%; height: 20px; border-bottom: 2px solid #be4949; text-align: center'>
-		<br>
-		<span style='color:White; font-size: 12px; padding: 0 10px; position:relative; top:6px'>
+		
+		<span style='color:White; font-size: 12px; line-spacing:2; display:block;'><br>
 			<b> - New Messages - </b>
 		</span>
 	</div>
