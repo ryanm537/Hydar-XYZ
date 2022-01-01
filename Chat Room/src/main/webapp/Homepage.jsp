@@ -183,11 +183,13 @@ try{
 	//int topPostID = result.getInt("post.id");
 	
 	int count = 25; // <- DISPLAYED POSTS LIMIT XXXXXXXXXXXXXXXXXX
-	
+	int maxCount = count;
 	out.print("<div id='msgs'>");
 	out.print("<br>");
 	while(result.next() && count > 0){
 		//time
+		if(count==maxCount)
+			out.print("<div hidden style=\"display:inline\" id=\"lastID\">"+result.getInt("post.id")+"</div>");
 		float timePassed = ((float)(System.currentTimeMillis() - result.getLong("post.created_date")) / 3600000);
 	
 		out.print("<img src=\"" + result.getString("user.pfp") +"\" alt=\"hydar\" width = \"40px\" height = \"40px\" align = \"left\" hspace = \"10\" vspace = \"15\">");
@@ -233,7 +235,7 @@ try{
 					var doc = parser.parseFromString(data, "text/html");
 					const hdar = document.createElement("div");
 					hdar.setAttribute("id","msgs");
-					hdar.innerHTML=doc.getElementById("msgs").innerHTML;var x=(hdar.children.length-document.getElementById("msgs").children.length)/8;
+					hdar.innerHTML=doc.getElementById("msgs").innerHTML;var x=(parseInt(hdar.getElementById("lastID").innerHTML)-parseInt(document.getElementById("lastID").innerHTML));
 					document.querySelectorAll("[id='two']")[1].innerHTML="Instant update</a>";
 					if(document.querySelectorAll("[id='two']")[0].innerHTML.includes("Off")){
 						document.getElementById("txtHint").innerHTML=""+(x>0?x:"No")+" new posts.<br>Post"+(x==1?"":"s")+" will be listed here...";
