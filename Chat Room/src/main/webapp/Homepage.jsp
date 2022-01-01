@@ -23,7 +23,7 @@ form{ display: inline-block; }
 </div>
 <%
 Class.forName("com.mysql.jdbc.Driver").newInstance();
-Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatroom?autoReconnect=true&useSSL=true", "root", "hydar");
+Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatroom?autoReconnect=true&useSSL=false", "root", "hydar");
 try{
 	//CHECK IF BOARD IS SPECIFIED, and redirect if the user does not have perms.
 	
@@ -230,8 +230,12 @@ try{
 					}
 				}	
 				}).fail(function () {document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
+			}function fullRefresh(){
+				refresh(true);	
+			}function halfRefresh(){
+				refresh(false);	
 			}
-			document.querySelectorAll("[id='two']")[1].addEventListener('click',refresh(true));
+			document.querySelectorAll("[id='two']")[1].addEventListener('click',fullRefresh);
 		</script>
 	
 	<%
@@ -240,11 +244,11 @@ try{
 	
 	if(autoRefresh.equals("autoOn")){
 		out.print("<script>");
-		out.print("setInterval(refresh(true),1000);");
+		out.print("setInterval(fullRefresh,1000);");
 		out.print("</script>");
 	}else{
 		out.print("<script>");
-		out.print("setInterval(refresh(false),30000);");
+		out.print("setInterval(halfRefresh,30000);");
 		out.print("</script>");
 	}
 	
