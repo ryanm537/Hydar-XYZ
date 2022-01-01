@@ -64,7 +64,7 @@ try{
 	%>
 	<style>
 		.fix-div{
-			background-color:rgb(61, 67, 73);
+			background-color:rgb(41, 47, 53);
 			position:fixed; 
 			width:100%; 
 			left:0; 
@@ -164,7 +164,7 @@ try{
 	
 	<div hidden id='bar' style='width: 100%; height: 20px; border-bottom: 2px solid #be4949; text-align: center'>
 		
-		<span style='color:White; font-size: 12px; line-spacing:2; display:block;'><br>
+		<span style='color:White; font-size: 12px; display:block;'><br><br>
 			<b> - New Messages - </b>
 		</span>
 	</div>
