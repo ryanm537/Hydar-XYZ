@@ -119,12 +119,16 @@ try{
 	
 	// SEARCH BAR
 	
+	%>
+	
+	<%
 	out.print("<style> .nav{text-align:center; font-family:arial; list-style-type:none; margin:0; padding:0} .nav li{color:rgb(255,255,255); display:inline-block; font-size:20px; padding:30px}</style>");
 	out.print("<ul class=\"nav\">");
 	out.print("<li>Enter text to post:&nbsp");
 	out.print("<form method=\"get\" action=\"SubmitPost.jsp\">");
 	
 	out.print("<input type=\"text\" name=\"input_text\" size=\"60\" style=\"background-color:rgb(71, 77, 83);color:white;border:none;padding:8px;\" autofocus=\"autofocus\" onfocus=\"this.select()\">");
+	
 	out.print("<input value=\"" + board + "\"  type=\"hidden\" name=\"board_num\">");
 	out.print("<input value=\"  Post  \"  type=\"submit\" style=\"background-color:rgb(81, 87, 93);color:white;border:none;padding:8px; position:relative; left:3px\" > </form> </li>");
 	out.print("</ul><br>");
