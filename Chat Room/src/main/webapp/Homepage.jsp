@@ -162,12 +162,13 @@ try{
 	<style> body{color:rgb(255,255,255); font-family:arial; text-align:left; font-size:15px;}</style>
 		
 	
-	<div hidden id='bar' style='width: 100%; height: 20px; border-bottom: 2px solid #be4949; text-align: center'>
+	<div hidden id='bar' style='width: 100%; height: 10px; border-bottom: 2px solid #be4949; text-align: center'>
 		
-		<span style='color:White; font-size: 12px; display:block;'><br><br>
+		<span style='color:White; font-size: 12px; display:block;'><br>
 			<b> - New Messages - </b>
 		</span>
 	</div>
+	<br>
 	<div id="txtHint">Posts will be listed here...</div>
 	<%
 
@@ -185,7 +186,6 @@ try{
 	int count = 25; // <- DISPLAYED POSTS LIMIT XXXXXXXXXXXXXXXXXX
 	int maxCount = count;
 	out.print("<div id='msgs'>");
-	out.print("<br>");
 	while(result.next() && count > 0){
 		//time
 		if(count==maxCount)
