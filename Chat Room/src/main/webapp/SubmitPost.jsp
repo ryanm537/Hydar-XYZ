@@ -42,7 +42,7 @@ try{
 	//REDIRECT BACK TO PREVIOUS BOARD
 	
 	out.print("</form>");
-	response.sendRedirect("Homepage.jsp?board="+board);
+	//response.sendRedirect("Homepage.jsp?board="+board);
 	
 }catch(Exception e){
 	out.print("<style> body{color:rgb(255,255,255); font-family:arial; text-align:center; font-size:20px;}</style>");
