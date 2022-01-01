@@ -80,7 +80,7 @@ try{
 	//TOP BAR
 	
 	out.print("<h1 style = \"color:rgb(255,255,255); font-size:15px; font-family:arial; text-align:right;position:relative;\"></style>");
-	out.print("Hello " + session.getAttribute("username").toString() + "! | ");
+	out.print("Hello <div id=\"profileName\" style=\"display:inline\">" + session.getAttribute("username").toString() + "</div>! | ");
 	out.print("<style type=\"text/css\"> a{color:LightGrey; font-family:arial; text-align:right; font-size:15px}</style>");
 	out.print("<a href=\"Profile.jsp\"> Profile</a>&nbsp;| ");
 	out.print("<a href=\"Logout.jsp\"> Log out</a> &nbsp;&nbsp;");
@@ -256,8 +256,8 @@ try{
 							document.getElementById("bar").removeAttribute("hidden");
 							document.getElementById("msgs").parentNode.replaceChild(hdar,document.getElementById("msgs"));
 							try{
-							
-								h=new Notification(document.getElementById("msgUser").innerHTML,{body:document.getElementById("msgText").innerHTML,icon:"https://cdn.discordapp.com/attachments/315971359102599168/921456500747173908/h.png"});
+								if(document.getElementById("profileName").innerHTML!=document.getElementById("msgUser").innerHTML)
+									h=new Notification(document.getElementById("msgUser").innerHTML,{body:document.getElementById("msgText").innerHTML,icon:"https://cdn.discordapp.com/attachments/315971359102599168/921456500747173908/h.png"});
 							}catch(e){
 
 							}
