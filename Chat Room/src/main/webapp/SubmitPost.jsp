@@ -25,13 +25,16 @@ try{
 	Statement stmt = conn.createStatement();
 	
 	if(request.getParameter("input_text") != null){
+		String inputText = request.getParameter("input_text").toString();
+		inputText = inputText.replace("\"", "\"\"");
+		inputText = inputText.replace("\\", "\\\\");
 		String searchPostsForIDStr = "SELECT MAX(id) AS max FROM post";
 		ResultSet searchPosts = stmt.executeQuery(searchPostsForIDStr);
 		searchPosts.next();
 		int newID = searchPosts.getInt("max") + 1;
 		
 		String addPostStr="INSERT INTO post(`contents`, `id`, `board`, `created_date`)"
-					+ " VALUES (\"" + request.getParameter("input_text").toString() + "\", " + newID + ", " + board + ", " + System.currentTimeMillis() + ")";
+					+ " VALUES (\"" + inputText + "\", " + newID + ", " + board + ", " + System.currentTimeMillis() + ")";
 		int addPost = stmt.executeUpdate(addPostStr);
 		
 		String addPostsStr="INSERT INTO posts(`user`, `post`)"
