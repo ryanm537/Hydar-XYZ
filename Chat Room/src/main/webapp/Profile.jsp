@@ -77,27 +77,83 @@ try{
 		        list-style: none;
 		    }
 		    ul li {
-		        margin: -10px;
+		        margin-top: -20px;
 		        display: inline-block;
+		        vertical-align:middle;
 		    }
 		    ul li a img {
-		        width: 150px;
-		        height: 150px;
-		        display: block;
+		        width: 100px;
+		        height: 100px;
+		        display: inline-block;
 		    }
 			ul li a:hover img {
 	    		transform: scale(1.3);
 	    		box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
 			}
+			
+		    ul li2 a img {
+		        margin-top: -20px;
+		        width: 150px;
+		        height: 150px;
+		        display: inline-block;
+	    		box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+			}
+			ul li2 a:hover img {
+	    		transform: scale(1.1);
+			}
+			 
+			.column {
+				float: left;
+			}
+			
+			.row::after {
+				content: "";
+				clear: both;
+				display: block;
+			} 
+			
+			.pfps{
+				display:inline-block;
+				margin-left:auto;
+				margin-right:auto;
+			}
 		</style>
 	<%
 	
 	// PROFILE PIC
-	
+	String pfp = "";
 	while(result.next()){
-		out.print("<ul><li><a href=\"#\"><img src=\"" + result.getString("user.pfp") +"\" alt=\"hydar\" width = \"100px\" height = \"100px\" align = \"left\"></a></li> </ul>");
+		pfp = result.getString("user.pfp");
+	}
+	String[] pfps = {"yeti.png", "hydar2.png", "emp.png", "gw.png", "grim.png"};
+	
+	//order the pfp array so that yours is in the mididle
+	int indexOfPfp = 0;
+	for(int i = 0; i < 5; i++){
+		if (pfps[i].equals(pfp)){
+			indexOfPfp=i;
+			break;
+		}
 	}
 	
+	if(!pfps[2].equals(pfp)){
+		String temp = pfps[2];
+		pfps[2]=pfp;
+		pfps[indexOfPfp] = temp;
+	}
+	out.print("<div class = \"pfps\"><div class = \"row\">");
+	for(int i =0; i<5; i++){
+		out.print("<div class = \"column\">");
+		if(i!=2){
+			%>
+			<div style = "position:relative; top:25px;">
+			<%
+			out.print("<ul><li><a href=\"Profile.jsp\"><img src=\"" + pfps[i] +"\" alt=\"hydar"+ i +"\" width = \"100px\" height = \"100px\"></a></li> </ul> </div> </div>");
+		}else{
+			out.print("<ul><li2><a href=\"#\"><img src=\"" + pfps[i] +"\" alt=\"hydar"+ i +"\" width = \"100px\" height = \"100px\"></a></li2> </ul> </div>");
+		}
+	}
+	out.print("</div></div><br>");
 	
 	// DISPLAY NAME & TEXT
 	
