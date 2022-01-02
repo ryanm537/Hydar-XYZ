@@ -151,7 +151,24 @@ try{
 	out.print("<input value=\"" + board + "\"  type=\"hidden\" name=\"board_num\">");	
 	
 	%>
-	<input value="  Post  "  type="submit" style="background-color:rgb(71, 107, 193);color:white;border:none;padding:8px; position:relative; left:3px; border-radius:8px" >
+	
+	<style>
+	.button{
+		background-color:rgb(71, 107, 193);
+		color:white;border:none;
+		padding:8px; 
+		position:relative; 
+		left:3px;
+		border-radius:8px;
+	}
+	.button:hover{
+		background-color:rgb(61, 97, 183);
+		cursor:pointer;
+	}
+	</style>
+	
+	
+	<input value="  Post  "  type="submit" class = "button" >
 	
 	</div>
 	<div class="margin">
