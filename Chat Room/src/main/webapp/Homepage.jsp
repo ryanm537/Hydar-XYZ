@@ -151,7 +151,7 @@ try{
 	out.print("<input value=\"" + board + "\"  type=\"hidden\" name=\"board_num\">");	
 	
 	%>
-	<input value="  Post  "  type="submit" style="background-color:rgb(81, 87, 93);color:white;border:none;padding:8px; position:relative; left:3px; border-radius:8px" >
+	<input value="  Post  "  type="submit" style="background-color:rgb(71, 107, 193);color:white;border:none;padding:8px; position:relative; left:3px; border-radius:8px" >
 	
 	</div>
 	<div class="margin">
@@ -159,6 +159,7 @@ try{
 	</li>
 	</ul>
 	<br>
+	
 	<!-- NEW MESSAGES  BAR -->
 	
 	<style> body{color:rgb(255,255,255); font-family:arial; text-align:left; font-size:15px;}</style>
