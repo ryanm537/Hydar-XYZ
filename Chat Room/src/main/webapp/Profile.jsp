@@ -56,7 +56,7 @@ try{
 	out.print("<a href=\"Homepage.jsp\"> Home</a>&nbsp;| ");
 	out.print("<a href=\"Logout.jsp\"> Log out</a> &nbsp;&nbsp;");
 	
-	out.print("<style type=\"text/css\"> h1{color:rgb(255,255,255); text-align:left; font-size:15px;}</style>");
+	out.print("<style type=\"text/css\"> h1{color:rgb(255,255,255); text-align:left; margin-right:10px; font-size:15px;}</style>");
 	out.print("<img src=\"hydar.png\" alt=\"hydar\" width = \"25px\" height = \"40px\" align = \"center\">");
 	
 	out.print("</h1></div><div class = \"margin\">");
