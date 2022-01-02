@@ -134,11 +134,39 @@ try{
 	
 	%>
 	<form method="get" action="Homepage.jsp">
-	<input value="Create Private Board"  type="submit" style="background-color:rgb(71, 107, 193);color:white;border:none;padding:10px; position:relative; top:30px; left:-20px; border-radius:8px" >
+	<style>
+		.button{
+			background-color:rgb(71, 107, 193);
+			color:white;border:none;
+			padding:10px 20px; 
+			position:relative; 
+			top:30px; 
+			left:-20px; 
+			border-radius:8px;
+		}
+		.button:hover{
+			background-color:rgb(61, 97, 183);
+			cursor:pointer;
+		}
+		.button2{
+			background-color:rgb(71, 107, 193);
+			color:white;border:none;
+			padding:10px 20px; 
+			position:relative; 
+			top:30px; 
+			left:20px; 
+			border-radius:8px;
+		}
+		.button2:hover{
+			background-color:rgb(61, 97, 183);
+			cursor:pointer;
+		}
+	</style>
+	<input value="Create Private Board"  type="submit" class="button" >
 	</form>
 	
 	<form method="get" action="Homepage.jsp">
-	<input value="Join Private Board"  type="submit" style="background-color:rgb(71, 107, 193);color:white;border:none;padding:10px; position:relative; top:30px;left:20px; border-radius:8px" >
+	<input value="Join Private Board"  type="submit" class="button2" >
 	</form>
 	
 	<div id='bar' style='width: 720px; height: 65px; border-bottom: 2px solid LightSlateGray; text-align: center;'></div>
