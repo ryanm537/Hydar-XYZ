@@ -65,12 +65,14 @@ try{
 	<style>
 		.fix-div{
 			background-color:rgb(41, 47, 53);
+			opacity:90%;
 			position:fixed; 
 			width:100%; 
 			left:0; 
 			top:0;}
+		
 		.margin{
-			margin-top:210px;
+			margin-top:150px;
 		}
 	</style>
 	<div class = "fix-div">
@@ -100,7 +102,7 @@ try{
 	
 	// GREY TEXT BAR
 	
-	out.print("<style> p{color:LightSlateGrey; font-family:arial; text-align:center; font-size:25px; position:relative;}</style>");
+	out.print("<style> p{color:LightSlateGrey; font-family:arial; text-align:center; font-size:25px; position:relative; top:-8px;}</style>");
 	switch(board){
 		case 1:
 			out.print("<p>Viewing board: Everything else");
@@ -136,7 +138,7 @@ try{
 	
 	// TYPE MESSAGE BAR
 	
-	out.print("<style> .nav{text-align:center; font-family:arial; list-style-type:none; margin:0; padding:0} .nav li{color:rgb(255,255,255); display:inline-block; font-size:20px; padding:30px}</style>");
+	out.print("<style> .nav{text-align:center; font-family:arial; list-style-type:none; margin:0; padding:0} .nav li{color:rgb(255,255,255); display:inline-block; font-size:20px; padding:5px; position:relative; top:-12px;}</style>");
 	out.print("<ul class=\"nav\"><li>");
 	out.print("<iframe name=\"dummyframe\" id=\"dummyframe\" style=\"display: none;\"></iframe>");
 	out.print("<form onsubmit=\"post()\" action=\"\" target=\"dummyframe\">");
@@ -209,7 +211,7 @@ try{
 		
 		//html = html.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 		String fixedString = result.getString("post.contents").replaceAll("<", "&lt;");
-		fixedString=fixedString.replaceAll("&lt;href", "<href").replaceAll("&lt;img", "<img");
+		fixedString=fixedString.replaceAll("&lt;href", "<href").replaceAll("&lt;img", "<img").replaceAll("&lt;br", "<br");
 		out.print("</div><br><div id=\"msgText\" style=\"display:inline\">" + fixedString +"</div><br clear = \"left\">");
 	
 		count-=1;
