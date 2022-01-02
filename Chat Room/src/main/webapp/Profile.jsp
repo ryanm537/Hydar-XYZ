@@ -30,6 +30,7 @@ Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatr
 
 try{
 	
+	// MARGIN SETUP
 	%>
 	<style>
 		.fix-div{
@@ -61,12 +62,17 @@ try{
 	
 	out.print("</h1></div><div class = \"margin\">");
 	
+	// GET USER PFP
+	
 	Statement stmt = conn.createStatement();
 	String checkPostsStr="SELECT user.pfp, user.username FROM user WHERE user.username = \"" + session.getAttribute("username").toString()+"\"";
 	ResultSet result = stmt.executeQuery(checkPostsStr);
 
 	out.print("<style> p{color:LightSlateGrey; font-family:arial; text-align:center; font-size:15px;}</style>");
 	out.print("<br><p> - Profile Picture - </p>");
+	
+	
+	// PFP STYLING
 	
 	%> 
 		<style>
@@ -148,7 +154,7 @@ try{
 			%>
 			<div style = "position:relative; top:25px;">
 			<%
-			out.print("<ul><li><a href=\"Profile.jsp\"><img src=\"" + pfps[i] +"\" alt=\"hydar"+ i +"\" width = \"100px\" height = \"100px\"></a></li> </ul> </div> </div>");
+			out.print("<ul><li><a href=\"ChangePfp.jsp?new_pfp="+ pfps[i]+"\"><img src=\"" + pfps[i] +"\" alt=\"hydar"+ i +"\" width = \"100px\" height = \"100px\"></a></li> </ul> </div> </div>");
 		}else{
 			out.print("<ul><li2><a href=\"#\"><img src=\"" + pfps[i] +"\" alt=\"hydar"+ i +"\" width = \"100px\" height = \"100px\"></a></li2> </ul> </div>");
 		}
