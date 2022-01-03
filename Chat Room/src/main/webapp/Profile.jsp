@@ -62,14 +62,33 @@ try{
 	
 	out.print("</h1></div><div class = \"margin\">");
 	
+	// DISPLAY USERNAME
+	
+	out.print("<style> p4.test:hover, p4.test:active{transform:scale(1.3)} </style>");
+	
+	out.print("<br><style> body{color:rgb(255,255,255); font-family:arial; text-align:center; font-size:30px;position:relative; top:20px}</style>");
+	
+	out.print("<p4 class = \"test\">" + session.getAttribute("username").toString() +"</p4>");
+	
+	%>
+
+	
+	<div id='bar' style='width: 720px; height: 35px; border-bottom: 2px solid LightSlateGray; text-align: center;'></div>
+	<%
+	
 	// GET USER PFP
 	
 	Statement stmt = conn.createStatement();
 	String checkPostsStr="SELECT user.pfp, user.username FROM user WHERE user.username = \"" + session.getAttribute("username").toString()+"\"";
 	ResultSet result = stmt.executeQuery(checkPostsStr);
-
+	
+	// GREY TEXT
+	
+	out.print("<style> p3{color:White; font-family:arial; text-align:center; font-size:25px;}</style>");
+	out.print("<p3><br> Profile Picture: </p3>");
+	
 	out.print("<style> p{color:LightSlateGrey; font-family:arial; text-align:center; font-size:15px;}</style>");
-	out.print("<br><p> - Profile Picture - </p>");
+	out.print("<br><p> - Currently Selected - </p>");
 	
 	
 	// PFP STYLING
@@ -83,11 +102,11 @@ try{
 		        list-style: none;
 		    }
 		    ul li {
-		        margin-top: -20px;
 		        display: inline-block;
 		        vertical-align:middle;
 		    }
 		    ul li a img {
+		        margin-top: 0px;
 		        width: 100px;
 		        height: 100px;
 		        display: inline-block;
@@ -151,53 +170,23 @@ try{
 	for(int i =0; i<5; i++){
 		out.print("<div class = \"column\">");
 		if(i!=2){
-			%>
-			<div style = "position:relative; top:25px;">
-			<%
-			out.print("<ul><li><a href=\"ChangePfp.jsp?new_pfp="+ pfps[i]+"\"><img src=\"" + pfps[i] +"\" alt=\"hydar"+ i +"\" width = \"100px\" height = \"100px\"></a></li> </ul> </div> </div>");
+			out.print("<ul><li><a href=\"ChangePfp.jsp?new_pfp="+ pfps[i]+"\"><img src=\"" + pfps[i] +"\" alt=\"hydar"+ i +"\" width = \"50px\" height = \"50px\"></a></li> </ul> </div>");
 		}else{
 			out.print("<ul><li2><a href=\"#\"><img src=\"" + pfps[i] +"\" alt=\"hydar"+ i +"\" width = \"100px\" height = \"100px\"></a></li2> </ul> </div>");
 		}
 	}
 	out.print("</div></div><br>");
 	
-	// DISPLAY NAME & TEXT
-	
-	out.print("<style> p2{color:LightSlateGrey; font-family:arial; text-align:top-center; font-size:15px;} </style>");
-
-	out.print("<p2> - Currently Selected - </p2>");
-	
 	%>
 	<div id='bar' style='width: 720px; height: 20px; border-bottom: 2px solid LightSlateGray; text-align: center;'></div>
-	<%
-	
-	out.print("<style> p4.test:hover, p4.test:active{transform:scale(1.3)} </style>");
-	
-	out.print("<br><style> body{color:rgb(255,255,255); font-family:arial; text-align:center; font-size:30px;}</style>");
-	
-	out.print("<p4 class = \"test\">" + session.getAttribute("username").toString() +"</p4>");
-	
-	%>
-	<style>
-		.bar{
-			width: 720px; 
-			height: 35px; 
-			border-bottom: 2px solid LightSlateGray; 
-			text-align: center;
-			display:block;
-			position:relative;
-			top:20;
-		}
-	</style>
-	<div class='bar'></div>
 	<%
 	
 	// CREATE / JOIN BOARD BUTTONS
 	
 	%>
-	<form method="get" action="Homepage.jsp">
 	<style>
 		.button{
+			display:inline-block;
 			background-color:rgb(71, 107, 193);
 			color:white;border:none;
 			padding:10px 20px; 
@@ -224,17 +213,73 @@ try{
 			cursor:pointer;
 		}
 	</style>
-	<input value="Create Private Board"  type="submit" class="button" >
-	</form>
 	
-	<form method="get" action="Homepage.jsp">
-	<input value="Join Private Board"  type="submit" class="button2" >
-	</form>
+	<input id = "createPrivate" value="Create Private Board"  type="submit" class="button"></input>
+	<input id = "joinPrivate" value="Join Private Board"  type="submit" class="button2"></input>
+
+		<style>
+			.nav{text-align:center; font-family:arial; list-style-type:none; margin:0; padding:0;} 
+			.nav li{color:rgb(255,255,255); display:block; font-size:20px; padding:5px; position:relative; top:45px;}
+			.button3{
+				dsiplay:inline-block;
+				background-color:rgb(71, 107, 193);
+				color:white;border:none;
+				padding:8px; 
+				position:relative; 
+				left:3px;
+				top:0px;
+				border-radius:8px;
+			}
+			.button3:hover{
+				background-color:rgb(61, 97, 183);
+				cursor:pointer;
+			}
+		</style>
+		<ul hidden id = "createBar" class = "nav" >
+			<li>
+				<br>
+				<%out.print("<form method = \"get\" action = \"CreateBoard.jsp\">");%>
+						<input id="input_create" type="text" name="input_create" size="80" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px;" placeholder = "New board name..."/>
+						<input value="  Go  "  type="submit" class = "button3" ></input>
+				</form>
+			</li>
+		</ul>
+		
+		<ul hidden id = "joinBar" class = "nav" >
+			<li>
+				<br>
+				<form method = "get" action = "Homepage.jsp">
+						<input id="input_join" type="text" name="input_join" size="80" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px;" placeholder = "Enter Board ID..."/>
+						<input value="  Go  "  type="submit" class = "button3" ></input>
+				</form>
+			</li>
+		</ul>
+	
+	<script>
+		function buttons(){
+			const createPrivate = document.getElementById('createPrivate');
+			createPrivate.addEventListener("click", () => {
+				document.getElementById("createBar").removeAttribute("hidden");
+				document.getElementById("joinBar").setAttribute("hidden", true);
+				}
+			);
+			
+			const joinPrivate = document.getElementById('joinPrivate');
+			joinPrivate.addEventListener("click", () => {
+				document.getElementById("joinBar").removeAttribute("hidden");
+				document.getElementById("createBar").setAttribute("hidden", true);
+				}
+			);
+		}
+		buttons();
+	</script>
+	
 	
 	<div id='bar' style='width: 720px; height: 65px; border-bottom: 2px solid LightSlateGray; text-align: center;'></div>
+	
 	<%
 	
-	out.print("<style> p3{color:LightSlateGrey; font-family:arial; text-align:center; font-size:25px;}</style>");
+	out.print("<style> p3{color:White; font-family:arial; text-align:center; font-size:25px;}</style>");
 	
 	out.print("<p3><br> Your Boards: </p3>");
 	
@@ -245,16 +290,16 @@ try{
 			P.blocktext {
 				font-family:arial;
 				font-size:20px;
-				color:White;
+				color:LightSlateGray;
 			    margin-left: auto;
 			    margin-right: auto;
-			    width:8em;
+			    width:700px;
 			    text-align: left;
 			}
 		</style> 
 		<br>
 	<%
-	String checkBoardsStr = "SELECT user.username, user.boards FROM user, board WHERE user.username = \"" + session.getAttribute("username").toString()+"\"";
+	String checkBoardsStr = "SELECT user.username, user.boards FROM user WHERE user.username = \"" + session.getAttribute("username").toString()+"\"";
 	result = stmt.executeQuery(checkBoardsStr);
 	String boards = "";
 	while(result.next()){
@@ -277,6 +322,40 @@ try{
 	<%
 	
 	
+	// DISPLAY INVITES
+	
+	
+	out.print("<style> p3{color:White; font-family:arial; text-align:center; font-size:25px;}</style>");
+	
+	out.print("<p3> Pending Invites (click to accept):<br></p3>");
+	
+	String checkInvitesStr = "SELECT user.id, user.invites FROM user WHERE user.id = \"" + session.getAttribute("userid").toString()+"\"";
+	result = stmt.executeQuery(checkInvitesStr);
+	String invites = "";
+	while(result.next()){
+		invites = result.getString("user.invites");
+	}
+
+	out.print("<P class=\"blocktext\">");
+	if(invites.equals("")){
+		out.print("No pending invites");
+	}else{
+		matchBoardsStr = "SELECT board.name, board.number, board.creator FROM board";
+		result = stmt.executeQuery(matchBoardsStr);
+		
+		while(result.next()){
+			if(invites.contains(" " + result.getString("board.number") + ",")){
+				out.print("<b>"+result.getString("board.creator")+"<b> has invited you to <b>"+result.getString("board.name") + "</b><br>"); 
+			}
+		}
+		
+	}
+	
+	out.print("</P>");
+	
+	%>
+	<div id='bar' style='width: 720px; height: 20px; border-bottom: 2px solid LightSlateGray; text-align: center;'></div><br>
+	<%
 	
 }catch (Exception e){
 	out.print("<style> body{color:rgb(255,255,255); font-family:arial; text-align:center; font-size:20px;}</style>");
