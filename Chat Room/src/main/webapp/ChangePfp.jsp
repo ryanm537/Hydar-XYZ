@@ -6,7 +6,7 @@
 <html>
 <head>
 <meta charset="ISO-8859-1">
-<title>Profile - Hydar</title>
+<title>Changing Profile Picture ...</title>
 <link rel="shorcut icon" href="favicon.ico"/>
 </head>
 <script type="text/javascript" src ="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
@@ -30,8 +30,33 @@ Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatr
 
 try{
 	String newPfp = request.getParameter("new_pfp").replaceAll("\"","");
+	String[] pfps = {"yeti.png", "hydar2.png", "emp.png", "gw.png", "grim.png"};
+
 	Statement stmt = conn.createStatement();
-	String str="UPDATE user SET user.pfp = \"" + newPfp + "\" WHERE user.username = \"" + session.getAttribute("username").toString()+"\"";
+	String str = "SELECT user.permission_level FROM user WHERE user.id = \"" + session.getAttribute("userid").toString()+"\"";
+	ResultSet result = stmt.executeQuery(str);
+	
+	String perms = "";
+	while(result.next()){
+		perms = result.getString("user.permission_level");
+	}
+	
+	// CHECK PERMS
+	
+	int isAnOption = 0;
+	for(int i = 0; i < pfps.length; i++){
+		if(pfps[i].equals(newPfp)){
+			isAnOption = 1;
+		}
+	}
+	
+	if(!perms.equals("water_hydar") && isAnOption == 0){
+		throw new Exception();
+	}
+	
+	// CHANGE PROFILE PIC
+	
+	str="UPDATE user SET user.pfp = \"" + newPfp + "\" WHERE user.id = " + session.getAttribute("userid").toString();
 	int updatePfp = stmt.executeUpdate(str);
 	
 	out.print("<form action=\"targetServlet\">");
