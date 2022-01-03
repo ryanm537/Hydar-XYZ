@@ -34,11 +34,11 @@ try{
 	}
 	
 	Statement stmt1 = conn.createStatement();
-	String checkBoardsStr="SELECT user.username, user.boards FROM user WHERE user.username = \"" + session.getAttribute("username").toString() + "\"";
+	String checkBoardsStr="SELECT user.username, user.boards FROM user WHERE user.id = \"" + session.getAttribute("userid").toString() + "\"";
 	ResultSet result1 = stmt1.executeQuery(checkBoardsStr);
-	String boardString = " " + board + ",";
+	String boardString = "";
 	while(result1.next()){
-		boardString = " " + result1.getString("user.boards") + ",";
+		boardString = result1.getString("user.boards");
 	}
 	
 	if(!boardString.contains(" " + board + ",")){
@@ -93,9 +93,28 @@ try{
 	out.print("<form method=\"get\" action=\"Homepage.jsp\">");
 	out.print("<select name=\"board\">" );
 	out.print("<option value = \"" + board + "\"> ---");
-	out.print("<option value = \"1\"> everything else");
-	out.print("<option value = \"2\"> sas4");
-	out.print("<option value = \"3\"> skyblock");
+	
+	// board selector
+	int[] boardNums = new int[(boardString.length()+1)/3];
+	for(int i = 0; i < boardString.length()-1; i++){
+		if(boardString.substring(i, i+1).equals(" ")){
+			for(int j = i+1; j < boardString.length(); j++){
+				if(boardString.substring(j, j+1).equals(",")){
+					boardNums[i/3] = Integer.parseInt((boardString.substring(i+1, j)));
+					break;
+				}
+			}
+		}
+	}
+	for(int i = 0; i < boardNums.length; i++){
+		String checkBoards = "SELECT board.name FROM board WHERE board.number = "+boardNums[i];	
+		ResultSet boardsQuery = stmt1.executeQuery(checkBoards);
+		String b = "";
+		while(boardsQuery.next()){
+			b=boardsQuery.getString("board.name");
+		}
+		out.print("<option value = \""+ boardNums[i] +"\"> " + b);
+	}
 	out.print("<input value=\"Go\"  type=\"submit\"></select></form>");
 	
 	out.print("</h1>");
@@ -103,20 +122,18 @@ try{
 	// GREY TEXT BAR
 	
 	out.print("<style> p{color:LightSlateGrey; font-family:arial; text-align:center; font-size:25px; position:relative; top:-8px;}</style>");
-	switch(board){
-		case 1:
-			out.print("<p>Viewing board: Everything else");
-			break;
-		case 2:
-			out.print("<p>Viewing board: sas4");
-			break;
-		case 3:
-			out.print("<p>Viewing board: skyblock");
-			break;
-		default:
-			out.print("<p>Viewing board: Everything else");
-			break;
+	
+	//get board name
+	String checkBoards = "SELECT board.name FROM board WHERE board.number = "+board;	
+	ResultSet boardsQuery = stmt1.executeQuery(checkBoards);
+	String b = "";
+	while(boardsQuery.next()){
+		b=boardsQuery.getString("board.name");
 	}
+	
+	//printing everythig else
+	out.print("<p>Viewing board: " + b);
+	
 	out.print("&nbsp&nbsp|&nbsp&nbsp Auto update posts: ");
 	out.print("<style> #two{color:LightSlateGrey; font-family:arial; text-align:center; font-size:25px;}</style>");
 	if(autoRefresh.equals("autoOff")){
@@ -144,7 +161,7 @@ try{
 	out.print("<form onsubmit=\"post()\" action=\"\" target=\"dummyframe\">");
 
 	%>
-	<input id="input_text" type="text" name="input_text" size="80" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px;border-radius:8px;" autofocus="autofocus" onfocus="this.select()"/>
+	<input id="input_text" type="text" name="input_text" size="80" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px;" placeholder = "Enter text to post..." autofocus="autofocus" onfocus="this.select()"/>
 	
 	<%
 	
@@ -168,8 +185,11 @@ try{
 	</style>
 	
 	
-	<input value="  Post  "  type="submit" class = "button" >
 	
+
+
+	<input value="  Post  "  type="submit" class = "button" >
+		
 	</div>
 	<div class="margin">
 	</form>
@@ -247,7 +267,7 @@ try{
 				var x=document.location.toString();
 				var n=x.substring(0,x.indexOf('?'));
 				if(x.indexOf('?')<0)n=x;
-				var q=x.substring(x.indexOf("board=")+6);
+				var q=<%out.print(board);%>;
 				if(x.indexOf("board=")<0)q=1; 
 				if(x.includes("input_text"))return;
 				$.get(n+"?board="+q+"&autoOn=autoOff").then(function (data) {
@@ -299,7 +319,7 @@ try{
 				var x=document.location.toString();
 				var n=x.substring(0,x.indexOf('?')).replace("Homepage.jsp","SubmitPost.jsp");
 				if(x.indexOf('?')<0)n=x.replace("Homepage.jsp","SubmitPost.jsp");
-				var q=x.substring(x.indexOf("board=")+6);
+				var q=<%out.print(board);%>;
 				if(x.indexOf("board=")<0)q=1;
 				$.get(n+"?autoOn=autoOff&input_text="+encodeURIComponent(document.forms[1].input_text.value)+"&board_num="+q).then(extraRefresh).fail(function(){document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
 				document.forms[1].input_text.value="";
