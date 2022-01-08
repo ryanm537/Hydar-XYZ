@@ -10,6 +10,7 @@
 <link rel="shorcut icon" href="favicon.ico"/>
 </head>
 <body>
+<script type="text/javascript" src ="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 <body style = "background-color:rgb(51, 57, 63);"> 
 <%
 
@@ -18,11 +19,20 @@ Class.forName("com.mysql.jdbc.Driver").newInstance();
 Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatroom?autoReconnect=true&useSSL=false", "root", "hydar");
 
 try{
+	
 	//UPDATE DATABASE AFTER SUBMITTING POST
 	
-	int board = Integer.parseInt(request.getParameter("board_num").toString()); 
+	int board = Integer.parseInt(request.getParameter("board_num").replace("\\", "").replace("\"", "").toString()); 
 	
 	Statement stmt = conn.createStatement();
+	
+	// CHECK PERM
+	
+	String str = "SELECT isin.user, isin.board FROM isin WHERE isin.board = " + board + " AND isin.user = " + session.getAttribute("userid").toString();
+	ResultSet result = stmt.executeQuery(str);
+	if(!result.next()){
+		throw new Exception();
+	}
 	
 	if(request.getParameter("input_text") != null){
 		String inputText = request.getParameter("input_text").toString();
@@ -32,6 +42,36 @@ try{
 		ResultSet searchPosts = stmt.executeQuery(searchPostsForIDStr);
 		searchPosts.next();
 		int newID = searchPosts.getInt("max") + 1;
+
+		// BOT COMMANDS
+		if(inputText.substring(0,1).equals("/")){
+			
+			//administrator commands
+			String checkIfAdmin = "SELECT board.creator FROM board WHERE board.number =" + board;
+			ResultSet checkAdmin = stmt.executeQuery(checkIfAdmin);
+			int boardCreator = -1;
+			while(checkAdmin.next()){
+				boardCreator = checkAdmin.getInt("board.creator");
+			}
+			if(boardCreator == Integer.parseInt(session.getAttribute("userid").toString())){
+				// /admin
+				if(inputText.equals("/admin")){
+					inputText = "Admin commands: <br>/kick (user id)<br>/invite (user id)<br>/deleteboard<br>/inviteonly (on/off)";
+					
+				}
+				
+				// /invite
+				if(inputText.substring(0, inputText.indexOf(" ")).equals("/invite")){
+					int invitedUser = Integer.parseInt(inputText.substring(inputText.indexOf(" ") + 1));
+					inputText = "Sent invite to user #" + invitedUser;
+					response.sendRedirect("InviteUser.jsp?invitedID=" + invitedUser + "&board_num="+board);
+				}
+				
+			}
+			
+			
+			
+		}
 		
 		String addPostStr="INSERT INTO post(`contents`, `id`, `board`, `created_date`)"
 					+ " VALUES (\"" + inputText + "\", " + newID + ", " + board + ", " + System.currentTimeMillis() + ")";
@@ -40,6 +80,8 @@ try{
 		String addPostsStr="INSERT INTO posts(`user`, `post`)"
 				+ " VALUES (" + session.getAttribute("userid").toString() + ", " + newID + ")";
 		int addPosts = stmt.executeUpdate(addPostsStr);
+		
+		
 	}
 	
 	//REDIRECT BACK TO PREVIOUS BOARD
