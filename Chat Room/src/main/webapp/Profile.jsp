@@ -39,7 +39,9 @@ try{
 			position:fixed; 
 			width:100%; 
 			left:0; 
-			top:0;}
+			top:0;
+			box-shadow: 0 0 10px rgba(0,0,0,20);
+			z-index:1;}
 		
 		.margin{
 			margin-top:50px;
@@ -64,11 +66,11 @@ try{
 	
 	// DISPLAY USERNAME
 	
-	out.print("<style> p4.test:hover, p4.test:active{transform:scale(1.3)} </style>");
+	out.print("<style> p4 .test{} .test:hover{transform:scale(1.3);} </style>");
 	
 	out.print("<br><style> body{color:rgb(255,255,255); font-family:arial; text-align:center; font-size:30px;position:relative; top:20px}</style>");
 	
-	out.print("<p4 class = \"test\">" + session.getAttribute("username").toString() +"</p4>");
+	out.print("<p4 class = \"test\"><b>" + session.getAttribute("username").toString() +"</b>&nbsp&nbsp(#" + session.getAttribute("userid").toString()+ ")</p4>");
 	
 	%>
 
@@ -95,53 +97,18 @@ try{
 	
 	%> 
 		<style>
-			ul {
-				padding:0px;
-				padding-top: 10px;
-		        margin: 10px 20px;
-		        list-style: none;
-		    }
-		    ul li {
-		        display: inline-block;
-		        vertical-align:middle;
-		    }
-		    ul li a img {
-		        margin-top: 0px;
-		        width: 100px;
-		        height: 100px;
-		        display: inline-block;
-		    }
-			ul li a:hover img {
-	    		transform: scale(1.3);
-	    		box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-			}
+			ul {padding:0px;padding-top: 10px;margin: 10px 20px; list-style: none;}
+		    ul li {display: inline-block;vertical-align:middle; }
+		    ul li a img {margin-top: 0px;width: 100px; height: 100px;display: inline-block;}
+			ul li a:hover img {transform: scale(1.3);box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);}
 			
-		    ul li2 a img {
-		        margin-top: -20px;
-		        width: 150px;
-		        height: 150px;
-		        display: inline-block;
-	    		box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-			}
-			ul li2 a:hover img {
-	    		transform: scale(1.1);
-			}
+		    ul li2 a img {margin-top: -20px;width: 150px;height: 150px;display: inline-block;box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);}
+			ul li2 a:hover img {transform: scale(1.1);}
 			 
-			.column {
-				float: left;
-			}
+			.column {float: left;}
+			.row::after {content: "";clear: both;display: block;} 
 			
-			.row::after {
-				content: "";
-				clear: both;
-				display: block;
-			} 
-			
-			.pfps{
-				display:inline-block;
-				margin-left:auto;
-				margin-right:auto;
-			}
+			.pfps{display:inline-block;margin-left:auto;margin-right:auto;}
 		</style>
 	<%
 	
@@ -187,11 +154,11 @@ try{
 	<style>
 		.button{
 			display:inline-block;
-			background-color:rgb(71, 107, 193);
+			background-color:rgb(41, 47, 53);
 			color:white;border:none;
-			padding:10px 20px; 
+			padding:20px 20px; 
 			position:relative; 
-			top:30px; 
+			top:35px; 
 			left:-20px; 
 			border-radius:8px;
 		}
@@ -200,11 +167,11 @@ try{
 			cursor:pointer;
 		}
 		.button2{
-			background-color:rgb(71, 107, 193);
+			background-color:rgb(41, 47, 53);
 			color:white;border:none;
-			padding:10px 20px; 
+			padding:20px 20px; 
 			position:relative; 
-			top:30px; 
+			top:35px; 
 			left:20px; 
 			border-radius:8px;
 		}
@@ -222,7 +189,7 @@ try{
 			.nav li{color:rgb(255,255,255); display:block; font-size:20px; padding:5px; position:relative; top:45px;}
 			.button3{
 				dsiplay:inline-block;
-				background-color:rgb(71, 107, 193);
+				background-color:rgb(41, 47, 53);
 				color:white;border:none;
 				padding:8px; 
 				position:relative; 
@@ -249,7 +216,7 @@ try{
 			<li>
 				<br>
 				<form method = "get" action = "Homepage.jsp">
-						<input id="input_join" type="text" name="input_join" size="80" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px;" placeholder = "Enter Board ID..."/>
+						<input id="input_join" type="text" name="input_join" size="80" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px;" placeholder = "Enter Board ID (#)..."/>
 						<input value="  Go  "  type="submit" class = "button3" ></input>
 				</form>
 			</li>
@@ -289,8 +256,8 @@ try{
 		<style>
 			P.blocktext {
 				font-family:arial;
-				font-size:20px;
-				color:LightSlateGray;
+				font-size:18px;
+				color: White;
 			    margin-left: auto;
 			    margin-right: auto;
 			    width:700px;
@@ -299,21 +266,12 @@ try{
 		</style> 
 		<br>
 	<%
-	String checkBoardsStr = "SELECT user.username, user.boards FROM user WHERE user.username = \"" + session.getAttribute("username").toString()+"\"";
+	String checkBoardsStr = "SELECT board.name FROM isin, board WHERE isin.user = \"" + session.getAttribute("username").toString()+"\" AND board.number = isin.board";
 	result = stmt.executeQuery(checkBoardsStr);
-	String boards = "";
-	while(result.next()){
-		boards = result.getString("user.boards");
-	}
-
-	out.print("<P class=\"blocktext\">");
-	String matchBoardsStr = "SELECT board.name, board.number FROM board";
-	result = stmt.executeQuery(matchBoardsStr);
 	
+	out.print("<P class = \"blocktext\">");
 	while(result.next()){
-		if(boards.contains(" " + result.getString("board.number") + ",")){
-			out.print(result.getString("board.name") + "<br>");
-		}
+		out.print(result.getString("board.name") + "<br>");
 	}
 	out.print("</P>");
 	
@@ -327,34 +285,24 @@ try{
 	
 	out.print("<style> p3{color:White; font-family:arial; text-align:center; font-size:25px;}</style>");
 	
-	out.print("<p3> Pending Invites (click to accept):<br></p3>");
+	out.print("<p3> Pending Invites:<br></p3><P class = \"blocktext\">");
 	
-	String checkInvitesStr = "SELECT user.id, user.invites FROM user WHERE user.id = \"" + session.getAttribute("userid").toString()+"\"";
-	result = stmt.executeQuery(checkInvitesStr);
-	String invites = "";
+	String checkInvites = "SELECT board.name FROM invitedto, board WHERE invitedto.user = \"" + session.getAttribute("username").toString()+"\" AND board.number = invitedto.board";
+	result = stmt.executeQuery(checkInvites);
+	
+	int x = 0;
 	while(result.next()){
-		invites = result.getString("user.invites");
+		x++;
+		out.print(result.getString("board.name") + "<br>");
 	}
-
-	out.print("<P class=\"blocktext\">");
-	if(invites.equals("")){
+	if(x == 0){
 		out.print("No pending invites");
-	}else{
-		matchBoardsStr = "SELECT board.name, board.number, board.creator FROM board";
-		result = stmt.executeQuery(matchBoardsStr);
-		
-		while(result.next()){
-			if(invites.contains(" " + result.getString("board.number") + ",")){
-				out.print("<b>"+result.getString("board.creator")+"<b> has invited you to <b>"+result.getString("board.name") + "</b><br>"); 
-			}
-		}
-		
 	}
-	
 	out.print("</P>");
 	
 	%>
 	<div id='bar' style='width: 720px; height: 20px; border-bottom: 2px solid LightSlateGray; text-align: center;'></div><br>
+	</div>
 	<%
 	
 }catch (Exception e){
