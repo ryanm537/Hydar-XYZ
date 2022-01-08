@@ -425,7 +425,12 @@ try{
 		out.print("<style> body{color:LightGrey; font-family:arial; text-align:left; font-size:15px; display:block}</style>");
 		out.print("<br><b><div id=\"msgUser\" style=\"display:inline\">"+ result.getString("user.username") + "</div></b> <div id=\"three\" style=\"display:inline\">");
 		out.print("<style> #three{color:Grey; font-family:arial; text-align:left; font-size:15px; display:inline}</style>");
-		if((timePassed * 60) < 1){
+		if((int)(timePassed * 60)==1){
+			out.print("&nbsp;("1 minute ago): ");
+		}else if((int)(timePassed)==1){
+			out.print("&nbsp;("1 hour ago): ");
+		}
+		else if((timePassed * 60) < 1){
 			out.print("&nbsp;(just now): ");
 		}else if(timePassed < 1){
 			out.print("&nbsp;(" + (int)(timePassed * 60) + " minutes ago): ");
@@ -455,7 +460,7 @@ try{
 	
 	%>
 		<script>
-			document.addEventListener('click',()=>{document.getElementById("bar").setAttribute("hidden",true);});
+			document.addEventListener('click',()=>{document.querySelector("link[rel*='icon']").href = "favicon.ico";document.getElementById("bar").setAttribute("hidden",true);});
 			function refresh(a,b){
 				var x=document.location.toString();
 				var n=x.substring(0,x.indexOf('?'));
@@ -470,7 +475,8 @@ try{
 					hdar.setAttribute("id","msgs");
 					hdar.innerHTML=doc.getElementById("msgs").innerHTML;var x=(parseInt(doc.getElementById("lastID").innerHTML)-parseInt(document.getElementById("lastID").innerHTML));
 					document.querySelectorAll("[id='two']")[1].innerHTML="Instant update</a>";
-					if(!b&&document.querySelectorAll("[id='two']")[0].innerHTML.includes("Off")){
+					if(document.querySelectorAll("[id='two']")[0].innerHTML.includes("Off")){
+						if(!b)x-=1;
 						document.getElementById("txtHint").innerHTML=""+(x>0?x:"No")+" new posts.<br>Post"+(x==1?"":"s")+" will be listed here...";
 						//setTimeout(() => {
 						//	document.getElementById("txtHint").innerHTML="Posts will be listed here...";
@@ -489,7 +495,8 @@ try{
 							}hdar.innerHTML=doc.getElementById("msgs").innerHTML;
 						if(!(hdar.innerHTML==document.getElementById("msgs").innerHTML)&&a){
 							document.getElementById("msgs").parentNode.replaceChild(hdar,document.getElementById("msgs"));
-							if(document.getElementById("profileName").innerHTML!=document.getElementById("msgUser").innerHTML){
+							if(!document.hasFocus()&&document.getElementById("profileName").innerHTML!=document.getElementById("msgUser").innerHTML){
+								document.querySelector("link[rel*='icon']").href = "https://cdn.discordapp.com/attachments/402933483200184321/929469849133006931/favicon2.ico";
 								document.getElementById("bar").removeAttribute("hidden");
 								try{
 									h=new Notification(document.getElementById("msgUser").innerHTML,{body:document.getElementById("msgText").innerHTML,icon:"https://cdn.discordapp.com/attachments/315971359102599168/921456500747173908/h.png"});
