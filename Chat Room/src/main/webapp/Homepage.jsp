@@ -34,11 +34,11 @@ try{
 	}
 	
 	Statement stmt1 = conn.createStatement();
-	String checkBoardsStr="SELECT user.username, user.boards FROM user WHERE user.id = \"" + session.getAttribute("userid").toString() + "\"";
+	String checkBoardsStr="SELECT * FROM isin WHERE isin.user = " + session.getAttribute("userid").toString() + "";
 	ResultSet result1 = stmt1.executeQuery(checkBoardsStr);
 	String boardString = "";
 	while(result1.next()){
-		boardString = result1.getString("user.boards");
+		boardString = boardString + " " + result1.getString("isin.board") + ",";
 	}
 	
 	if(!boardString.contains(" " + board + ",")){
@@ -69,12 +69,217 @@ try{
 			position:fixed; 
 			width:100%; 
 			left:0; 
-			top:0;}
+			top:0;
+			box-shadow:0 0 10px rgba(0,0,0,20);
+			z-index:1;}
 		
-		.margin{
-			margin-top:150px;
+		.sidebar{
+			height:calc(100% - 170px);
+			margin-bottom:450px;
+			width:210px;
+			position:fixed;
+			z-index:1;
+			left:-10px;
+			top:170px;
+			background-color: rgb(41, 47, 53);
+			overflow-x:hidden;
+			box-shadow:0 0 10px rgba(0,0,0,10);
+		}
+		
+		.sidebar p{font-size:20px;}
+		.sidebar p6{display:block;margin-left:20px;font-size:15px;color:White;text-align:left;}
+		.sidebar p7{margin-top:35px;display:block;color:White;margin-left:20px;font-size:15px;text-align:left;}
+		
+		.bottom_bar{
+			height:100%;
+			width:210px;
+			position:fixed;
+			z-index:1;
+			left:-10px;
+			top:calc(100% - 45px);
+			background-color: rgb(41, 47, 53);
+			overflow-x:hidden;
+			box-shadow:0 0 10px rgba(0,0,0,10);
+		}
+		
+		.margin{margin-top:150px;margin-left:210px;}
+		
+		.button{
+			background-color:rgb(61, 67, 83);
+			color:white;border:none;
+			padding:8px; 
+			position:relative; 
+			left:3px;
+			border-radius:8px;
+		}
+		.button:hover{
+			background-color:rgb(61, 97, 183);
+			cursor:pointer;
+		}
+		.button3{
+			dsiplay:inline-block;
+			background-color:rgb(61, 67, 83);
+			color:white;border:none;
+			padding:8px; 
+			position:relative; 
+			left:3px;
+			top:0px;
+			border-radius:8px;
+		}
+		.button3:hover{
+			background-color:rgb(61, 97, 183);
+			cursor:pointer;
 		}
 	</style>
+	
+	<div id = "sidebar" class = "sidebar">
+		<p>
+		<%
+			
+			// SIDE BAR
+		
+			if(board>=1 && board <= 3){
+				out.print("Public Board </p><div style='width: 100%; border-bottom: 2px solid rgba(0,0,0,20); display:block; text-align: center; position:relative; top:-15px;'></div>");
+			}else{
+				out.print("Private Board</p><div style='width: 100%; border-bottom: 2px solid rgba(0,0,0,20); text-align: center; position:relative; top:-15px;'></div><p6>");
+				
+				//find the creator of this board
+				String findOwner = "SELECT board.creator, user.id, user.username FROM board, user WHERE board.number = " +board + " AND user.id = board.creator";
+				ResultSet result = stmt1.executeQuery(findOwner);
+				String creator = "";
+				int creatorID = -1;
+				while(result.next()){
+					creator = result.getString("user.username");
+					creatorID = result.getInt("user.id");
+				}
+				
+				
+				out.print("<b>Owner:</b><br> &nbsp"+creator + "</p6><div style='width: 100%; border-bottom: 2px solid rgba(0,0,0,20); text-align: center; position:relative; top:20px;'></div>");
+				
+				//find boards where this user is a member (not creator)
+				String findMembers = "SELECT user.username, user.id FROM user, isin WHERE isin.user = user.id AND isin.board = " + board;
+				result = stmt1.executeQuery(findMembers);
+				String member = "";
+				
+				out.print("<p7><b>Members:</b><br>");
+				
+				while(result.next()){
+					if(result.getInt("user.id")!=creatorID){
+						member = result.getString("user.username");
+						if(session.getAttribute("userid").toString().equals(""+creatorID)){
+							out.print("&nbsp"+member + " #" + result.getInt("user.id") + "<br>");
+						}else{
+							out.print("&nbsp"+member + "<br>");
+						}
+					}
+				}
+				out.print("</p7>");
+				
+			}
+			
+			String findOwner = "SELECT board.creator, user.id, user.username FROM board, user WHERE board.number = " +board + " AND user.id = board.creator";
+			ResultSet result = stmt1.executeQuery(findOwner);
+			String creator = "";
+			int creatorID = -1;
+			while(result.next()){
+				creator = result.getString("user.username");
+				creatorID = result.getInt("user.id");
+			}
+		
+		%>
+	</div>
+	
+	<div hidden id = "bottom_bar" class="bottom_bar">
+		<input id = "Add" value="Add user"  type="submit" class = "button" style='margin-top:5px; margin-left:20px' >
+		
+		<input id = "Remove" value="Remove user"  type="submit" class = "button" style='margin-top:5px; margin-left:10px' >
+		
+		<form id = "addform" onsubmit="invite()" action="" target="dummyframe">
+			<input hidden id="ia1" type="text" name="input_create" size="23" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px;margin-top:10px; margin-left:22px" placeholder = "New user id (#)..."/>
+			<input hidden id = "ia2" value="Add"  type="submit" class = "button3" >
+		</form>
+		
+		<form id = "removeform" onsubmit="kick()" action="" target="dummyframe">
+			<input hidden id="ir1" type="text" name="input_remove" size="23" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px;margin-top:10px; margin-left:22px" placeholder = "Removing user id (#)..."/>
+			<input hidden id = "ir2" value="Remove"  type="submit" class = "button3" >
+		</form>			
+	</div>
+	
+	<script>
+		function adminButtons (){
+			<%
+			int isAdmin = 0;
+			if(session.getAttribute("userid").toString().equals(""+creatorID)){
+				isAdmin = 1;
+			}
+			if(isAdmin == 1){
+				%>
+				document.getElementById("sidebar").style.height = "calc(100% - 215px)";
+				document.getElementById("bottom_bar").removeAttribute("hidden");
+				
+					const x3 = document.getElementById('sidebar');
+						x3.addEventListener("click", () => {
+						document.getElementById("bottom_bar").style.top = "calc(100% - 45px)";
+						document.getElementById("bottom_bar").style.width = "210px";
+						document.getElementById("sidebar").style.height = "calc(100% - 215px)";
+						document.getElementById("ir1").setAttribue("hidden", true);
+						document.getElementById("ir2").setAttribute("hidden", true);
+						document.getElementById("ia1").setAttribute("hidden", true);
+						document.getElementById("ia2").setAttribute("hidden", true);
+						}
+					);
+				<%
+			}
+			%>
+			
+			const x1 = document.getElementById('Add');
+			x1.addEventListener("click", () => {
+				document.getElementById("bottom_bar").style.top = "calc(100% - 90px)";
+				document.getElementById("bottom_bar").style.width = "260px";
+				document.getElementById("sidebar").style.height = "calc(100% - 260px)";
+				document.getElementById("ia1").removeAttribute("hidden");
+				document.getElementById("ia2").removeAttribute("hidden");
+				document.getElementById("ir1").setAttribute("hidden", true);
+				document.getElementById("ir2").setAttribute("hidden", true);
+				}
+			);
+			
+			const x2 = document.getElementById('Remove');
+			x2.addEventListener("click", () => {
+				document.getElementById("bottom_bar").style.top = "calc(100% - 90px)";
+				document.getElementById("bottom_bar").style.width = "280px";
+				document.getElementById("sidebar").style.height = "calc(100% - 260px)";
+				document.getElementById("ir1").removeAttribute("hidden");
+				document.getElementById("ir2").removeAttribute("hidden");
+				document.getElementById("ia1").setAttribute("hidden", true);
+				document.getElementById("ia2").setAttribute("hidden", true);
+				}
+			);
+			
+			
+		}
+		function invite(){
+			var x=document.location.toString();
+			var n=x.substring(0,x.indexOf('?')).replace("Homepage.jsp","SubmitPost.jsp");
+			if(x.indexOf('?')<0)n=x.replace("Homepage.jsp","SubmitPost.jsp");
+			var q=<%out.print(board);%>;
+			if(x.indexOf("board=")<0)q=1;
+			$.get(n+"?autoOn=autoOff&input_text=/invite "+encodeURIComponent(document.forms[0].input_create.value)+"&board_num="+q).then(extraRefresh).fail(function(){document.querySelectorAll("[id='two']")[2].innerHTML="Loading...</a>";});
+			document.forms[0].input_create.value="";
+		}
+
+		function kick(){
+			var x=document.location.toString();
+			var n=x.substring(0,x.indexOf('?')).replace("Homepage.jsp","SubmitPost.jsp");
+			if(x.indexOf('?')<0)n=x.replace("Homepage.jsp","SubmitPost.jsp");
+			var q=<%out.print(board);%>;
+			if(x.indexOf("board=")<0)q=1;
+			$.get(n+"?autoOn=autoOff&input_text=/kick "+encodeURIComponent(document.forms[1].input_remove.value)+"&board_num="+q).then(extraRefresh).fail(function(){document.querySelectorAll("[id='two']")[3].innerHTML="Loading...</a>";});
+			document.forms[1].input_remove.value="";
+		}
+		adminButtons();
+	</script>
+	
 	<div class = "fix-div">
 	
 	<%
@@ -132,7 +337,7 @@ try{
 	}
 	
 	//printing everythig else
-	out.print("<p>Viewing board: " + b);
+	out.print("<p>Viewing board: " + b + " (#" + board + ")");
 	
 	out.print("&nbsp&nbsp|&nbsp&nbsp Auto update posts: ");
 	out.print("<style> #two{color:LightSlateGrey; font-family:arial; text-align:center; font-size:25px;}</style>");
@@ -167,26 +372,9 @@ try{
 	
 	out.print("<input value=\"" + board + "\"  type=\"hidden\" name=\"board_num\">");	
 	
+	// POST BUTTON
+	
 	%>
-	
-	<style>
-	.button{
-		background-color:rgb(71, 107, 193);
-		color:white;border:none;
-		padding:8px; 
-		position:relative; 
-		left:3px;
-		border-radius:8px;
-	}
-	.button:hover{
-		background-color:rgb(61, 97, 183);
-		cursor:pointer;
-	}
-	</style>
-	
-	
-	
-
 
 	<input value="  Post  "  type="submit" class = "button" >
 		
@@ -220,7 +408,7 @@ try{
 				+ " FROM user, posts, post"
 				+ " WHERE posts.post = post.id AND user.id = posts.user AND post.board = " + board
 				+ " ORDER BY post.id DESC";
-	ResultSet result = stmt.executeQuery(checkPostsStr);
+	result = stmt.executeQuery(checkPostsStr);
 	//int topPostID = result.getInt("post.id");
 	
 	int count = 25; // <- DISPLAYED POSTS LIMIT XXXXXXXXXXXXXXXXXX
@@ -250,10 +438,15 @@ try{
 		//html = html.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 		String fixedString = result.getString("post.contents").replaceAll("<", "&lt;");
 		fixedString=fixedString.replaceAll("&lt;href", "<href").replaceAll("&lt;img", "<img").replaceAll("&lt;br", "<br");
-		out.print("</div><br><div id=\"msgText\" style=\"display:inline\">" + fixedString +"</div><br clear = \"left\">");
+		out.print("</div><br><div id=\"msgText\" style=\"display:block; margin-left:60px; word-wrap: break-word;\">" + fixedString +"</div><br clear = \"left\">");
 	
 		count-=1;
 	}
+	
+	if(count == 25){
+		out.print("<div hidden style=\"display:none\" id=\"lastID\"> 0 </div>");
+	}
+	
 	out.print("</div>");
 	
 	
@@ -321,8 +514,8 @@ try{
 				if(x.indexOf('?')<0)n=x.replace("Homepage.jsp","SubmitPost.jsp");
 				var q=<%out.print(board);%>;
 				if(x.indexOf("board=")<0)q=1;
-				$.get(n+"?autoOn=autoOff&input_text="+encodeURIComponent(document.forms[1].input_text.value)+"&board_num="+q).then(extraRefresh).fail(function(){document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
-				document.forms[1].input_text.value="";
+				$.get(n+"?autoOn=autoOff&input_text="+encodeURIComponent(document.forms[3].input_text.value)+"&board_num="+q).then(extraRefresh).fail(function(){document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
+				document.forms[3].input_text.value="";
 			}
 			document.querySelectorAll("[id='two']")[1].addEventListener('click',fullRefresh);
 		</script>
