@@ -461,8 +461,13 @@ try{
 	
 	%>
 		<script>
-			document.addEventListener('click',()=>{document.querySelector("link[rel*='icon']").href = "favicon.ico";document.getElementById("bar").setAttribute("hidden",true);});
+			var idle = 0;
+			document.addEventListener('click',()=>{idle=0;document.querySelector("link[rel*='icon']").href = "favicon.ico";document.getElementById("bar").setAttribute("hidden",true);});
+			document.addEventListener('hover',()=>{idle=0;});
+			document.addEventListener('keypress',()=>{idle=0;});
+			document.addEventListener('mousemove',()=>{idle=0;});
 			function refresh(a,b){
+				idle+=1;
 				var x=document.location.toString();
 				var n=x.substring(0,x.indexOf('?'));
 				if(x.indexOf('?')<0)n=x;
@@ -496,7 +501,7 @@ try{
 							}hdar.innerHTML=doc.getElementById("msgs").innerHTML;
 						if(!(hdar.innerHTML==document.getElementById("msgs").innerHTML)&&a){
 							document.getElementById("msgs").parentNode.replaceChild(hdar,document.getElementById("msgs"));
-							if(!document.hasFocus()&&document.getElementById("profileName").innerHTML!=document.getElementById("msgUser").innerHTML){
+							if((!document.hasFocus()||idle>14)&&document.getElementById("profileName").innerHTML!=document.getElementById("msgUser").innerHTML){
 								document.querySelector("link[rel*='icon']").href = "favicon2.ico";
 								document.getElementById("bar").removeAttribute("hidden");
 								try{
