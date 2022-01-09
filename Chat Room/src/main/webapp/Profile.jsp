@@ -266,7 +266,7 @@ try{
 		</style> 
 		<br>
 	<%
-	String checkBoardsStr = "SELECT board.name FROM isin, board WHERE isin.user = \"" + session.getAttribute("username").toString()+"\" AND board.number = isin.board";
+	String checkBoardsStr = "SELECT board.name FROM isin, board WHERE isin.user = \"" + session.getAttribute("userid").toString()+"\" AND board.number = isin.board";
 	result = stmt.executeQuery(checkBoardsStr);
 	
 	out.print("<P class = \"blocktext\">");
@@ -287,7 +287,7 @@ try{
 	
 	out.print("<p3> Pending Invites:<br></p3><P class = \"blocktext\">");
 	
-	String checkInvites = "SELECT board.name FROM invitedto, board WHERE invitedto.user = \"" + session.getAttribute("username").toString()+"\" AND board.number = invitedto.board";
+	String checkInvites = "SELECT board.name FROM invitedto, board WHERE invitedto.user = \"" + session.getAttribute("userid").toString()+"\" AND board.number = invitedto.board";
 	result = stmt.executeQuery(checkInvites);
 	
 	int x = 0;
