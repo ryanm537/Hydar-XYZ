@@ -215,7 +215,7 @@ try{
 		<ul hidden id = "joinBar" class = "nav" >
 			<li>
 				<br>
-				<form method = "get" action = "Homepage.jsp">
+				<%out.print("<form method = \"get\" action = \"JoinBoard.jsp\">");%>
 						<input id="input_join" type="text" name="input_join" size="80" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px;" placeholder = "Enter Board ID (#)..."/>
 						<input value="  Go  "  type="submit" class = "button3" ></input>
 				</form>
@@ -287,13 +287,13 @@ try{
 	
 	out.print("<p3> Pending Invites:<br></p3><P class = \"blocktext\">");
 	
-	String checkInvites = "SELECT board.name FROM invitedto, board WHERE invitedto.user = \"" + session.getAttribute("userid").toString()+"\" AND board.number = invitedto.board";
+	String checkInvites = "SELECT board.name, board.number FROM invitedto, board WHERE invitedto.user = \"" + session.getAttribute("userid").toString()+"\" AND board.number = invitedto.board";
 	result = stmt.executeQuery(checkInvites);
 	
 	int x = 0;
 	while(result.next()){
 		x++;
-		out.print(result.getString("board.name") + "<br>");
+		out.print("(Board #: " + result.getString("board.number") + ") " + result.getString("board.name") + "<br>");
 	}
 	if(x == 0){
 		out.print("No pending invites");
