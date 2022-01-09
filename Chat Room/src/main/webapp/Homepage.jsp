@@ -34,14 +34,25 @@ try{
 	}
 	
 	Statement stmt1 = conn.createStatement();
-	String checkBoardsStr="SELECT * FROM isin WHERE isin.user = " + session.getAttribute("userid").toString() + "";
-	ResultSet result1 = stmt1.executeQuery(checkBoardsStr);
-	String boardString = "";
+	
+	String countBoards = "SELECT COUNT(isin.board) AS numBoards FROM isin WHERE isin.user = " + session.getAttribute("userid").toString();
+	ResultSet result1 = stmt1.executeQuery(countBoards);
+	int numBoards = 0;
 	while(result1.next()){
-		boardString = boardString + " " + result1.getString("isin.board") + ",";
+		numBoards = Integer.parseInt(result1.getString("numBoards"));
+	}
+
+	String checkBoardsStr="SELECT * FROM isin WHERE isin.user = " + session.getAttribute("userid").toString() + "";
+	result1 = stmt1.executeQuery(checkBoardsStr);
+	
+	int[] boardArray = new int[numBoards];
+	int n = 0;
+	while(result1.next()){
+		boardArray[n] = Integer.parseInt(result1.getString("isin.board"));
+		n++;
 	}
 	
-	if(!boardString.contains(" " + board + ",")){
+	if(numBoards == 0){
 		board = 1;
 	}
 	
@@ -300,25 +311,15 @@ try{
 	out.print("<option value = \"" + board + "\"> ---");
 	
 	// board selector
-	int[] boardNums = new int[(boardString.length()+1)/3];
-	for(int i = 0; i < boardString.length()-1; i++){
-		if(boardString.substring(i, i+1).equals(" ")){
-			for(int j = i+1; j < boardString.length(); j++){
-				if(boardString.substring(j, j+1).equals(",")){
-					boardNums[i/3] = Integer.parseInt((boardString.substring(i+1, j)));
-					break;
-				}
-			}
-		}
-	}
-	for(int i = 0; i < boardNums.length; i++){
-		String checkBoards = "SELECT board.name FROM board WHERE board.number = "+boardNums[i];	
+	
+	for(int i = 0; i < boardArray.length; i++){
+		String checkBoards = "SELECT board.name FROM board WHERE board.number = "+boardArray[i];	
 		ResultSet boardsQuery = stmt1.executeQuery(checkBoards);
 		String b = "";
 		while(boardsQuery.next()){
 			b=boardsQuery.getString("board.name");
 		}
-		out.print("<option value = \""+ boardNums[i] +"\"> " + b);
+		out.print("<option value = \""+ boardArray[i] +"\"> " + b);
 	}
 	out.print("<input value=\"Go\"  type=\"submit\"></select></form>");
 	
@@ -426,9 +427,9 @@ try{
 		out.print("<br><b><div id=\"msgUser\" style=\"display:inline\">"+ result.getString("user.username") + "</div></b> <div id=\"three\" style=\"display:inline\">");
 		out.print("<style> #three{color:Grey; font-family:arial; text-align:left; font-size:15px; display:inline}</style>");
 		if((int)(timePassed * 60)==1){
-			out.print("&nbsp;("1 minute ago): ");
+			out.print("&nbsp;(1 minute ago): ");
 		}else if((int)(timePassed)==1){
-			out.print("&nbsp;("1 hour ago): ");
+			out.print("&nbsp;(1 hour ago): ");
 		}
 		else if((timePassed * 60) < 1){
 			out.print("&nbsp;(just now): ");
@@ -496,7 +497,7 @@ try{
 						if(!(hdar.innerHTML==document.getElementById("msgs").innerHTML)&&a){
 							document.getElementById("msgs").parentNode.replaceChild(hdar,document.getElementById("msgs"));
 							if(!document.hasFocus()&&document.getElementById("profileName").innerHTML!=document.getElementById("msgUser").innerHTML){
-								document.querySelector("link[rel*='icon']").href = "https://cdn.discordapp.com/attachments/402933483200184321/929469849133006931/favicon2.ico";
+								document.querySelector("link[rel*='icon']").href = "favicon2.ico";
 								document.getElementById("bar").removeAttribute("hidden");
 								try{
 									h=new Notification(document.getElementById("msgUser").innerHTML,{body:document.getElementById("msgText").innerHTML,icon:"https://cdn.discordapp.com/attachments/315971359102599168/921456500747173908/h.png"});
