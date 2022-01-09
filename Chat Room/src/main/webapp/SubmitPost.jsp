@@ -67,6 +67,13 @@ try{
 					response.sendRedirect("InviteUser.jsp?invitedID=" + invitedUser + "&board_num="+board);
 				}
 				
+				// /invite
+				if(inputText.substring(0, inputText.indexOf(" ")).equals("/kick")){
+					int kickedUser = Integer.parseInt(inputText.substring(inputText.indexOf(" ") + 1));
+					inputText = "Removed user #" + kickedUser;
+					response.sendRedirect("KickUser.jsp?kickID=" + kickedUser + "&board_num="+board);
+				}
+				
 			}
 			
 			
