@@ -51,7 +51,7 @@ try{
 	
 	str = "SELECT board.creator FROM board WHERE board.number = " + board;
 	while(result.next()){
-		if(result.getString("board.creator")!=session.getAttribute("userid")){
+		if(Integer.parseInt(result.getString("board.creator"))!=Integer.parseInt(session.getAttribute("userid").toString())){
 			throw new Exception();
 		}
 	}
