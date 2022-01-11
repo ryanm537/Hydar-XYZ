@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<project name="the project" default="compile" basedir=".">
+<project name="the project" default="compile" basedir="../">
 
 	<property name="src.dir" location="Chat-Room/src/main/webapp" />
 	<property name="bin.dir" location="Chat-Room/src/main/webapp" />
