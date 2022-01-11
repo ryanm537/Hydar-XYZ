@@ -51,7 +51,7 @@ class ServerThread extends Thread {
                 //flush output and wait .25s(done for every output)
 				output.flush();
 				try {
-					Thread.sleep(1);
+					Thread.sleep(0);
 				} catch (InterruptedException e) {
 					Thread.currentThread().interrupt();
 				}
@@ -70,7 +70,7 @@ class ServerThread extends Thread {
 					output.write(("HTTP/1.1 400 Bad Request\r\nServer: Large_Hydar/1.1\r\n\r\n" + "400 Bad Request" + "").getBytes());
 					output.flush();
 					try {
-						Thread.sleep(1);
+						Thread.sleep(0);
 					} catch (InterruptedException e) {
 						Thread.currentThread().interrupt();
 					}
@@ -93,7 +93,7 @@ class ServerThread extends Thread {
 							+ "505 HTTP Version Not Supported\nSupported: HTTP/1.1, HTTP/1.0" + "").getBytes());
 					output.flush();
 					try {
-						Thread.sleep(1);
+						Thread.sleep(0);
 					} catch (InterruptedException ee) {
 						Thread.currentThread().interrupt();
 					}
@@ -117,7 +117,7 @@ class ServerThread extends Thread {
 						output.write(("HTTP/1.1 403 Forbidden\r\nServer: Large_Hydar/1.1\r\n\r\n" + "403 Forbidden" + "").getBytes());
 						output.flush();
 						try {
-							Thread.sleep(1);
+							Thread.sleep(0);
 						} catch (InterruptedException eee) {
 							Thread.currentThread().interrupt();
 						}
@@ -145,7 +145,7 @@ class ServerThread extends Thread {
 					}
 					output.flush();
 					try {
-						Thread.sleep(1);
+						Thread.sleep(0);
 					} catch (InterruptedException eee) {
 						Thread.currentThread().interrupt();
 					}
@@ -198,7 +198,7 @@ class ServerThread extends Thread {
 								.getBytes());
 						output.flush();
 						try {
-							Thread.sleep(1);
+							Thread.sleep(0);
 						} catch (InterruptedException eee) {
 							Thread.currentThread().interrupt();
 						}
@@ -338,7 +338,7 @@ class ServerThread extends Thread {
 											("HTTP/1.1 500 Internal Server Error\r\nServer: Large_Hydar/1.1\r\n\r\n" + "500 Internal Server Error" + "").getBytes());
 									output.flush();
 									try {
-										Thread.sleep(1);
+										Thread.sleep(0);
 									} catch (InterruptedException ee) {
 										Thread.currentThread().interrupt();
 									}
@@ -394,7 +394,7 @@ class ServerThread extends Thread {
 			}
 			output.flush();
 			try {
-				Thread.sleep(1);
+				Thread.sleep(0);
 			} catch (InterruptedException eeee) {
 				Thread.currentThread().interrupt();
 			}
@@ -413,7 +413,7 @@ class ServerThread extends Thread {
 						("HTTP/1.1 500 Internal Server Error\r\nServer: Large_Hydar/1.1\r\n\r\n" + "500 Internal Server Error" + "").getBytes());
 				output.flush();
 				try {
-					Thread.sleep(1);
+					Thread.sleep(0);
 				} catch (InterruptedException ee) {
 					Thread.currentThread().interrupt();
 				}
@@ -529,10 +529,11 @@ public class Hydar {
 			if(success){
 				//System.out.println(path);
 				File f = new File(".\\HydarCompilerCache\\"+n+".class");
+				File cache = new File("./HydarCompilerCache");
 				f.delete();
 				Path moved = Files.move(Paths.get(n+".class"),Paths.get(".\\HydarCompilerCache\\"+n+".class"));
 				try{
-					//ucl = new URLClassLoader(new URL[]{cache.toURI().toURL()});
+					ucl = new URLClassLoader(new URL[]{cache.toURI().toURL()});
 					Class c = ucl.loadClass(n);
 					classes.put(n,c);
 				}catch(Exception what){
@@ -649,10 +650,16 @@ public class Hydar {
 					if(timestamps.get(e)==null||(timestamps.get(e).getTime()!=j.lastModified())){
 						System.out.println("Replacing file "+e+".jsp ...");
 						timestamps.put(e,new Date(j.lastModified()));
+						Class temp = classes.get(e);
+						ArrayList<String> tempH = htmls.get(e);
 						classes.remove(e);
 						htmls.remove(e);
 						int diag2 = compile(j);
 						if(diag2<0){
+							if(temp!=null)
+								classes.put(e,temp);
+							if(tempH!=null)
+								htmls.put(e,tempH);
 							System.out.println("Failed to replace: "+e);
 						}else{
 							System.out.println("Successfully replaced: "+e+", warnings: "+diag2);
@@ -705,7 +712,7 @@ public class Hydar {
 							output.write(("HTTP/1.1 505 Service Unavailable\r\nServer: Large_Hydar/1.1\r\n\r\n505 Service Unavailable").getBytes());
 							output.flush();
 							try {
-								Thread.sleep(1);
+								Thread.sleep(0);
 							} catch (InterruptedException ee) {
 								Thread.currentThread().interrupt();
 							}
