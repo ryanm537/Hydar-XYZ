@@ -325,15 +325,15 @@ class ServerThread extends Thread {
 											@SuppressWarnings("unchecked")ConcurrentHashMap<String,String> av = (ConcurrentHashMap<String,String>)ret[1];
 											String h = (String)ret[2];
 											String redirect = (String)ret[3];
+											ConcurrentHashMap<String,String> tmp = new ConcurrentHashMap<String,String>();
+											for(String k:ak.keySet()){
+												if(ak.get(k)){
+													tmp.put(k,av.get(k));
+												}else{
+													tmp.put(k,Hydar.attr.get(session).get(k));
+												}
+											}Hydar.attr.put(session,tmp);
 											if(redirect==null){
-												ConcurrentHashMap<String,String> tmp = new ConcurrentHashMap<String,String>();
-												for(String k:ak.keySet()){
-													if(ak.get(k)){
-														tmp.put(k,av.get(k));
-													}else{
-														tmp.put(k,Hydar.attr.get(session).get(k));
-													}
-												}Hydar.attr.put(session,tmp);
 												newData+=h;
 											}else{
 												re=new String(redirect);
@@ -500,13 +500,13 @@ public class Hydar {
 				String o="private String jsp_urlParams;\nprivate String jsp_redirect;\nprivate String jsp_html;\n";
 				String v="private ConcurrentHashMap<String,Boolean> jsp_attr_set;\n";
 				String i="private ConcurrentHashMap<String,String> jsp_attr_values;\n";
-				String a="private void jsp_SA(String jsp_arg0, String jsp_arg1){\nif(jsp_arg1==null){\nthis.jsp_attr_values.remove(jsp_arg0);\nthis.jsp_attr_set.put(jsp_arg0,true);\nreturn;\n}\nthis.jsp_attr_values.put(jsp_arg0,jsp_arg1);\nthis.jsp_attr_set.put(jsp_arg0,true);\n}\n";
-				String q="private String jsp_GA(String jsp_arg0){\nreturn this.jsp_attr_values.get(jsp_arg0);\n}\n";
-				String u="private void jsp_OP(String jsp_arg0){\nthis.jsp_html+=jsp_arg0;\n}\nprivate void jsp_OP(int jsp_arg0){\nthis.jsp_html+=jsp_arg0;\n}\n";
-				String a_="private String jsp_GP(String jsp_arg0){\nif(this.jsp_urlParams.indexOf(jsp_arg0+\"=\")>=0){\nreturn this.jsp_urlParams.substring(this.jsp_urlParams.indexOf(jsp_arg0+\"=\")+jsp_arg0.length()+1).split(\"&\")[0];}\nreturn null;\n}\n";
-				String r_="private void jsp_SR(String jsp_arg0){\nthis.jsp_redirect=jsp_arg0;\n}\n";
-				String t="private void jsp__P(String jsp_arg0){\nSystem.out.print(jsp_arg0);\n}\n";
-				String a__="private void jsp__Pln(String jsp_arg0){\nSystem.out.println(jsp_arg0);\n}\n";
+				String a="private void jsp_SA(Object jsp_arg0, Object jsp_arg1){\nif(jsp_arg1==null){\nthis.jsp_attr_values.remove(jsp_arg0.toString());\nthis.jsp_attr_set.put(jsp_arg0.toString(),true);\nreturn;\n}\nthis.jsp_attr_values.put(jsp_arg0.toString(),jsp_arg1.toString());\nthis.jsp_attr_set.put(jsp_arg0.toString(),true);\n}\n";
+				String q="private String jsp_GA(Object jsp_arg0){\nreturn this.jsp_attr_values.get(jsp_arg0.toString());\n}\n";
+				String u="private void jsp_OP(Object jsp_arg0){\nthis.jsp_html+=jsp_arg0.toString();\n}\n";
+				String a_="private String jsp_GP(Object jsp_arg0){\nif(this.jsp_urlParams.indexOf(jsp_arg0.toString()+\"=\")>=0){\nreturn this.jsp_urlParams.substring(this.jsp_urlParams.indexOf(jsp_arg0.toString()+\"=\")+jsp_arg0.toString().length()+1).split(\"&\")[0];}\nreturn null;\n}\n";
+				String r_="private void jsp_SR(Object jsp_arg0){\nthis.jsp_redirect=jsp_arg0.toString();\n}\n";
+				String t="private void jsp__P(Object jsp_arg0){\nSystem.out.print(jsp_arg0.toString());\n}\n";
+				String a__="private void jsp__Pln(Object jsp_arg0){\nSystem.out.println(jsp_arg0.toString());\n}\n";
 				while(s.indexOf("<%")>-1){
 					htmls.put(n+i_,s.substring(0,s.indexOf("<%")));
 					javas.add(s.substring(s.indexOf("<%")+2,s.indexOf("%>")));
