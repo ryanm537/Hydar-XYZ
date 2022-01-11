@@ -523,12 +523,12 @@ public class Hydar {
 					if(htmls.get(n+index)!=null){
 						x__+="\nthis.jsp_OP(\""+htmls.get(n+index).replace("\"","\\\"").replace("\r","").replace("\n","\\n\"+\n\"")+"\");\n";
 					}
-					x=x.replace("session.getAttribute","jsp_GA");
-					x=x.replace("session.setAttribute","jsp_SA");
-					x=x.replace("System.out.print","jsp__P");
-					x=x.replace("out.print","jsp_OP");
-					x=x.replace("request.getParameter","jsp_GP");
-					x=x.replace("response.sendRedirect","jsp_SR");
+					x=x.replace("session.getAttribute","this.jsp_GA");
+					x=x.replace("session.setAttribute","this.jsp_SA");
+					x=x.replace("System.out.print","this.jsp__P");
+					x=x.replace("out.print","this.jsp_OP");
+					x=x.replace("request.getParameter","this.jsp_GP");
+					x=x.replace("response.sendRedirect","this.jsp_SR");
 					x__+=x;
 					index++;
 				}if(htmls.get(n+index)!=null){
