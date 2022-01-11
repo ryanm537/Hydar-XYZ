@@ -25,6 +25,15 @@ import javax.tools.SimpleJavaFileObject;
 import javax.tools.ToolProvider;
 import javax.tools.JavaCompiler.CompilationTask;
 import javax.tools.JavaFileObject.Kind;
+import java.security.KeyStore;
+import java.security.SecureRandom;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.TrustManagerFactory;
 class ServerThread extends Thread {
 	Socket client = null;
 
@@ -51,7 +60,7 @@ class ServerThread extends Thread {
                 //flush output and wait .25s(done for every output)
 				output.flush();
 				try {
-					Thread.sleep(0);
+					Thread.sleep(1);
 				} catch (InterruptedException e) {
 					Thread.currentThread().interrupt();
 				}
@@ -70,7 +79,7 @@ class ServerThread extends Thread {
 					output.write(("HTTP/1.1 400 Bad Request\r\nServer: Large_Hydar/1.1\r\n\r\n" + "400 Bad Request" + "").getBytes());
 					output.flush();
 					try {
-						Thread.sleep(0);
+						Thread.sleep(1);
 					} catch (InterruptedException e) {
 						Thread.currentThread().interrupt();
 					}
@@ -93,7 +102,7 @@ class ServerThread extends Thread {
 							+ "505 HTTP Version Not Supported\nSupported: HTTP/1.1, HTTP/1.0" + "").getBytes());
 					output.flush();
 					try {
-						Thread.sleep(0);
+						Thread.sleep(1);
 					} catch (InterruptedException ee) {
 						Thread.currentThread().interrupt();
 					}
@@ -117,7 +126,7 @@ class ServerThread extends Thread {
 						output.write(("HTTP/1.1 403 Forbidden\r\nServer: Large_Hydar/1.1\r\n\r\n" + "403 Forbidden" + "").getBytes());
 						output.flush();
 						try {
-							Thread.sleep(0);
+							Thread.sleep(1);
 						} catch (InterruptedException eee) {
 							Thread.currentThread().interrupt();
 						}
@@ -145,7 +154,7 @@ class ServerThread extends Thread {
 					}
 					output.flush();
 					try {
-						Thread.sleep(0);
+						Thread.sleep(1);
 					} catch (InterruptedException eee) {
 						Thread.currentThread().interrupt();
 					}
@@ -198,7 +207,7 @@ class ServerThread extends Thread {
 								.getBytes());
 						output.flush();
 						try {
-							Thread.sleep(0);
+							Thread.sleep(1);
 						} catch (InterruptedException eee) {
 							Thread.currentThread().interrupt();
 						}
@@ -338,7 +347,7 @@ class ServerThread extends Thread {
 											("HTTP/1.1 500 Internal Server Error\r\nServer: Large_Hydar/1.1\r\n\r\n" + "500 Internal Server Error" + "").getBytes());
 									output.flush();
 									try {
-										Thread.sleep(0);
+										Thread.sleep(1);
 									} catch (InterruptedException ee) {
 										Thread.currentThread().interrupt();
 									}
@@ -394,7 +403,7 @@ class ServerThread extends Thread {
 			}
 			output.flush();
 			try {
-				Thread.sleep(0);
+				Thread.sleep(1);
 			} catch (InterruptedException eeee) {
 				Thread.currentThread().interrupt();
 			}
@@ -413,7 +422,7 @@ class ServerThread extends Thread {
 						("HTTP/1.1 500 Internal Server Error\r\nServer: Large_Hydar/1.1\r\n\r\n" + "500 Internal Server Error" + "").getBytes());
 				output.flush();
 				try {
-					Thread.sleep(0);
+					Thread.sleep(1);
 				} catch (InterruptedException ee) {
 					Thread.currentThread().interrupt();
 				}
@@ -421,8 +430,7 @@ class ServerThread extends Thread {
 				this.client.close();
 				return;
 			} catch (IOException eee) {
-                //failed to send the error code
-				System.out.println("error");
+                eee.printStackTrace();
 			}
 		}
 	}
@@ -612,14 +620,32 @@ public class Hydar {
 		}
 		int port = Integer.parseInt(args[0]);
 		//checks if port is valid
-		if (port < 1024 || port > 65535) {
+		if (port < 1 || port > 65535) {
 			System.out.println("Invalid port");
 			System.exit(0);
 		}
-		ServerSocket server = null;
+		SSLServerSocket server = null;
 		try {
-			server = new ServerSocket(port);
-		} catch (IOException f) {
+			KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+			InputStream tstore = Hydar.class.getResourceAsStream("/" + "trust.jks");
+			trustStore.load(tstore, "hydarhydar".toCharArray());
+			tstore.close();
+			TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+			tmf.init(trustStore);
+			
+			KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+			InputStream kstore = Hydar.class.getResourceAsStream("/" + "identity.jks");
+			keyStore.load(kstore, "hydarhydar".toCharArray());
+			KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+			kmf.init(keyStore, "hydarhydar".toCharArray());
+			SSLContext ctx = SSLContext.getInstance("TLS");
+			ctx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), SecureRandom.getInstanceStrong());
+			SSLServerSocketFactory factory = ctx.getServerSocketFactory();
+			server = (SSLServerSocket)factory.createServerSocket(port);
+			//server.setNeedClientAuth(true);
+			server.setEnabledProtocols(new String[] {"TLSv1.3"});
+		} catch (Exception f) {
+			f.printStackTrace();
 			System.out.println("Cannot open port " + port);
 			return;
 		}
@@ -712,7 +738,7 @@ public class Hydar {
 							output.write(("HTTP/1.1 505 Service Unavailable\r\nServer: Large_Hydar/1.1\r\n\r\n505 Service Unavailable").getBytes());
 							output.flush();
 							try {
-								Thread.sleep(0);
+								Thread.sleep(1);
 							} catch (InterruptedException ee) {
 								Thread.currentThread().interrupt();
 							}
