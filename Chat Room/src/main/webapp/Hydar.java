@@ -487,7 +487,7 @@ public class Hydar {
 			timestamps.put(n,new Date(j.lastModified()));
 			for(String x:javas){
 				//System.out.println(path);
-				if(htmls.get(n+index)!=null){
+				if(htmls.get(n)!=null){
 					x__+="\nthis.jsp_OP(\""+htmls.get(n).get(index).replace("\"","\\\"").replace("\r","").replace("\n","\\n\"+\n\"")+"\");\n";
 				}
 				x=x.replace("session.getAttribute","this.jsp_GA");
@@ -498,7 +498,7 @@ public class Hydar {
 				x=x.replace("response.sendRedirect","this.jsp_SR");
 				x__+=x;
 				index++;
-			}if(htmls.get(n+index)!=null){
+			}if(htmls.get(n)!=null){
 				x__+="\nthis.jsp_OP(\""+htmls.get(n).get(index).replace("\"","\\\"").replace("\r","").replace("\n","\\n\"+\n\"")+"\");\n";
 			}
 			x__+="}catch(Exception jsp_e){\njsp_e.printStackTrace();return new Object[]{};}\nreturn new Object[]{this.jsp_attr_set,this.jsp_attr_values,this.jsp_html,this.jsp_redirect};\n\n}\n}";
