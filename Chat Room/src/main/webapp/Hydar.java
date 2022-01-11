@@ -328,9 +328,13 @@ class ServerThread extends Thread {
 											ConcurrentHashMap<String,String> tmp = new ConcurrentHashMap<String,String>();
 											for(String k:ak.keySet()){
 												if(ak.get(k)){
-													tmp.put(k,av.get(k));
+													if(av.get(k)!=null)
+														tmp.put(k,av.get(k));
+													else tmp.remove(k);
 												}else{
-													tmp.put(k,Hydar.attr.get(session).get(k));
+													if(Hydar.attr.get(session).get(k)!=null)
+														tmp.put(k,Hydar.attr.get(session).get(k));
+													else tmp.remove(k);
 												}
 											}Hydar.attr.put(session,tmp);
 											if(redirect==null){
