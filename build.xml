@@ -6,7 +6,7 @@
 	<property name="lib.dir" location="Chat Room/src/main/webapp/lib" />
 
 	<path id="classpath">
-		<fileset dir="${lib.dir}" includes="**/*.jar" />
+		<fileset dir="${lib.dir}" includes="mysql-connector-java-5.1.49-bin.jar" />
 	</path>
 
 	<target name="init">
