@@ -303,6 +303,14 @@ try{
 	%>
 	<div id='bar' style='width: 720px; height: 20px; border-bottom: 2px solid LightSlateGray; text-align: center;'></div><br>
 	</div>
+	<input id = "enableNotifications" value="Notifications..."  type="submit" class="button"></input>
+	<script>
+		const notif = document.getElementById('enableNotifications');
+				notif.addEventListener("click", () => {
+					Notification.requestPermission().then(function(permission) {});
+				}
+	);
+	</script>
 	<%
 	
 }catch (Exception e){
