@@ -1,6 +1,7 @@
 import java.util.*;
 import java.net.*;
 import java.io.*;
+import java.lang.Character;
 import java.lang.reflect.Method;
 import java.lang.reflect.Constructor;
 import java.nio.charset.*;
@@ -297,12 +298,12 @@ class ServerThread extends Thread {
 						err+="</html>";
 						boolean ise=false;
 						String re=null;
-						while(data.indexOf("<%")>-1){
-							newData+=data.substring(0,data.indexOf("<%"));
-							data=data.substring(data.indexOf("%>")+2);
+						if(data.indexOf("<%")>-1){
+							//newData+=data.substring(0,data.indexOf("<%"));
+							//data=data.substring(data.indexOf("%>")+2);
 							try{
 								String name = firstLine[1].substring(firstLine[1].lastIndexOf("/")+1);
-								Class c = Hydar.classes.get(name.substring(0,name.lastIndexOf("."))+i);
+								Class c = Hydar.classes.get(name.substring(0,name.lastIndexOf(".")));
 								//System.out.println(name.substring(0,name.lastIndexOf("."))+i);
 								Method[] m = c.getDeclaredMethods();
 								Constructor co = c.getConstructors()[0];
@@ -339,7 +340,7 @@ class ServerThread extends Thread {
 											}
 										}
 									}
-								if(ise)break;
+								
 							}catch(Exception e){
 								e.printStackTrace();
 								try {
@@ -360,8 +361,10 @@ class ServerThread extends Thread {
 								}
 							}
 							
-							i++;
-						}newData+=data;
+							//i++;
+						}else{
+							newData+=data;
+						}
 						if(ise){
 							output.write(("HTTP/1.1 500 Internal Server Error\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nContent-Encoding: identity\r\nContent-Length: "
 									+ newData.length() + "\r\nContent-Type: text/html;charset=ISO-8859-1"
@@ -454,6 +457,7 @@ public class Hydar {
 	public static String[] banned;
 	private static ArrayList<String> compilerOptions;
 	public static HashMap<String,Class> classes;
+	public static HashMap<String,String> htmls;
 	public static ConcurrentHashMap<String,ConcurrentHashMap<String,String>> attr = new ConcurrentHashMap<String,ConcurrentHashMap<String,String>>();
 	public static void main(String[] args) {
 		banned = new String[]{".class",".java",".jar",".bat"};
@@ -468,6 +472,7 @@ public class Hydar {
 		}catch(Exception exc){
 			exc.printStackTrace();
 		}
+		int diag=0;
 		try{
 			ArrayList<File> jsp = new ArrayList<File>();
 			for(File f:dir.listFiles()){
@@ -479,6 +484,7 @@ public class Hydar {
 				Files.walk(cache.toPath()).sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete);
 			}
 			classes = new HashMap<String,Class>();
+			htmls = new HashMap<String,String>();
 			new File("./HydarCompilerCache").mkdirs();
 			ucl = new URLClassLoader(new URL[]{cache.toURI().toURL()});
 			for(File j:jsp){
@@ -487,87 +493,103 @@ public class Hydar {
 				ArrayList<String> javas = new ArrayList<String>();
 				while(s.indexOf("<%@")>-1){
 					s=s.substring(s.indexOf("%>")+2);
-				}while(s.indexOf("<%")>-1){
+				}int i_=0;
+				String x_="this.jsp_attr_values=new ConcurrentHashMap<String,String>(jsp_attr);\nthis.jsp_urlParams=jsp_param;\nthis.jsp_attr_set=new ConcurrentHashMap<String,Boolean>();\nfor(String jsp_local_s:jsp_attr.keySet()){\nthis.jsp_attr_set.put(jsp_local_s,false);}\nthis.jsp_urlParams=new String(jsp_param);\nthis.jsp_redirect=null;\nthis.jsp_html=\"\";";
+				String e=path.substring(path.lastIndexOf('\\')+1,path.lastIndexOf('.'))+".jsp";
+				String n=path.substring(path.lastIndexOf('\\')+1,path.lastIndexOf('.'));
+				String o="private String jsp_urlParams;\nprivate String jsp_redirect;\nprivate String jsp_html;\n";
+				String v="private ConcurrentHashMap<String,Boolean> jsp_attr_set;\n";
+				String i="private ConcurrentHashMap<String,String> jsp_attr_values;\n";
+				String a="private void jsp_SA(String jsp_arg0, String jsp_arg1){\nif(jsp_arg1==null){\nthis.jsp_attr_values.remove(jsp_arg0);\nthis.jsp_attr_set.put(jsp_arg0,true);\nreturn;\n}\nthis.jsp_attr_values.put(jsp_arg0,jsp_arg1);\nthis.jsp_attr_set.put(jsp_arg0,true);\n}\n";
+				String q="private String jsp_GA(String jsp_arg0){\nreturn this.jsp_attr_values.get(jsp_arg0);\n}\n";
+				String u="private void jsp_OP(String jsp_arg0){\nthis.jsp_html+=jsp_arg0;\n}\nprivate void jsp_OP(int jsp_arg0){\nthis.jsp_html+=jsp_arg0;\n}\n";
+				String a_="private String jsp_GP(String jsp_arg0){\nif(this.jsp_urlParams.indexOf(jsp_arg0+\"=\")>=0){\nreturn this.jsp_urlParams.substring(this.jsp_urlParams.indexOf(jsp_arg0+\"=\")+jsp_arg0.length()+1).split(\"&\")[0];}\nreturn null;\n}\n";
+				String r_="private void jsp_SR(String jsp_arg0){\nthis.jsp_redirect=jsp_arg0;\n}\n";
+				String t="private void jsp__P(String jsp_arg0){\nSystem.out.print(jsp_arg0);\n}\n";
+				String a__="private void jsp__Pln(String jsp_arg0){\nSystem.out.println(jsp_arg0);\n}\n";
+				while(s.indexOf("<%")>-1){
+					htmls.put(n+i_,s.substring(0,s.indexOf("<%")));
 					javas.add(s.substring(s.indexOf("<%")+2,s.indexOf("%>")));
 					s=s.substring(s.indexOf("%>")+2);
-				}//System.out.println(javas);
+					i_++;
+				}htmls.put(n+i_,s);
+				//System.out.println(javas);
 				int index=0;
+				ArrayList<String> varNames = new ArrayList<String>();
+				ArrayList<String> varTypes = new ArrayList<String>();
+				String x__="import java.util.HashMap;\nimport java.util.concurrent.*;import java.sql.*;\npublic class "+n+"{\npublic "+n+"(){\n}\n"+o+v+i+a+q+u+a_+r_+t+a__+"public Object[] jsp_Main(String jsp_param, ConcurrentHashMap<String, String> jsp_attr) {\ntry{\n"+x_;
 				for(String x:javas){
 					//System.out.println(path);
-					String x_="this.jsp_attr_values=new ConcurrentHashMap<String,String>(jsp_attr);\nthis.jsp_urlParams=jsp_param;\nthis.jsp_attr_set=new ConcurrentHashMap<String,Boolean>();\nfor(String jsp_local_s:jsp_attr.keySet()){\nthis.jsp_attr_set.put(jsp_local_s,false);}\nthis.jsp_urlParams=new String(jsp_param);\nthis.jsp_redirect=null;\nthis.jsp_html=\"\";";
-					String e=path.substring(path.lastIndexOf('\\')+1,path.lastIndexOf('.'))+index+".jsp";
-					String n=path.substring(path.lastIndexOf('\\')+1,path.lastIndexOf('.'));
-					String o="private String jsp_urlParams;\nprivate String jsp_redirect;\nprivate String jsp_html;\n";
-					String v="private ConcurrentHashMap<String,Boolean> jsp_attr_set;\n";
-					String i="private ConcurrentHashMap<String,String> jsp_attr_values;\n";
-					String a="private void jsp_SA(String jsp_arg0, String jsp_arg1){\nif(jsp_arg1==null){\nthis.jsp_attr_values.remove(jsp_arg0);\nthis.jsp_attr_set.put(jsp_arg0,true);\nreturn;\n}\nthis.jsp_attr_values.put(jsp_arg0,jsp_arg1);\nthis.jsp_attr_set.put(jsp_arg0,true);\n}\n";
-					String q="private String jsp_GA(String jsp_arg0){\nreturn this.jsp_attr_values.get(jsp_arg0);\n}\n";
-					String u="private void jsp_OP(String jsp_arg0){\nthis.jsp_html+=jsp_arg0;\n}\n";
-					String a_="private String jsp_GP(String jsp_arg0){\nif(this.jsp_urlParams.indexOf(jsp_arg0+\"=\")>=0){\nreturn this.jsp_urlParams.substring(this.jsp_urlParams.indexOf(jsp_arg0+\"=\")+jsp_arg0.length()+1).split(\"&\")[0];}\nreturn null;\n}\n";
-					String r_="private void jsp_SR(String jsp_arg0){\nthis.jsp_redirect=jsp_arg0;\n}\n";
-					String t="private void jsp__P(String jsp_arg0){\nSystem.out.print(jsp_arg0);\n}\n";
-					String a__="private void jsp__Pln(String jsp_arg0){\nSystem.out.println(jsp_arg0);\n}\n";
+					if(htmls.get(n+index)!=null){
+						x__+="\nthis.jsp_OP(\""+htmls.get(n+index).replace("\"","\\\"").replace("\r","").replace("\n","\\n\"+\n\"")+"\");\n";
+					}
 					x=x.replace("session.getAttribute","jsp_GA");
 					x=x.replace("session.setAttribute","jsp_SA");
 					x=x.replace("System.out.print","jsp__P");
 					x=x.replace("out.print","jsp_OP");
 					x=x.replace("request.getParameter","jsp_GP");
 					x=x.replace("response.sendRedirect","jsp_SR");
-					x="import java.util.HashMap;\nimport java.util.concurrent.*;import java.sql.*;\npublic class "+n+index+"{\npublic "+n+index+"(){\n}\n"+o+v+i+a+q+u+a_+r_+t+a__+"public Object[] jsp_Main(String jsp_param, ConcurrentHashMap<String, String> jsp_attr) {\ntry{\n"+x_+x;
-					x+="}catch(Exception jsp_e){\njsp_e.printStackTrace();return new Object[]{};}\nreturn new Object[]{this.jsp_attr_set,this.jsp_attr_values,this.jsp_html,this.jsp_redirect};\n\n}\n}";
-					
-					JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-					DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<JavaFileObject>();
-					
-					StringWriter writer = new StringWriter();
-					PrintWriter out = new PrintWriter(writer);
-					Writer fileWriter = new FileWriter(".\\HydarCompilerCache\\"+n+index+".java", false);
-					out.println(x);
-					//System.out.println(x);
-					fileWriter.write(x);
-					fileWriter.close();
-					out.close();
-					JavaFileObject file = new JavaSourceFromString(n+index, writer.toString());
-					Iterable<? extends JavaFileObject> compilationUnits = Arrays.asList(file);
-					CompilationTask task = compiler.getTask(null, null, diagnostics, compilerOptions, null, compilationUnits);
-					boolean success = task.call();
-					for (Diagnostic diagnostic : diagnostics.getDiagnostics()) {
-						  System.out.println(diagnostic.getCode());
-						  System.out.println(diagnostic.getKind());
-						  System.out.println("line: "+diagnostic.getLineNumber());
-						  System.out.println(diagnostic.getSource());
-						  System.out.println(diagnostic.getMessage(null));
+					x__+=x;
+					index++;
+				}if(htmls.get(n+index)!=null){
+					x__+="\nthis.jsp_OP(\""+htmls.get(n+index).replace("\"","\\\"").replace("\r","").replace("\n","\\n\"+\n\"")+"\");\n";
+				}
+				x__+="}catch(Exception jsp_e){\njsp_e.printStackTrace();return new Object[]{};}\nreturn new Object[]{this.jsp_attr_set,this.jsp_attr_values,this.jsp_html,this.jsp_redirect};\n\n}\n}";
+				JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+				DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<JavaFileObject>();
+				
+				StringWriter writer = new StringWriter();
+				PrintWriter out = new PrintWriter(writer);
+				Writer fileWriter = new FileWriter(".\\HydarCompilerCache\\"+n+".java", false);
+				out.println(x__);
+				//System.out.println(x__);
+				fileWriter.write(x__);
+				fileWriter.close();
+				out.close();
+				JavaFileObject file = new JavaSourceFromString(n, writer.toString());
+				Iterable<? extends JavaFileObject> compilationUnits = Arrays.asList(file);
+				CompilationTask task = compiler.getTask(null, null, diagnostics, compilerOptions, null, compilationUnits);
+				boolean success = task.call();
+				for (Diagnostic diagnostic : diagnostics.getDiagnostics()) {
+					  diag++;
+					  System.out.println(diagnostic.getCode());
+					  System.out.println(diagnostic.getKind());
+					  System.out.println("line: "+diagnostic.getLineNumber());
+					  System.out.println(diagnostic.getSource());
+					  System.out.println(diagnostic.getMessage(null));
 
-						}
-					if(success){
-						//System.out.println(path);
-						File f = new File(".\\HydarCompilerCache\\"+n+index+".class");
-						f.delete();
-						Path moved = Files.move(Paths.get(n+index+".class"),Paths.get(".\\HydarCompilerCache\\"+n+index+".class"));
-						try{
-							//ucl = new URLClassLoader(new URL[]{cache.toURI().toURL()});
-							Class c = ucl.loadClass(n+index);
-							classes.put(n+index,c);
-						}catch(Exception what){
-							what.printStackTrace();
-							System.exit(0);
-						}
-					}else{
-						double r = Math.random();
-						if(r<0.33)
-							System.out.println(e+": Compilation failed. You are fat");
-						else if(r<0.67)
-							System.out.println(e+": Compilation failed. laugh at this person");
-						else
-							System.out.println(e+": Compilation failed + ratio");
+					}
+				if(success){
+					//System.out.println(path);
+					File f = new File(".\\HydarCompilerCache\\"+n+".class");
+					f.delete();
+					Path moved = Files.move(Paths.get(n+".class"),Paths.get(".\\HydarCompilerCache\\"+n+".class"));
+					try{
+						//ucl = new URLClassLoader(new URL[]{cache.toURI().toURL()});
+						Class c = ucl.loadClass(n);
+						classes.put(n,c);
+					}catch(Exception what){
+						what.printStackTrace();
 						System.exit(0);
 					}
-					index++;
+				}else{
+					double r = Math.random();
+					if(r<0.33)
+						System.out.println(e+": Compilation failed. You are fat");
+					else if(r<0.67)
+						System.out.println(e+": Compilation failed. laugh at this person");
+					else
+						System.out.println(e+": Compilation failed + ratio");
+					System.exit(0);
 				}
+				
 			}
 			File hydr = new File("./lib/Amogus.jar");
 			System.out.println(Files.readString(hydr.toPath()));
-			System.out.println("Compilation successful! Starting server.");
+			
+			if(diag>0){
+				System.out.println("Compilation successful with "+diag+" warning(s)! Starting server.");
+			}else System.out.println("Compilation successful! Starting server.");
 		}catch(IOException ioe){
 			ioe.printStackTrace();
 			return;	
