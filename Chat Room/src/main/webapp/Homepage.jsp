@@ -18,12 +18,15 @@
 <style type="text/css">
 form{ display: inline-block; }
 </style>
-
 <div id="show">
 </div>
+
+
+
+
 <%
 Class.forName("com.mysql.jdbc.Driver").newInstance();
-Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatroom?autoReconnect=true&useSSL=false", "root", "hydar");
+Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatroom?autoReconnect=true&useSSL=false", "root", "catfish2001");
 try{
 	//CHECK IF BOARD IS SPECIFIED, and redirect if the user does not have perms.
 	
@@ -47,9 +50,17 @@ try{
 	
 	int[] boardArray = new int[numBoards];
 	int n = 0;
+	int check = 0;
 	while(result1.next()){
 		boardArray[n] = Integer.parseInt(result1.getString("isin.board"));
 		n++;
+		if(board == result1.getInt("isin.board")){
+			check += 1;
+		}
+	}
+	
+	if(check == 0){
+		board = 1;
 	}
 	
 	if(numBoards == 0){
@@ -144,6 +155,7 @@ try{
 	</style>
 	
 	<div id = "sidebar" class = "sidebar">
+		
 		<p>
 		<%
 			
@@ -213,7 +225,8 @@ try{
 		<form id = "removeform" onsubmit="kick()" action="" target="dummyframe">
 			<input hidden id="ir1" type="text" name="input_remove" size="23" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px;margin-top:10px; margin-left:22px" placeholder = "Removing user id (#)..."/>
 			<input hidden id = "ir2" value="Remove"  type="submit" class = "button3" >
-		</form>			
+		</form>	
+			
 	</div>
 	
 	<script>
@@ -301,17 +314,22 @@ try{
 	out.print("Hello <div id=\"profileName\" style=\"display:inline\">" + session.getAttribute("username").toString() + "</div>! | ");
 	out.print("<style type=\"text/css\"> a{color:LightGrey; font-family:arial; text-align:right; font-size:15px}</style>");
 	out.print("<a href=\"Profile.jsp\"> Profile</a>&nbsp;| ");
+	out.print("<a href=\"MainMenu.jsp\"> Home</a>&nbsp;| ");
 	out.print("<a href=\"Logout.jsp\"> Log out</a> &nbsp;&nbsp;");
 	
 	out.print("<style type=\"text/css\"> h1{color:rgb(255,255,255); text-align:left; font-size:15px}</style>");
-	out.print("<img src=\"hydar.png\" alt=\"hydar\" width = \"25px\" height = \"40px\" align = \"center\">");
-	out.print("&nbsp;&nbsp;&nbsp;Pick a board: ");
+	out.print("<img src=\"hydar.png\" alt=\"hydar\" width = \"25px\" height = \"40px\" align = \"center\" style =\"margin-right:10px\">");
+
+	
+	//out.print("&nbsp;&nbsp;&nbsp;Pick a board: ");
+	%>
+	<div style = "display:none;">
+	<%
 	out.print("<form method=\"get\" action=\"Homepage.jsp\">");
 	out.print("<select name=\"board\">" );
-	out.print("<option value = \"" + board + "\"> ---");
+	out.print("<option value = \"" + board + "\"> ---</div>");
 	
 	// board selector
-	
 	for(int i = 0; i < boardArray.length; i++){
 		String checkBoards = "SELECT board.name FROM board WHERE board.number = "+boardArray[i];	
 		ResultSet boardsQuery = stmt1.executeQuery(checkBoards);
@@ -322,6 +340,7 @@ try{
 		out.print("<option value = \""+ boardArray[i] +"\"> " + b);
 	}
 	out.print("<input value=\"Go\"  type=\"submit\"></select></form>");
+
 	
 	out.print("</h1>");
 	
@@ -338,7 +357,7 @@ try{
 	}
 	
 	//printing everythig else
-	out.print("<p>Viewing board: " + b + " (#" + board + ")");
+	out.print("<p>Viewing board: " + b);
 	
 	out.print("&nbsp&nbsp|&nbsp&nbsp Auto update posts: ");
 	out.print("<style> #two{color:LightSlateGrey; font-family:arial; text-align:center; font-size:25px;}</style>");
