@@ -11,7 +11,16 @@
 </head>
 <body>
 <script type="text/javascript" src ="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-<body style = "background-color:rgb(51, 57, 63);"> 
+<style>
+	body{
+		background-image:url('hydarface.png');
+		background-repeat:no-repeat;
+		background-attachment:fixed;
+		background-size:100% 150%;
+		background-color:rgb(51, 57, 63);
+		background-position: 0% 50%;
+	}
+</style>
 <%
 
 
@@ -60,18 +69,33 @@ try{
 					
 				}
 				
-				// /invite
-				if(inputText.substring(0, inputText.indexOf(" ")).equals("/invite")){
-					int invitedUser = Integer.parseInt(inputText.substring(inputText.indexOf(" ") + 1));
-					inputText = "Sent invite to user #" + invitedUser;
-					response.sendRedirect("InviteUser.jsp?invitedID=" + invitedUser + "&board_num="+board);
+				// commands that take an input
+				if(inputText.indexOf(" ") != -1){
+					// /invite
+					if(inputText.substring(0, inputText.indexOf(" ")).equals("/invite")){
+						int invitedUser = Integer.parseInt(inputText.substring(inputText.indexOf(" ") + 1));
+						inputText = "Sent invite to user #" + invitedUser;
+						response.sendRedirect("InviteUser.jsp?invitedID=" + invitedUser + "&board_num="+board);
+					}
+					
+					// /invite
+					if(inputText.substring(0, inputText.indexOf(" ")).equals("/kick")){
+						int kickedUser = Integer.parseInt(inputText.substring(inputText.indexOf(" ") + 1));
+						inputText = "Removed user #" + kickedUser;
+						response.sendRedirect("KickUser.jsp?kickID=" + kickedUser + "&board_num="+board);
+					}
+					
 				}
 				
-				// /invite
-				if(inputText.substring(0, inputText.indexOf(" ")).equals("/kick")){
-					int kickedUser = Integer.parseInt(inputText.substring(inputText.indexOf(" ") + 1));
-					inputText = "Removed user #" + kickedUser;
-					response.sendRedirect("KickUser.jsp?kickID=" + kickedUser + "&board_num="+board);
+				
+				// /delete - prompt comfirmation
+				if(inputText.equals("/deleteboard")){
+					inputText = "Requested to delete board. Type \"\"/confirm-delete\"\" to confirm and delete this board.";
+				}
+				
+				// delete - actual
+				if(inputText.equals("/confirm-delete")){
+					inputText = "Deleting board...";
 				}
 				
 			}
@@ -79,15 +103,17 @@ try{
 			
 			
 		}
-		
 		String addPostStr="INSERT INTO post(`contents`, `id`, `board`, `created_date`)"
 					+ " VALUES (\"" + inputText + "\", " + newID + ", " + board + ", " + System.currentTimeMillis() + ")";
 		int addPost = stmt.executeUpdate(addPostStr);
 		
-		String addPostsStr="INSERT INTO posts(`user`, `post`)"
-				+ " VALUES (" + session.getAttribute("userid").toString() + ", " + newID + ")";
+		String addPostsStr="INSERT INTO posts(`user`, `post`, `board`)"
+				+ " VALUES (" + session.getAttribute("userid").toString() + ", " + newID + ", " + board + ")";
 		int addPosts = stmt.executeUpdate(addPostsStr);
 		
+		if(inputText.equals("Deleting board...")){
+			response.sendRedirect("DeleteBoard.jsp?board_num="+board);
+		}
 		
 	}
 	
