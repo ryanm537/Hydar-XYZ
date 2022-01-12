@@ -4,6 +4,7 @@ import java.io.*;
 import java.lang.Character;
 import java.lang.reflect.Method;
 import java.lang.reflect.Constructor;
+import java.lang.management.ManagementFactory;
 import java.nio.charset.*;
 import java.nio.file.*;
 import java.text.SimpleDateFormat;
@@ -59,6 +60,7 @@ class ServerThread extends Thread {
 					line = buffer.readLine();
 				} catch (java.net.SocketTimeoutException ste) {
 					output.write(("HTTP/1.1 408 Request Timeout\r\nServer: Large_Hydar/1.1\r\n\r\n" + "408 Request Timeout" + "").getBytes());
+					//System.out.println("timeout");
 					//flush output and wait .25s(done for every output)
 					output.flush();
 					try {
@@ -363,9 +365,12 @@ class ServerThread extends Thread {
 					} else {
 						output.write(("HTTP/1.1 400 Bad Request\r\nServer: Large_Hydar/1.1\r\n\r\n400 Bad Request").getBytes());
 					}
-
-				}
-				output.flush();
+					try {
+						Thread.sleep(1);
+					} catch (InterruptedException ee) {
+						Thread.currentThread().interrupt();
+					}
+				}else alive=false;
 				if(!alive){
 					try {
 						Thread.sleep(1);
@@ -377,9 +382,10 @@ class ServerThread extends Thread {
 					ir.close();
 					buffer.close();
 					this.client.close();
+					return;
 				}
+				output.flush();
 			}
-			return;
 		} catch (IOException e) {
 			
 			//500 is interpreted as "any other error"
@@ -627,6 +633,7 @@ public class Hydar {
 		}catch(Exception eeeeeee){
 			System.out.println("???");
 		}while (true) {
+
 			if(new Date().getTime()-lastUpdate.getTime()>2000){
 				//check files(recompile as needed)
 				lastUpdate = new Date();
@@ -678,6 +685,7 @@ public class Hydar {
 						alives++;
 				}
 				//all threads are dead -> reset threadpool
+				//System.out.println("ALIVE: "+alives+", EXIST: "+ManagementFactory.getThreadMXBean().getThreadCount());
 				if (alives == 0) {
 					threads = new ArrayList<ServerThread>(5);
 					threads.add(connection);
