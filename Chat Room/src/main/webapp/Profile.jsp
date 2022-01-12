@@ -56,7 +56,7 @@ try{
 	out.print("<h1 style = \"color:rgb(255,255,255); font-size:15px; font-family:arial; text-align:right;position:relative;\"></style>");
 	out.print("Hello <div id=\"profileName\" style=\"display:inline\">" + session.getAttribute("username").toString() + "</div>! | ");
 	out.print("<style type=\"text/css\"> a{color:LightGrey; font-family:arial; text-align:right; font-size:15px; display:inline-block;padding-top:15px;}</style>");
-	out.print("<a href=\"Homepage.jsp\"> Home</a>&nbsp;| ");
+	out.print("<a href=\"MainMenu.jsp\"> Home</a>&nbsp;| ");
 	out.print("<a href=\"Logout.jsp\"> Log out</a> &nbsp;&nbsp;");
 	
 	out.print("<style type=\"text/css\"> h1{color:rgb(255,255,255); text-align:left; margin-right:10px; font-size:15px;}</style>");
