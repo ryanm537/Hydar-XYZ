@@ -26,7 +26,7 @@ form{ display: inline-block; }
 
 <%
 Class.forName("com.mysql.jdbc.Driver").newInstance();
-Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatroom?autoReconnect=true&useSSL=false", "root", "catfish2001");
+Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatroom?autoReconnect=true&useSSL=false", "root", "hydar");
 try{
 	//CHECK IF BOARD IS SPECIFIED, and redirect if the user does not have perms.
 	
