@@ -515,7 +515,7 @@ try{
 					}else{
 						if(!(hdar.innerHTML==document.getElementById("msgs").innerHTML)){
 							for(i in document.getElementById("msgs").querySelectorAll("[id = 'three']")){
-								if(hdar.querySelectorAll("[id = 'three']").length>0){
+								if(hdar.querySelectorAll("[id = 'three']").length>i){
 									document.getElementById("msgs").querySelectorAll("[id = 'three']")[i].parentNode.replaceChild(hdar.querySelectorAll("[id = 'three']")[0],document.getElementById("msgs").querySelectorAll("[id = 'three']")[i]);
 								}
 							}hdar.innerHTML=doc.getElementById("msgs").innerHTML;
