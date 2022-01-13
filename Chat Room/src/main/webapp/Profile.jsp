@@ -109,6 +109,18 @@ try{
 			.row::after {content: "";clear: both;display: block;} 
 			
 			.pfps{display:inline-block;margin-left:auto;margin-right:auto;}
+			.button{
+				background-color:rgb(61, 67, 83);
+				color:white;border:none;
+				padding:10px 8px; 
+				position:relative; 
+				left:3px;
+				border-radius:8px;
+			}
+			.button:hover{
+				background-color:rgb(61, 97, 183);
+				cursor:pointer;
+			}
 		</style>
 	<%
 	
@@ -146,162 +158,8 @@ try{
 	
 	%>
 	<div id='bar' style='width: 720px; height: 20px; border-bottom: 2px solid LightSlateGray; text-align: center;'></div>
-	<%
-	
-	// CREATE / JOIN BOARD BUTTONS
-	
-	%>
-	<style>
-		.button{
-			display:inline-block;
-			background-color:rgb(41, 47, 53);
-			color:white;border:none;
-			padding:20px 20px; 
-			position:relative; 
-			top:35px; 
-			left:-20px; 
-			border-radius:8px;
-		}
-		.button:hover{
-			background-color:rgb(61, 97, 183);
-			cursor:pointer;
-		}
-		.button2{
-			background-color:rgb(41, 47, 53);
-			color:white;border:none;
-			padding:20px 20px; 
-			position:relative; 
-			top:35px; 
-			left:20px; 
-			border-radius:8px;
-		}
-		.button2:hover{
-			background-color:rgb(61, 97, 183);
-			cursor:pointer;
-		}
-	</style>
-	
-	<input id = "createPrivate" value="Create Private Board"  type="submit" class="button"></input>
-	<input id = "joinPrivate" value="Join Private Board"  type="submit" class="button2"></input>
-
-		<style>
-			.nav{text-align:center; font-family:arial; list-style-type:none; margin:0; padding:0;} 
-			.nav li{color:rgb(255,255,255); display:block; font-size:20px; padding:5px; position:relative; top:45px;}
-			.button3{
-				dsiplay:inline-block;
-				background-color:rgb(41, 47, 53);
-				color:white;border:none;
-				padding:8px; 
-				position:relative; 
-				left:3px;
-				top:0px;
-				border-radius:8px;
-			}
-			.button3:hover{
-				background-color:rgb(61, 97, 183);
-				cursor:pointer;
-			}
-		</style>
-		<ul hidden id = "createBar" class = "nav" >
-			<li>
-				<br>
-				<%out.print("<form method = \"get\" action = \"CreateBoard.jsp\">");%>
-						<input id="input_create" type="text" name="input_create" size="80" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px;" placeholder = "New board name..."/>
-						<input value="  Go  "  type="submit" class = "button3" ></input>
-				</form>
-			</li>
-		</ul>
-		
-		<ul hidden id = "joinBar" class = "nav" >
-			<li>
-				<br>
-				<%out.print("<form method = \"get\" action = \"JoinBoard.jsp\">");%>
-						<input id="input_join" type="text" name="input_join" size="80" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px;" placeholder = "Enter Board ID (#)..."/>
-						<input value="  Go  "  type="submit" class = "button3" ></input>
-				</form>
-			</li>
-		</ul>
-	
-	<script>
-		function buttons(){
-			const createPrivate = document.getElementById('createPrivate');
-			createPrivate.addEventListener("click", () => {
-				document.getElementById("createBar").removeAttribute("hidden");
-				document.getElementById("joinBar").setAttribute("hidden", true);
-				}
-			);
-			
-			const joinPrivate = document.getElementById('joinPrivate');
-			joinPrivate.addEventListener("click", () => {
-				document.getElementById("joinBar").removeAttribute("hidden");
-				document.getElementById("createBar").setAttribute("hidden", true);
-				}
-			);
-		}
-		buttons();
-	</script>
 	
 	
-	<div id='bar' style='width: 720px; height: 65px; border-bottom: 2px solid LightSlateGray; text-align: center;'></div>
-	
-	<%
-	
-	out.print("<style> p3{color:White; font-family:arial; text-align:center; font-size:25px;}</style>");
-	
-	out.print("<p3><br> Your Boards: </p3>");
-	
-	// DISPLAY BOARDS
-	
-	%>
-		<style>
-			P.blocktext {
-				font-family:arial;
-				font-size:18px;
-				color: White;
-			    margin-left: auto;
-			    margin-right: auto;
-			    width:700px;
-			    text-align: left;
-			}
-		</style> 
-		<br>
-	<%
-	String checkBoardsStr = "SELECT board.name FROM isin, board WHERE isin.user = \"" + session.getAttribute("userid").toString()+"\" AND board.number = isin.board";
-	result = stmt.executeQuery(checkBoardsStr);
-	
-	out.print("<P class = \"blocktext\">");
-	while(result.next()){
-		out.print(result.getString("board.name") + "<br>");
-	}
-	out.print("</P>");
-	
-	%>
-	<div id='bar' style='width: 720px; height: 20px; border-bottom: 2px solid LightSlateGray; text-align: center;'></div><br>
-	<%
-	
-	
-	// DISPLAY INVITES
-	
-	
-	out.print("<style> p3{color:White; font-family:arial; text-align:center; font-size:25px;}</style>");
-	
-	out.print("<p3> Pending Invites:<br></p3><P class = \"blocktext\">");
-	
-	String checkInvites = "SELECT board.name, board.number FROM invitedto, board WHERE invitedto.user = \"" + session.getAttribute("userid").toString()+"\" AND board.number = invitedto.board";
-	result = stmt.executeQuery(checkInvites);
-	
-	int x = 0;
-	while(result.next()){
-		x++;
-		out.print("(Board #: " + result.getString("board.number") + ") " + result.getString("board.name") + "<br>");
-	}
-	if(x == 0){
-		out.print("No pending invites");
-	}
-	out.print("</P>");
-	
-	%>
-	<div id='bar' style='width: 720px; height: 20px; border-bottom: 2px solid LightSlateGray; text-align: center;'></div><br>
 	</div>
 	<input id = "enableNotifications" value="Notifications..."  type="submit" class="button"></input>
 	<script>
