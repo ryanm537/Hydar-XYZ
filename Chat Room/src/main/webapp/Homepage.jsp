@@ -60,6 +60,7 @@ try{
 	}
 	
 	if(check == 0){
+		%><meta http-equiv="refresh" content="0; url='MainMenu.jsp'" /><%
 		board = 1;
 	}
 	
