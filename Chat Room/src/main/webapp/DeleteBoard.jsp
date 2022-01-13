@@ -75,7 +75,7 @@ try{
 		 
 	}
 	out.print("<form action=\"targetServlet\">");
-	response.sendRedirect("Homepage.jsp?board=1");
+	response.sendRedirect("MainMenu.jsp");
 	out.print("</form>");
 	 
 	
