@@ -519,7 +519,7 @@ try{
 									document.getElementById("msgs").querySelectorAll("[id = 'three']")[i].parentNode.replaceChild(hdar.querySelectorAll("[id = 'three']")[0],document.getElementById("msgs").querySelectorAll("[id = 'three']")[i]);
 								}
 							}hdar.innerHTML=doc.getElementById("msgs").innerHTML;
-						if(!(hdar.innerHTML==document.getElementById("msgs").innerHTML)&&a){
+						if((x!=0)&&a){
 							document.getElementById("msgs").parentNode.replaceChild(hdar,document.getElementById("msgs"));
 							if((!document.hasFocus()||idle>14)&&document.getElementById("profileName").innerHTML!=document.getElementById("msgUser").innerHTML){
 								document.querySelector("link[rel*='icon']").href = "favicon2.ico";
