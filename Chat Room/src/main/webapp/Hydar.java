@@ -4,10 +4,11 @@ import java.io.*;
 import java.lang.Character;
 import java.lang.reflect.Method;
 import java.lang.reflect.Constructor;
-import java.lang.management.ManagementFactory;
 import java.nio.charset.*;
 import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.text.SimpleDateFormat;
+import java.text.FieldPosition;
 import java.text.ParseException;
 import java.util.TimeZone;
 import java.util.Date;
@@ -22,6 +23,8 @@ import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
+import javax.tools.StandardJavaFileManager;
+import javax.tools.StandardLocation;
 import javax.tools.SimpleJavaFileObject;
 import javax.tools.ToolProvider;
 import javax.tools.JavaCompiler.CompilationTask;
@@ -76,8 +79,19 @@ class ServerThread extends Thread {
 					this.client.close();
 					return;
 				}
-				
 				if (line != null) {
+					
+					//reads rest of the request(headers)
+					String headers = new String();
+					this.client.setSoTimeout(1);
+					try {
+						for (String head; (head = buffer.readLine()) != null; headers += head+"\n")
+							;
+					} catch (java.net.SocketTimeoutException seee) {
+						//socket times out at end of input(set to 1ms to make it faster, only once per request)
+					}
+					this.client.setSoTimeout(5000);
+					String[] heads = headers.split("\n");
 					String[] firstLine = line.split(" ");
 					// malformed input
 					if (firstLine.length != 3) {
@@ -104,39 +118,45 @@ class ServerThread extends Thread {
 					
 					//tests http version
 					if (!(firstLine[2].equals("HTTP/1.0")) && !(firstLine[2].equals("HTTP/1.1")) && !(firstLine[2].equals("HTTP/2.0"))) {
-						output.write(("HTTP/1.1 505 HTTP Version Not Supported\r\nServer: Large_Hydar/1.1\r\n\r\n"
-								+ "505 HTTP Version Not Supported\nSupported: HTTP/1.1, HTTP/1.0" + "").getBytes());
+						output.write(("HTTP/1.1 505 HTTP Version Not Supported\r\nServer: Large_Hydar/1.1\r\nContent-Length: "+Hydar.err_l+"\r\n\r\n"
+								+ Hydar.err).getBytes());
 						output.flush();
+						continue;
 					}//default
 					if (firstLine[1].equals("/")) {
 						firstLine[1] = "/Login.jsp";
 					}
 					String data="";
-					String timestamp="";
-					
+					Date st=null;
+					String timestamp = "";
 					try {
 						//don't allow requests outside of current folder
 						Path p = Paths.get("." + firstLine[1]).normalize();
 						if (p.toString().contains("..")) {
-							output.write(("HTTP/1.1 403 Forbidden\r\nServer: Large_Hydar/1.1\r\n\r\n" + "403 Forbidden" + "").getBytes());
+							output.write(("HTTP/1.1 403 Forbidden\r\nServer: Large_Hydar/1.1\r\nContent-Length: "+Hydar.err_l+"\r\n\r\n" + Hydar.err).getBytes());
 							output.flush();
+							continue;
 						}
 						data = Files.readString(Paths.get("." + firstLine[1]), StandardCharsets.ISO_8859_1);
 						s = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US);
 						s.setTimeZone(TimeZone.getTimeZone("GMT"));
-						timestamp = s.format(new File("." + firstLine[1]).lastModified());
+						st = Hydar.timestamps.get(firstLine[1].substring(firstLine[1].indexOf("/")+1).replace("/","\\"));
+						StringBuffer timestampBuffer=new StringBuffer("");
+						s.format(st,timestampBuffer,new FieldPosition(0));
+						timestamp = timestampBuffer.toString();
 					} catch (IOException e) {
 						//create file to test what caused error(could also use e)
 						File f = new File("." + firstLine[1]);
 						if (!f.exists()) {
-							output.write(("HTTP/1.1 404 Not Found\r\nServer: Large_Hydar/1.1\r\n\r\n" + "404 Not Found" + "").getBytes());
+							output.write(("HTTP/1.1 404 Not Found\r\nServer: Large_Hydar/1.1\r\nContent-Length: "+Hydar.err_l+"\r\n\r\n" + Hydar.err).getBytes(StandardCharsets.ISO_8859_1));
 						} else if (!Files.isReadable(Paths.get("." + firstLine[1]))) {
-							output.write(("HTTP/1.1 403 Forbidden\r\nServer: Large_Hydar/1.1\r\n\r\n" + "403 Forbidden" + "").getBytes());
+							output.write(("HTTP/1.1 403 Forbidden\r\nServer: Large_Hydar/1.1\r\nContent-Length: "+Hydar.err_l+"\r\n\r\n" + Hydar.err).getBytes(StandardCharsets.ISO_8859_1));
 						} else {
-							output.write(("HTTP/1.1 500 Internal Server Error\r\nServer: Large_Hydar/1.1\r\n\r\n" + "500 Internal Server Error" + "")
-									.getBytes());
+							output.write(("HTTP/1.1 500 Internal Server Error\r\nServer: Large_Hydar/1.1\r\nContent-Length: "+Hydar.err_l+"\r\n\r\n" + Hydar.err)
+									.getBytes(StandardCharsets.ISO_8859_1));
 						}
 						output.flush();
+						continue;
 					}
 					
 					//mime type
@@ -144,17 +164,7 @@ class ServerThread extends Thread {
 					if (mime == null)
 						mime = "application/octet-stream";
 					
-					//reads rest of the request(headers)
-					String headers = new String();
-					this.client.setSoTimeout(1);
-					try {
-						for (String head; (head = buffer.readLine()) != null; headers += head+"\n")
-							;
-					} catch (java.net.SocketTimeoutException seee) {
-						//socket times out at end of input(set to 1ms to make it faster, only once per request)
-					}
-					this.client.setSoTimeout(5000);
-					String[] heads = headers.split("\n");
+					
 					String modif = null;
 					for (String str : heads) {
 						if (str.startsWith("If-Modified-Since: ")) {
@@ -167,11 +177,10 @@ class ServerThread extends Thread {
 						}
 					}
 					if (modif != null) {
-						Date ct = null, st = null;
+						Date ct = null;
 						boolean b = false;
 						try {
 							ct = s.parse(modif);
-							st = s.parse(timestamp);
 						} catch (ParseException eeeee) {
 							b = true;
 						}
@@ -234,36 +243,14 @@ class ServerThread extends Thread {
 							while(data.indexOf("<%@")>-1){
 								data=data.substring(data.indexOf("%>")+2);
 							}
-							String err="<!DOCTYPE html>";
-							err+="<html>";
-							err+="<head>";
-							err+="<meta charset=\"ISO-8859-1\">";
-							err+="<title>Submitting Post... - Hydar</title>";
-							err+="<link rel=\"shorcut icon\" href=\"favicon.ico\"/>";
-							err+="</head>";
-							err+="<body>";
-							err+="<script type=\"text/javascript\" src =\"https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js\"></script>";
-							err+="<style>";
-							err+="	body{";
-							err+="		background-image:url('hydarface.png');";
-							err+="		background-repeat:no-repeat;";
-							err+="		background-attachment:fixed;";
-							err+="		background-size:100% 150%;";
-							err+="		background-color:rgb(51, 57, 63);";
-							err+="		background-position: 0% 50%;";
-							err+="	}";
-							err+="</style>";
-							err+="<style> body{color:rgb(255,255,255); font-family:arial; text-align:center; font-size:20px;}</style><center>A known error has occurred.";
-							err+="<br><br><form method=\"get\" action=\"Logout.jsp\"><td><input type=\"submit\" value=\"Back to login\"></td></form>";
-							err+="</body>";
-							err+="</html>";
+							
 							boolean ise=false;
 							String re=null;
 							if(data.indexOf("<%")>-1){
 								//newData+=data.substring(0,data.indexOf("<%"));
 								//data=data.substring(data.indexOf("%>")+2);
 								try{
-									String name = firstLine[1].substring(firstLine[1].lastIndexOf("/")+1);
+									String name = firstLine[1].substring(firstLine[1].indexOf("/")+1).replace("/","\\");
 									Class c = Hydar.classes.get(name.substring(0,name.lastIndexOf(".")));
 									//System.out.println(name.substring(0,name.lastIndexOf("."))+i);
 									Method[] m = c.getDeclaredMethods();
@@ -278,7 +265,7 @@ class ServerThread extends Thread {
 											Object[] ret = (Object [])meth.invoke(o,new Object[]{search,Hydar.attr.get(session)});
 											if(ret.length==0){
 												ise=true;
-												newData=err;
+												newData=Hydar.err;
 												data="";
 												break;
 											}else{
@@ -425,6 +412,8 @@ class JavaSourceFromString extends SimpleJavaFileObject {
 //class for main method
 public class Hydar {
 	public static URLClassLoader ucl;
+	public static String err;
+	public static int err_l;
 	public static String[] banned;
 	private static ArrayList<String> compilerOptions;
 	public static ConcurrentHashMap<String,Class> classes;
@@ -441,8 +430,8 @@ public class Hydar {
 				s=s.substring(s.indexOf("%>")+2);
 			}
 			String x_="this.jsp_attr_values=new ConcurrentHashMap<String,String>(jsp_attr);\nthis.jsp_urlParams=jsp_param;\nthis.jsp_attr_set=new ConcurrentHashMap<String,Boolean>();\nfor(String jsp_local_s:jsp_attr.keySet()){\nthis.jsp_attr_set.put(jsp_local_s,false);}\nthis.jsp_urlParams=new String(jsp_param);\nthis.jsp_redirect=null;\nthis.jsp_html=\"\";";
-			String e=path.substring(path.lastIndexOf('\\')+1,path.lastIndexOf('.'))+".jsp";
-			String n=path.substring(path.lastIndexOf('\\')+1,path.lastIndexOf('.'));
+			String e=path.substring(path.lastIndexOf(".\\")+2,path.lastIndexOf('.'))+".jsp";
+			String n=path.substring(path.lastIndexOf(".\\")+2,path.lastIndexOf('.'));
 			String o="private String jsp_urlParams;\nprivate String jsp_redirect;\nprivate String jsp_html;\n";
 			String v="private ConcurrentHashMap<String,Boolean> jsp_attr_set;\n";
 			String i="private ConcurrentHashMap<String,String> jsp_attr_values;\n";
@@ -462,10 +451,10 @@ public class Hydar {
 			htmls.put(n,html);
 			//System.out.println(javas);
 			int index=0;
-			String x__="import java.util.HashMap;\nimport java.nio.charset.StandardCharsets;\nimport java.net.URLDecoder;\nimport java.util.concurrent.*;import java.sql.*;\npublic class "+n+"{\npublic "+n+"(){\n}\n"+o+v+i+a+q+u+a_+r_+t+a__+"public Object[] jsp_Main(String jsp_param, ConcurrentHashMap<String, String> jsp_attr) {\ntry{\n"+x_;
+			String x__="import java.util.HashMap;\nimport java.nio.charset.StandardCharsets;\nimport java.net.URLDecoder;\nimport java.util.concurrent.*;import java.sql.*;\npublic class "+n.substring(n.lastIndexOf("\\")+1)+"{\npublic "+n.substring(n.lastIndexOf("\\")+1)+"(){\n}\n"+o+v+i+a+q+u+a_+r_+t+a__+"public Object[] jsp_Main(String jsp_param, ConcurrentHashMap<String, String> jsp_attr) {\ntry{\n"+x_;
 			//System.out.println(new Date(j.lastModified()));
 			//System.out.println(n);
-			timestamps.put(n,new Date(j.lastModified()));
+			timestamps.put(e,new Date(j.lastModified()));
 			for(String x:javas){
 				//System.out.println(path);
 				if(htmls.get(n)!=null){
@@ -488,15 +477,25 @@ public class Hydar {
 			
 			StringWriter writer = new StringWriter();
 			PrintWriter out = new PrintWriter(writer);
-			Writer fileWriter = new FileWriter(".\\HydarCompilerCache\\"+n+".java", false);
 			out.println(x__);
 			//System.out.println(x__);
+			File cache = new File("./HydarCompilerCache");
+			Path target = Paths.get(".\\HydarCompilerCache\\"+n+".class");
+			try{
+			target.toFile().delete();
+			}catch(Exception eeeeeeeeee){}
+			Files.createDirectories(target.getParent());
+			StandardJavaFileManager fileManager = compiler.getStandardFileManager(diagnostics, null, null);
+			fileManager.setLocation(StandardLocation.CLASS_OUTPUT, Arrays.asList(target.getParent().toFile()));
+			try{
+			Writer fileWriter = new FileWriter(".\\HydarCompilerCache\\"+n+".java", false);
 			fileWriter.write(x__);
 			fileWriter.close();
+			}catch(Exception eeeeeeeeee){}
 			out.close();
-			JavaFileObject file = new JavaSourceFromString(n, writer.toString());
+			JavaFileObject file = new JavaSourceFromString(n.replace("\\","/"), writer.toString());
 			Iterable<? extends JavaFileObject> compilationUnits = Arrays.asList(file);
-			CompilationTask task = compiler.getTask(null, null, diagnostics, compilerOptions, null, compilationUnits);
+			CompilationTask task = compiler.getTask(null, fileManager, diagnostics, compilerOptions, null, compilationUnits);
 			boolean success = task.call();
 			for (Diagnostic diagnostic : diagnostics.getDiagnostics()) {
 				  diag++;
@@ -510,12 +509,10 @@ public class Hydar {
 			if(success){
 				//System.out.println(path);
 				File f = new File(".\\HydarCompilerCache\\"+n+".class");
-				File cache = new File("./HydarCompilerCache");
-				f.delete();
-				Path moved = Files.move(Paths.get(n+".class"),Paths.get(".\\HydarCompilerCache\\"+n+".class"));
+				//Path moved = Files.move(Paths.get(n+".class"),target);
 				try{
-					ucl = new URLClassLoader(new URL[]{cache.toURI().toURL()});
-					Class c = ucl.loadClass(n);
+					ucl = new URLClassLoader(new URL[]{target.getParent().toFile().toURI().toURL()});
+					Class c = ucl.loadClass(n.substring(n.lastIndexOf("\\")+1));
 					classes.put(n,c);
 				}catch(Exception what){
 					what.printStackTrace();
@@ -538,6 +535,30 @@ public class Hydar {
 		return -1;
 	}		
 	public static void main(String[] args) {
+		err="<!DOCTYPE html>";
+		err+="<html>";
+		err+="<head>";
+		err+="<meta charset=\"ISO-8859-1\">";
+		err+="<title>Submitting Post... - Hydar</title>";
+		err+="<link rel=\"shorcut icon\" href=\"favicon.ico\"/>";
+		err+="</head>";
+		err+="<body>";
+		err+="<script type=\"text/javascript\" src =\"https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js\"></script>";
+		err+="<style>";
+		err+="	body{";
+		err+="		background-image:url('hydarface.png');";
+		err+="		background-repeat:no-repeat;";
+		err+="		background-attachment:fixed;";
+		err+="		background-size:100% 150%;";
+		err+="		background-color:rgb(51, 57, 63);";
+		err+="		background-position: 0% 50%;";
+		err+="	}";
+		err+="</style>";
+		err+="<style> body{color:rgb(255,255,255); font-family:arial; text-align:center; font-size:20px;}</style><center>A known error has occurred.";
+		err+="<br><br><form method=\"get\" action=\"Logout.jsp\"><td><input type=\"submit\" value=\"Back to login\"></td></form>";
+		err+="</body>";
+		err+="</html>";
+		err_l=err.length();
 		banned = new String[]{".class",".java",".jar",".bat"};
 		compilerOptions = new ArrayList<String>();
 		compilerOptions.add("-cp");
@@ -554,8 +575,32 @@ public class Hydar {
 		}
 		try{
 			ArrayList<File> jsp = new ArrayList<File>();
-			for(File f:dir.listFiles()){
-				if(f.toPath().toString().endsWith(".jsp"))
+			ArrayList<File> allFiles = new ArrayList<File>();
+				try {
+					Path root = dir.toPath();
+					Files.walkFileTree(root, new SimpleFileVisitor<Path>() {
+						@Override
+						public FileVisitResult preVisitDirectory(Path dir,
+								BasicFileAttributes attrs) {
+							return FileVisitResult.CONTINUE;
+						}
+						@Override
+						public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+							allFiles.add(file.toFile());
+							return FileVisitResult.CONTINUE;
+						}
+						@Override
+						public FileVisitResult visitFileFailed(Path file, IOException e) {
+							return FileVisitResult.CONTINUE;
+						}
+					});
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			for(File f:allFiles){
+				String path = f.toPath().toString();
+				timestamps.put(path.substring(path.lastIndexOf(".\\")+2),new Date(f.lastModified()));
+				if(path.endsWith(".jsp"))
 					jsp.add(f);
 			}
 			File cache = new File("./HydarCompilerCache");
@@ -637,32 +682,53 @@ public class Hydar {
 			if(new Date().getTime()-lastUpdate.getTime()>2000){
 				//check files(recompile as needed)
 				lastUpdate = new Date();
-				ArrayList<File> jsp = new ArrayList<File>();
-				for(File f:dir.listFiles()){
-					if(f.toPath().toString().endsWith(".jsp"))
-						jsp.add(f);
-					
-				}
 				ArrayList<String> replaced = new ArrayList<String>();
-				for(File j:jsp){
+				ArrayList<File> allFiles = new ArrayList<File>();
+				try {
+					Path root = dir.toPath();
+					Files.walkFileTree(root, new SimpleFileVisitor<Path>() {
+						@Override
+						public FileVisitResult preVisitDirectory(Path dir,
+								BasicFileAttributes attrs) {
+							return FileVisitResult.CONTINUE;
+						}
+						@Override
+						public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+							if(!file.toString().contains("HydarCompilerCache")&&!file.toString().contains("Hydar.java"))
+								allFiles.add(file.toFile());
+							return FileVisitResult.CONTINUE;
+						}
+						@Override
+						public FileVisitResult visitFileFailed(Path file, IOException e) {
+							return FileVisitResult.CONTINUE;
+						}
+					});
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				for(File j:allFiles){
+					
 					String path=j.toPath().toString();
-					String e=path.substring(path.lastIndexOf('\\')+1,path.lastIndexOf('.'));
-					if(timestamps.get(e)==null||(timestamps.get(e).getTime()!=j.lastModified())){
-						System.out.println("Replacing file "+e+".jsp ...");
+					String e=path.substring(path.lastIndexOf(".\\")+2);
+					if(!j.isDirectory()&&(timestamps.get(e)==null||(timestamps.get(e).getTime()!=j.lastModified()))){
+						System.out.println("Replacing file "+e+"...");
+						j.setLastModified(new Date().getTime());
 						timestamps.put(e,new Date(j.lastModified()));
-						Class temp = classes.get(e);
-						ArrayList<String> tempH = htmls.get(e);
-						classes.remove(e);
-						htmls.remove(e);
-						int diag2 = compile(j);
-						if(diag2<0){
-							if(temp!=null)
-								classes.put(e,temp);
-							if(tempH!=null)
-								htmls.put(e,tempH);
-							System.out.println("Failed to replace: "+e);
-						}else{
-							System.out.println("Successfully replaced: "+e+", warnings: "+diag2);
+						if(e.endsWith(".jsp")){
+							Class temp = classes.get(e);
+							ArrayList<String> tempH = htmls.get(e);
+							classes.remove(e);
+							htmls.remove(e);
+							int diag2 = compile(j);
+							if(diag2<0){
+								if(temp!=null)
+									classes.put(e,temp);
+								if(tempH!=null)
+									htmls.put(e,tempH);
+								System.out.println("Failed to replace: "+e);
+							}else{
+								System.out.println("Successfully replaced: "+e+", warnings: "+diag2);
+							}
 						}
 					}
 				}
