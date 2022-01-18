@@ -25,7 +25,7 @@ form{ display: inline-block; }
 
 
 <%
-Class.forName("com.mysql.jdbc.Driver").newInstance();
+Class.forName("com.mysql.jdbc.Driver");
 Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatroom?autoReconnect=true&useSSL=false", "root", "hydar");
 try{
 	//CHECK IF BOARD IS SPECIFIED, and redirect if the user does not have perms.
@@ -68,6 +68,30 @@ try{
 		board = 1;
 	}
 	
+	//GET BOARD IMAGE
+	
+	String getBoardAttributes="SELECT board.image, board.public FROM board WHERE board.number = " + board;
+	result1 = stmt1.executeQuery(getBoardAttributes);
+	
+	int isPublic = 0;
+	String boardImage = "";
+	while(result1.next()){
+		isPublic = result1.getInt("board.public");
+		boardImage = result1.getString("board.image");
+	}
+	
+	// CHECK IF PINGS ARE ON, also get volume
+	String getPings="SELECT user.pings, user.volume FROM user WHERE user.id = " + session.getAttribute("userid").toString();
+	result1 = stmt1.executeQuery(getPings);
+	
+	double volume = 0.0;
+	int pings = 0;
+	while(result1.next()){
+		pings = result1.getInt("user.pings");
+		volume = result1.getInt("user.volume");
+	}
+
+	volume = volume/100;
 	//CHECK IF AUTO REFRESH IS ON
 	
 	String autoRefresh = request.getParameter("autoOn");
@@ -103,13 +127,13 @@ try{
 			position:fixed;
 			z-index:1;
 			left:-10px;
-			top:170px;
+			top:200px;
 			background-color: rgb(41, 47, 53);
 			overflow-x:hidden;
 			box-shadow:0 0 10px rgba(0,0,0,10);
 		}
 		
-		.sidebar p{font-size:20px;}
+		.sidebar p{top:-8px;line-height:20px;font-size:18px;color:white;}
 		.sidebar p6{display:block;margin-left:20px;font-size:15px;color:White;text-align:left;}
 		.sidebar p7{margin-top:35px;display:block;color:White;margin-left:20px;font-size:15px;text-align:left;}
 		
@@ -125,7 +149,7 @@ try{
 			box-shadow:0 0 10px rgba(0,0,0,10);
 		}
 		
-		.margin{margin-top:150px;margin-left:210px;}
+		.margin{margin-top:130px;margin-left:210px;}
 		
 		.button{
 			background-color:rgb(61, 67, 83);
@@ -157,50 +181,26 @@ try{
 	
 	<div id = "sidebar" class = "sidebar">
 		
-		<p>
-		<%
-			
-			// SIDE BAR
+	<p>
+	<%
 		
-			if(board>=1 && board <= 3){
-				out.print("Public Board </p><div style='width: 100%; border-bottom: 2px solid rgba(0,0,0,20); display:block; text-align: center; position:relative; top:-15px;'></div>");
-			}else{
-				out.print("Private Board</p><div style='width: 100%; border-bottom: 2px solid rgba(0,0,0,20); text-align: center; position:relative; top:-15px;'></div><p6>");
-				
-				//find the creator of this board
-				String findOwner = "SELECT board.creator, user.id, user.username FROM board, user WHERE board.number = " +board + " AND user.id = board.creator";
-				ResultSet result = stmt1.executeQuery(findOwner);
-				String creator = "";
-				int creatorID = -1;
-				while(result.next()){
-					creator = result.getString("user.username");
-					creatorID = result.getInt("user.id");
-				}
-				
-				
-				out.print("<b>Owner:</b><br> &nbsp"+creator + "</p6><div style='width: 100%; border-bottom: 2px solid rgba(0,0,0,20); text-align: center; position:relative; top:20px;'></div>");
-				
-				//find boards where this user is a member (not creator)
-				String findMembers = "SELECT user.username, user.id FROM user, isin WHERE isin.user = user.id AND isin.board = " + board;
-				result = stmt1.executeQuery(findMembers);
-				String member = "";
-				
-				out.print("<p7><b>Members:</b><br>");
-				
-				while(result.next()){
-					if(result.getInt("user.id")!=creatorID){
-						member = result.getString("user.username");
-						if(session.getAttribute("userid").toString().equals(""+creatorID)){
-							out.print("&nbsp"+member + " #" + result.getInt("user.id") + "<br>");
-						}else{
-							out.print("&nbsp"+member + "<br>");
-						}
-					}
-				}
-				out.print("</p7>");
-				
-			}
+		// SIDE BAR
+		
+		//get board name
+		String checkBoards = "SELECT board.name FROM board WHERE board.number = "+board;	
+		ResultSet boardsQuery = stmt1.executeQuery(checkBoards);
+		String b = "";
+		while(boardsQuery.next()){
+			b=boardsQuery.getString("board.name");
+		}
+	
+		
+		if(board<=3){
+			out.print(b + " (#" +board+ ")" + " </p><div style='width: 100%; border-bottom: 2px solid rgba(0,0,0,20); display:block; text-align: center; position:relative; top:-15px;'></div>");
+		}else{
+			out.print(b + " (#" +board+ ")" + " </p><div style='width: 100%; border-bottom: 2px solid rgba(0,0,0,20); text-align: center; position:relative; top:-15px;'></div><p6>");
 			
+			//find the creator of this board
 			String findOwner = "SELECT board.creator, user.id, user.username FROM board, user WHERE board.number = " +board + " AND user.id = board.creator";
 			ResultSet result = stmt1.executeQuery(findOwner);
 			String creator = "";
@@ -209,8 +209,154 @@ try{
 				creator = result.getString("user.username");
 				creatorID = result.getInt("user.id");
 			}
+			
+			
+			out.print("<b>Owner:</b><br> &nbsp"+creator + "</p6><div style='width: 100%; border-bottom: 2px solid rgba(0,0,0,20); text-align: center; position:relative; top:20px;'></div>");
+			
+			//find boards where this user is a member (not creator)
+			String findMembers = "SELECT user.username, user.id FROM user, isin WHERE isin.user = user.id AND isin.board = " + board;
+			result = stmt1.executeQuery(findMembers);
+			String member = "";
+			
+			out.print("<p7><b>Members:</b><br>");
+			
+			while(result.next()){
+				if(result.getInt("user.id")!=creatorID){
+					member = result.getString("user.username");
+					if(session.getAttribute("userid").toString().equals(""+creatorID)){
+						out.print("&nbsp"+member + " #" + result.getInt("user.id") + "<br>");
+					}else{
+						out.print("&nbsp"+member + "<br>");
+					}
+				}
+			}
+			out.print("</p7><div style='width: 100%; border-bottom: 2px solid rgba(0,0,0,20); text-align: center; position:relative; top:15px;'></div>");
+		}
+		
+		// hdaryhdaryhdayrhdyahryda
+		
+		// VCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC HYDAR
+		
+		// DHYARHYDHYARDHYADRYRR
 		
 		%>
+		<style>
+			.vcName{
+				font-size:15px;
+				color:white;
+				position:relative;
+				top:25px;
+				text-align:center;
+			}
+			.vcMemberText{
+				font-size:15px;
+				color:white;
+				position:relative;
+				top:40px;
+				left:20px;
+				text-align:left;
+			}
+			.vcMembers{
+				position:relative;
+				left:5px;
+			}
+			.vcSwitches{
+				border-radius:5px;
+				opacity:0.6;
+				position:relative;
+				align:center;
+				left:15px;
+				top:35px;
+				padding:10px;
+			}
+			.vcSwitches:hover{
+				opacity:1;
+				box-shadow:0 0 10px rgba(255,255,255,20);
+				cursor:pointer;
+			}
+		</style>
+		<div class = "vcName"><b>Voice Channel</b></div>
+		<img id = "VC-disconnect" class = "vcSwitches" src = "images/VC-disconnect.png" width = 40px height=40px>
+		<img hidden id = "VC-connect" class = "vcSwitches" src = "images/VC-connect.png" width = 40px height=40px>
+		<img id = "VC-mute" class = "vcSwitches" src = "images/VC-muted.png" width = 40px height=40px>
+		<img hidden id = "VC-unmute" class = "vcSwitches" src = "images/VC-unmuted.png" width = 40px height=40px>
+		<img id = "VC-deafen" class = "vcSwitches" src = "images/VC-deafened.png" width = 40px height=40px>
+		<img hidden id = "VC-undeafen" class = "vcSwitches" src = "images/VC-undeafened.png" width = 40px height=40px>
+		<script>
+		const vcConnect = document.getElementById("VC-connect");
+		vcConnect.addEventListener("click", () =>{
+			document.getElementById("VC-connect").setAttribute("hidden", true);
+			document.getElementById("VC-disconnect").removeAttribute("hidden");
+			document.getElementById("VC-connect").style.opacity = "0.6";
+			document.getElementById("VC-unmute").setAttribute("hidden", true);
+			document.getElementById("VC-mute").removeAttribute("hidden");
+			document.getElementById("VC-unmute").style.opacity = "0.6";
+			document.getElementById("VC-undeafen").setAttribute("hidden", true);
+			document.getElementById("VC-deafen").removeAttribute("hidden");
+			document.getElementById("VC-undeafen").style.opacity = "0.6";
+		});
+		const vcDisconnect = document.getElementById("VC-disconnect");
+		vcDisconnect.addEventListener("click", () =>{
+			document.getElementById("VC-disconnect").setAttribute("hidden", true);
+			document.getElementById("VC-connect").removeAttribute("hidden");
+			document.getElementById("VC-connect").style.opacity = "1";
+			document.getElementById("VC-mute").setAttribute("hidden", true);
+			document.getElementById("VC-unmute").removeAttribute("hidden");
+			document.getElementById("VC-unmute").style.opacity = "1";
+			document.getElementById("VC-deafen").setAttribute("hidden", true);
+			document.getElementById("VC-undeafen").removeAttribute("hidden");
+			document.getElementById("VC-undeafen").style.opacity = "1";
+		});
+		
+		const vcMute = document.getElementById("VC-mute");
+		vcMute.addEventListener("click", () =>{
+			document.getElementById("VC-mute").setAttribute("hidden", true);
+			document.getElementById("VC-unmute").removeAttribute("hidden");
+			document.getElementById("VC-unmute").style.opacity = "1";
+		});
+		const vcUnmute = document.getElementById("VC-unmute");
+		vcUnmute.addEventListener("click", () =>{
+			document.getElementById("VC-unmute").setAttribute("hidden", true);
+			document.getElementById("VC-mute").removeAttribute("hidden");
+			document.getElementById("VC-unmute").style.opacity = "0.6";
+		});
+		
+		const vcDeafen = document.getElementById("VC-deafen");
+		vcDeafen.addEventListener("click", () =>{
+			document.getElementById("VC-deafen").setAttribute("hidden", true);
+			document.getElementById("VC-undeafen").removeAttribute("hidden");
+			document.getElementById("VC-undeafen").style.opacity = "1";
+		});
+		const vcUndeafen = document.getElementById("VC-undeafen");
+		vcUndeafen.addEventListener("click", () =>{
+			document.getElementById("VC-undeafen").setAttribute("hidden", true);
+			document.getElementById("VC-deafen").removeAttribute("hidden");
+			document.getElementById("VC-undeafen").style.opacity = "0.6";
+		});
+		</script>
+		<div class ="vcMemberText">
+		<b>Members:</b>
+			<div class ="vcMembers">
+			
+			Members go here
+			
+			</div>
+		</div>
+		
+		
+		<%
+		
+		
+		String findOwner = "SELECT board.creator, user.id, user.username FROM board, user WHERE board.number = " + board + " AND user.id = board.creator";
+		ResultSet result = stmt1.executeQuery(findOwner);
+		String creator = "";
+		int creatorID = -1;
+		while(result.next()){
+			creator = result.getString("user.username");
+			creatorID = result.getInt("user.id");
+		}
+	
+	%>
 	</div>
 	
 	<div hidden id = "bottom_bar" class="bottom_bar">
@@ -247,7 +393,7 @@ try{
 						document.getElementById("bottom_bar").style.top = "calc(100% - 45px)";
 						document.getElementById("bottom_bar").style.width = "210px";
 						document.getElementById("sidebar").style.height = "calc(100% - 215px)";
-						document.getElementById("ir1").setAttribue("hidden", true);
+						document.getElementById("ir1").setAttribute("hidden", true);
 						document.getElementById("ir2").setAttribute("hidden", true);
 						document.getElementById("ia1").setAttribute("hidden", true);
 						document.getElementById("ia2").setAttribute("hidden", true);
@@ -311,15 +457,15 @@ try{
 	
 	//TOP BAR
 	
-	out.print("<h1 style = \"color:rgb(255,255,255); font-size:15px; font-family:arial; text-align:right;position:relative;\"></style>");
+	out.print("<h1 style = \"color:rgb(255,255,255); font-size:15px; font-family:calibri; text-align:right;position:relative;\"></style>");
 	out.print("Hello <div id=\"profileName\" style=\"display:inline\">" + session.getAttribute("username").toString() + "</div>! | ");
-	out.print("<style type=\"text/css\"> a{color:LightGrey; font-family:arial; text-align:right; font-size:15px}</style>");
+	out.print("<style type=\"text/css\"> a{color:LightGrey; font-family:calibri; text-align:right; font-size:15px}</style>");
 	out.print("<a href=\"Profile.jsp\"> Profile</a>&nbsp;| ");
 	out.print("<a href=\"MainMenu.jsp\"> Home</a>&nbsp;| ");
 	out.print("<a href=\"Logout.jsp\"> Log out</a> &nbsp;&nbsp;");
 	
 	out.print("<style type=\"text/css\"> h1{color:rgb(255,255,255); text-align:left; font-size:15px}</style>");
-	out.print("<img src=\"hydar.png\" alt=\"hydar\" width = \"25px\" height = \"40px\" align = \"center\" style =\"margin-right:10px\">");
+	out.print("<img src=\"images/hydar.png\" alt=\"hydar\" width = \"25px\" height = \"40px\" align = \"center\" style =\"margin-right:10px\">");
 
 	
 	//out.print("&nbsp;&nbsp;&nbsp;Pick a board: ");
@@ -332,9 +478,9 @@ try{
 	
 	// board selector
 	for(int i = 0; i < boardArray.length; i++){
-		String checkBoards = "SELECT board.name FROM board WHERE board.number = "+boardArray[i];	
-		ResultSet boardsQuery = stmt1.executeQuery(checkBoards);
-		String b = "";
+		checkBoards = "SELECT board.name FROM board WHERE board.number = "+boardArray[i];	
+		boardsQuery = stmt1.executeQuery(checkBoards);
+		b = "";
 		while(boardsQuery.next()){
 			b=boardsQuery.getString("board.name");
 		}
@@ -345,34 +491,23 @@ try{
 	
 	out.print("</h1>");
 	
-	// GREY TEXT BAR
+	// PICTURE
 	
-	out.print("<style> p{color:LightSlateGrey; font-family:arial; text-align:center; font-size:25px; position:relative; top:-8px;}</style>");
+	%>
+	<style>
+		img.boardImage{
+			filter:brightness(70%);
+			position:fixed;
+			top:0px;
+			left:0px;
+			box-shadow:0 0 10px rgba(0,0,0,20);
+		}
+	</style>
+	<img class = "boardImage" src = "<%out.print("menuImages/" + boardImage);%>" width = 200px>
+	<%
 	
-	//get board name
-	String checkBoards = "SELECT board.name FROM board WHERE board.number = "+board;	
-	ResultSet boardsQuery = stmt1.executeQuery(checkBoards);
-	String b = "";
-	while(boardsQuery.next()){
-		b=boardsQuery.getString("board.name");
-	}
 	
-	//printing everythig else
-	out.print("<p>Viewing board: " + b);
 	
-	out.print("&nbsp&nbsp|&nbsp&nbsp Auto update posts: ");
-	out.print("<style> #two{color:LightSlateGrey; font-family:arial; text-align:center; font-size:25px;}</style>");
-	if(autoRefresh.equals("autoOff")){
-		out.print("<a id = \"two\" href=\"Homepage.jsp?autoOn=autoOn&board="+board+"\">");
-		out.print("Off</a>");
-	}else{
-		out.print("<a id = \"two\" href=\"Homepage.jsp?autoOn=autoOff&board="+board+"\">");
-		out.print("On</a>");
-	}
-	out.print("&nbsp&nbsp|&nbsp&nbsp");
-	out.print("<a id = \"two\" href=\"javascript:void(0);\">");
-	out.print("Instant update</a>");
-	out.print("</p>");
 	
 	//out.print("<li>Search posts: ");
 	//out.print("<form method=\"get\" action=\"Homepage.jsp\">");
@@ -381,7 +516,7 @@ try{
 	
 	// TYPE MESSAGE BAR
 	
-	out.print("<style> .nav{text-align:center; font-family:arial; list-style-type:none; margin:0; padding:0} .nav li{color:rgb(255,255,255); display:inline-block; font-size:20px; padding:5px; position:relative; top:-12px;}</style>");
+	out.print("<style> .nav{text-align:center; font-family:calibri; list-style-type:none; margin:0; padding:0} .nav li{color:rgb(255,255,255); display:inline-block;  font-size:20px;  position:relative; top:-12px;}</style>");
 	out.print("<ul class=\"nav\"><li>");
 	out.print("<iframe name=\"dummyframe\" id=\"dummyframe\" style=\"display: none;\"></iframe>");
 	out.print("<form onsubmit=\"post()\" action=\"\" target=\"dummyframe\">");
@@ -399,26 +534,43 @@ try{
 
 	<input value="  Post  "  type="submit" class = "button" >
 		
+	<%
+	// GREY TEXT BAR
+	
+		out.print("<style> p{color:LightSlateGrey; font-family:calibri; text-align:center; font-size:15px; position:relative; top:5px;line-height:1px;}</style>");
+		
+		out.print("<p>Auto update posts: ");
+		out.print("<style> #two{color:LightSlateGrey; font-family:calibri; text-align:center; font-size:15px;}</style>");
+		if(autoRefresh.equals("autoOff")){
+			out.print("<a id = \"two\" href=\"Homepage.jsp?autoOn=autoOn&board="+board+"\">");
+			out.print("Off</a>");
+		}else{
+			out.print("<a id = \"two\" href=\"Homepage.jsp?autoOn=autoOff&board="+board+"\">");
+			out.print("On</a>");
+		}
+		out.print("&nbsp&nbsp|&nbsp&nbsp");
+		out.print("<a id = \"two\" href=\"javascript:void(0);\">");
+		out.print("Instant update</a>");
+		out.print("</p>");
+	%>
 	</div>
 	<div class="margin">
 	</form>
 	</li>
 	</ul>
-	<br>
 	
 	<!-- NEW MESSAGES  BAR -->
 	
-	<style> body{color:rgb(255,255,255); font-family:arial; text-align:left; font-size:15px;}</style>
+	<style> body{color:rgb(255,255,255); font-family:calibri; text-align:left; font-size:15px;}</style>
 		
 	
-	<div hidden id='bar' style='width: 100%; height: 10px; border-bottom: 2px solid #be4949; text-align: center'>
+	<div hidden id='bar' style='width: 100%; height: 1px; border-bottom: 2px solid #be4949; text-align: center'>
 		
-		<span style='color:White; font-size: 12px; display:block;'><br>
+		<span style='color:White; font-size: 12px; display:block;line-height:8px;'><br>
 			<b> - New Messages - </b>
 		</span>
 	</div>
-	<br>
-	<div id="txtHint">Posts will be listed here...</div>
+	<div id="txtHint" style="line-height:25px;">Posts will be listed here...</div>
 	<%
 
 	// SHOW MESSAGES
@@ -441,11 +593,11 @@ try{
 			out.print("<div hidden style=\"display:none\" id=\"lastID\">"+result.getInt("post.id")+"</div>");
 		float timePassed = ((float)(System.currentTimeMillis() - result.getLong("post.created_date")) / 3600000);
 	
-		out.print("<img src=\"" + result.getString("user.pfp") +"\" alt=\"hydar\" width = \"40px\" height = \"40px\" align = \"left\" hspace = \"10\" vspace = \"15\">");
+		out.print("<img src=\"" + result.getString("user.pfp") +"\" alt=\"hydar\" width = \"40px\" style=\"border-radius:40px\" height = \"40px\" align = \"left\" hspace = \"10\" vspace = \"15\">");
 		//other contents
-		out.print("<style> body{color:LightGrey; font-family:arial; text-align:left; font-size:15px; display:block}</style>");
+		out.print("<style> body{color:LightGrey; font-family:calibri; text-align:left; font-size:15px; display:block}</style>");
 		out.print("<br><b><div id=\"msgUser\" style=\"display:inline\">"+ result.getString("user.username") + "</div></b> <div id=\"three\" style=\"display:inline\">");
-		out.print("<style> #three{color:Grey; font-family:arial; text-align:left; font-size:15px; display:inline}</style>");
+		out.print("<style> #three{color:Grey; font-family:calibri; text-align:left; font-size:15px; display:inline}</style>");
 		if((int)(timePassed * 60)==1){
 			out.print("&nbsp;(1 minute ago): ");
 		}else if((int)(timePassed)==1){
@@ -525,7 +677,14 @@ try{
 								document.querySelector("link[rel*='icon']").href = "favicon2.ico";
 								document.getElementById("bar").removeAttribute("hidden");
 								try{
-									h=new Notification(document.getElementById("msgUser").innerHTML,{body:document.getElementById("msgText").innerHTML,icon:"https://cdn.discordapp.com/attachments/315971359102599168/921456500747173908/h.png"});
+									h=new Notification(document.getElementById("msgUser").innerHTML,{body:document.getElementById("msgText").innerHTML,icon:"images/notifhydar.png"});
+									var pingSound = new Audio("audio/ping.mp3");
+									pingSound.volume = <%out.print(volume * 0.2);%>;
+									<%
+									if(pings == 1){
+										%>pingSound.play();	<%
+									}
+									%>
 								}catch(e){
 
 								}
@@ -569,7 +728,7 @@ try{
 	
 	conn.close();
 } catch (Exception e) {
-	out.print("<style> body{color:rgb(255,255,255); font-family:arial; text-align:center; font-size:20px;}</style>");
+	out.print("<style> body{color:rgb(255,255,255); font-family:calibri; text-align:center; font-size:20px;}</style>");
 	out.print("<center>");
 	out.print("A known error has occurred.\n");
 	out.print("<br><br>");
