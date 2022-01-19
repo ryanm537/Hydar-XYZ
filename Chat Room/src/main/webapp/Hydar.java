@@ -410,11 +410,11 @@ class ServerThread extends Thread {
 						size+=len;
 						pls+=len;
 						sb = Arrays.copyOf(sb,size);
-						this.client.setSoTimeout(250);
+						this.client.setSoTimeout(1);
 						long l5=0;
+						int off=2;
 						try{
 							int l = (sb[1])&0b01111111;
-							int off;
 							if(l==126){
 								l5=((sb[2]&0xff)<<8)|(sb[3]&0xff);
 								off=4;
@@ -426,12 +426,11 @@ class ServerThread extends Thread {
 								off=10;
 							}else{
 								l5=l;
-								off=2;
 							}
 						}catch(Exception e){
 						}
-						int tries=5;
-						while(len==800||l5>pls){
+						int tries=3;
+						while(len==800||l5>(pls-4-off)){
 							try{
 								len = input.read(sb,size-1024,800);
 								size+=len;
