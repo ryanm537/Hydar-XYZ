@@ -26,7 +26,7 @@ form{ display: inline-block; }
 
 <%
 Class.forName("com.mysql.jdbc.Driver");
-Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatroom?autoReconnect=true&useSSL=false", "root", "catfish2001");
+Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatroom?autoReconnect=true&useSSL=false", "root", "hydar");
 try{
 	//CHECK IF BOARD IS SPECIFIED, and redirect if the user does not have perms.
 	
@@ -808,7 +808,7 @@ try{
 					}
 			});
 			setInterval(()=>{sendToServer("hydar\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n")},2000);
-			setInterval(()=>{timer--;if(connection&&timer<-7){leaveVC();connection.close();}},1000);
+			setInterval(()=>{timer--;targets.forEach((t3)=>{t3.timer-=1;});if(connection&&timer<-7){leaveVC();connection.close();}},1000);
 		  };
 		  connection.onclose=function(evt){
 			//leaveVC();
@@ -834,41 +834,55 @@ try{
 					break;
 				  case "user-list":
 					clientID=eval(user);
-					var ids = msg.substring(0,msg.indexOf('\n'));
-					msg = msg.substring(msg.indexOf('\n')+1);
-				    oldTargets = targets.concat();
-					newTargets = eval(ids);
-				    var userList = eval(msg);
-					var tempTargets=[];
-					for(var x in newTargets){
-						if(newTargets[x]==clientID){
-							thisName=userList[x];
-							continue;
-						}var oldIndex=-1;
-						for(var i in oldTargets){
-							if(oldTargets[i].id==newTargets[x]){
-								oldIndex=i;
-							}
-						}
-						if(oldTargets[oldIndex]){
-							tempTargets.push({id:newTargets[x],pc:oldTargets[oldIndex].pc,active:oldTargets[oldIndex].active,name:userList[x]});
-						}else{
-							tempTargets.push({id:newTargets[x],pc:null,active:false,name:userList[x]});
+				var ids = msg.substring(0,msg.indexOf('\n'));
+				msg = msg.substring(msg.indexOf('\n')+1);
+			    oldTargets = targets.concat();
+				newTargets = eval(ids);
+			    var userList = eval(msg);
+				var tempTargets=[];
+				var isJoined=false;
+				for(var x in newTargets){
+					if(newTargets[x]==clientID){
+						thisName=userList[x];
+						isJoined=true;
+						continue;
+					}var oldIndex=-1;
+					for(var i in oldTargets){
+						if(oldTargets[i].id==newTargets[x]){
+							oldIndex=i;
 						}
 					}
-					targets = tempTargets.concat();
-					document.getElementById("vcList").innerHTML="";
-					for(var x in targets){
-						if(!targets[x]||targets[x].active==false)
-							document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(255,0,0)'></style>"+"<br>";
-						else if(!targets[x].pc||targets[x].pc.iceConnectionState!="connected")
-							document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(0,255,255)'> connecting...</style>"+"<br>";
-						else if(targets[x].active==true)
-							document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(0,255,0)'> (connected)</style>"+"<br>";
-					}if(thisName!=null){
-						document.getElementById("vcList").innerHTML+=thisName+"<div style='display:inline;color:rgb(255,255,0)'> (you)</style>"+"<br>";
+					if(oldTargets[oldIndex]){
+						tempTargets.push({id:newTargets[x],pc:oldTargets[oldIndex].pc,active:oldTargets[oldIndex].active,name:userList[x],timer:oldTargets[oldIndex].timer});
+					}else{
+						tempTargets.push({id:newTargets[x],pc:null,active:false,name:userList[x],timer:100});
 					}
-					break;
+				}
+				targets = tempTargets.concat();
+				document.getElementById("vcList").innerHTML="";
+				for(var x in targets){
+					var tAlive=false;
+					var transportStates=[];
+					if(targets[x]&&targets[x].pc)
+						targets[x].pc.getSenders().forEach((x)=>(transportStates.push(x.transport.state)));
+					if(!targets[x]||targets[x].active==false||!targets[x].pc||transportStates.includes("failed"))
+						document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(255,0,0)'></style>"+"<br>";
+					else if(!targets[x].pc||targets[x].pc.iceConnectionState!="connected")
+						document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(255,128,0)'>connecting...</style>"+"<br>";
+					else if(transportStates.includes("connecting"))
+						document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(255,255,0)'>encrypting...</style>"+"<br>";
+					else if(targets[x].active==true){
+						tAlive=true;
+						targets[x].timer=3;
+						document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(0,255,0)'>(connected)</style>"+"<br>";
+					}if(!tAlive&&targets[x].timer<0){
+						targets[x].timer=3;
+						targets[x].pc.restartIce();
+					}
+				}if(thisName!=null){
+					document.getElementById("vcList").innerHTML+=thisName+"<div style='display:inline;color:rgb(0,255,255)'>(you)</style>"+"<br>";
+				}
+				break;
 				  case "p2ptest":
 				  break;
 				  case "vc-offer":
@@ -1039,6 +1053,7 @@ try{
 		  targets[getPeer(target)].pc.onsignalingstatechange = (event)=>{handleSignalingStateChangeEvent(target,event)};
 		  targets[getPeer(target)].pc.onnegotiationneeded = ()=>{handleNegotiationNeededEvent(target)};
 		  targets[getPeer(target)].pc.ontrack = (event)=>{handleTrackEvent(target, event)};
+  		  targets[getPeer(target)].timer=3;
 		  resolve(true);
 			});
 		}
