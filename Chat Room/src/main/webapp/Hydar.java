@@ -737,7 +737,6 @@ class HydarStunInstance extends Thread{
 							continue;
 						}
 					}catch(Exception e){
-						e.printStackTrace();
 					}
 				}
 			}catch(Exception e){
