@@ -868,19 +868,19 @@ try{
 					if(!targets[x]||targets[x].active==false||!targets[x].pc||transportStates.includes("failed"))
 						document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(255,0,0)'></style>"+"<br>";
 					else if(!targets[x].pc||targets[x].pc.iceConnectionState!="connected")
-						document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(255,128,0)'>connecting...</style>"+"<br>";
+						document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(255,128,0)'> connecting...</style>"+"<br>";
 					else if(transportStates.includes("connecting"))
-						document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(255,255,0)'>encrypting...</style>"+"<br>";
+						document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(255,255,0)'> encrypting...</style>"+"<br>";
 					else if(targets[x].active==true){
 						tAlive=true;
 						targets[x].timer=3;
-						document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(0,255,0)'>(connected)</style>"+"<br>";
+						document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(0,255,0)'> (connected)</style>"+"<br>";
 					}if(!tAlive&&targets[x].timer<0){
 						targets[x].timer=3;
 						targets[x].pc.restartIce();
 					}
 				}if(thisName!=null){
-					document.getElementById("vcList").innerHTML+=thisName+"<div style='display:inline;color:rgb(0,255,255)'>(you)</style>"+"<br>";
+					document.getElementById("vcList").innerHTML+=thisName+"<div style='display:inline;color:rgb(0,255,255)'> (you)</style>"+"<br>";
 				}
 				break;
 				  case "p2ptest":
