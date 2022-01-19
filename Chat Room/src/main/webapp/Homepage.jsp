@@ -10,7 +10,7 @@
 <title>Home - Hydar</title>
 <link rel="shorcut icon" href="favicon.ico"/>
 </head>
-<script type="text/javascript" src ="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script type="text/javascript" src ="jquery-3.6.0.min.js"></script>
 
 <body>
 <body style = "background-color:rgb(51, 57, 63);"> 
@@ -81,17 +81,23 @@ try{
 	}
 	
 	// CHECK IF PINGS ARE ON, also get volume
-	String getPings="SELECT user.pings, user.volume FROM user WHERE user.id = " + session.getAttribute("userid").toString();
+	String getPings="SELECT user.pings, user.pingvolume, user.vcvolume, user.volume FROM user WHERE user.id = " + session.getAttribute("userid").toString();
 	result1 = stmt1.executeQuery(getPings);
 	
 	double volume = 0.0;
+	double voicevolume = 0.0;
+	double pingvolume = 0.0;
 	int pings = 0;
 	while(result1.next()){
 		pings = result1.getInt("user.pings");
 		volume = result1.getInt("user.volume");
+		voicevolume = result1.getInt("user.vcvolume");
+		pingvolume = result1.getInt("user.pingvolume");
 	}
 
 	volume = volume/100;
+	pingvolume = (pingvolume/100) * 2;
+	voicevolume = (voicevolume/100) * 2;
 	//CHECK IF AUTO REFRESH IS ON
 	
 	String autoRefresh = request.getParameter("autoOn");
@@ -667,7 +673,7 @@ try{
 							try{
 								h=new Notification(document.getElementById("msgUser").innerHTML,{body:document.getElementById("msgText").innerHTML,icon:"images/notifhydar.png"});
 								var pingSound = new Audio("audio/ping.mp3");
-								pingSound.volume = <%out.print(volume * 0.2);%>;
+								pingSound.volume = <%out.print(volume * 0.2 * pingvolume);%>;
 								<%
 								if(pings == 1){
 									%>pingSound.play();	<%
@@ -708,7 +714,7 @@ try{
 	
 	<script>
 		var myHostname = window.location.hostname;
-		var vcvolume=<%out.print(volume * 0.2);%>;
+		var vcvolume=<%out.print(volume * 0.2 * voicevolume);%>;
 		var timer=15;
 		if (!myHostname) {
 		  myHostname = "localhost";
@@ -767,9 +773,9 @@ try{
 						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=0;});
 					}catch(e){}
 				}else{
-					vcvolume= <%out.print(volume * 0.2);%>;
+					vcvolume= <%out.print(volume * 0.2 * voicevolume);%>;
 					try{
-						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=1;});
+						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=vcvolume;});
 					}catch(e){}
 					}
 			});
@@ -780,9 +786,9 @@ try{
 						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=0;});
 					}catch(e){}
 				}else{
-					vcvolume=<%out.print(volume * 0.2);%>;
+					vcvolume=<%out.print(volume * 0.2 * voicevolume);%>;
 					try{
-						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=1;});
+						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=vcvolume;});
 					}catch(e){}
 					}
 			});
