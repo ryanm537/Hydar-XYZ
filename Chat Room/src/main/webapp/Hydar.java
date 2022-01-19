@@ -895,7 +895,7 @@ public class Hydar {
 			htmls.put(n,html);
 			//System.out.println(javas);
 			int index=0;
-			String x__="import java.util.HashMap;\nimport java.nio.charset.StandardCharsets;\nimport java.net.URLDecoder;\nimport java.util.concurrent.ConcurrentHashMap;\nimport java.sql.Connection;\nimport java.sql.DriverManager;\nimport java.sql.SQLException;\nimport java.sql.ResultSet;\nimport java.sql.Statement;\nimport java.io.BufferedReader;\nimport java.io.InputStream;\npublic class "+n.substring(n.lastIndexOf("\\")+1).substring(n.lastIndexOf("/")+1)+"{\npublic "+n.substring(n.lastIndexOf("\\")+1).substring(n.lastIndexOf("/")+1)+"(){\n}\n"+o+v+i+a+q+u+a_+r_+t+a__+"public Object[] jsp_Main(String jsp_param, ConcurrentHashMap<String, String> jsp_attr) {\ntry{\n"+x_;
+			String x__="import java.util.HashMap;\nimport java.nio.charset.StandardCharsets;\nimport java.io.InputStreamReader;\nimport java.net.URLDecoder;\nimport java.util.concurrent.ConcurrentHashMap;\nimport java.sql.Connection;\nimport java.sql.DriverManager;\nimport java.sql.SQLException;\nimport java.sql.ResultSet;\nimport java.sql.Statement;\nimport java.io.BufferedReader;\nimport java.io.InputStream;\npublic class "+n.substring(n.lastIndexOf("\\")+1).substring(n.lastIndexOf("/")+1)+"{\npublic "+n.substring(n.lastIndexOf("\\")+1).substring(n.lastIndexOf("/")+1)+"(){\n}\n"+o+v+i+a+q+u+a_+r_+t+a__+"public Object[] jsp_Main(String jsp_param, ConcurrentHashMap<String, String> jsp_attr) {\ntry{\n"+x_;
 			//System.out.println(new Date(j.lastModified()));
 			//System.out.println(n);
 			timestamps.put(e,new Date(j.lastModified()));
