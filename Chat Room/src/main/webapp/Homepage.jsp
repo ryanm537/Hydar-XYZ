@@ -289,17 +289,20 @@ try{
 		<img hidden id = "VC-deafen" class = "vcSwitches" src = "images/VC-deafened.png" width = 40px height=40px>
 		<img id = "VC-undeafen" class = "vcSwitches" src = "images/VC-undeafened.png" width = 40px height=40px>
 		<script>
+		var canJoinVc=false;
 		const vcConnect = document.getElementById("VC-connect");
 		vcConnect.addEventListener("click", () =>{
-			document.getElementById("VC-connect").setAttribute("hidden", true);
-			document.getElementById("VC-disconnect").removeAttribute("hidden");
-			document.getElementById("VC-connect").style.opacity = "0.6";
+				document.getElementById("VC-connect").setAttribute("hidden", true);
+				document.getElementById("VC-disconnect").removeAttribute("hidden");
+				document.getElementById("VC-connect").style.opacity = "0.6";
 		});
 		const vcDisconnect = document.getElementById("VC-disconnect");
 		vcDisconnect.addEventListener("click", () =>{
-			document.getElementById("VC-disconnect").setAttribute("hidden", true);
-			document.getElementById("VC-connect").removeAttribute("hidden");
-			document.getElementById("VC-connect").style.opacity = "1";
+			if(canJoinVc){
+				document.getElementById("VC-disconnect").setAttribute("hidden", true);
+				document.getElementById("VC-connect").removeAttribute("hidden");
+				document.getElementById("VC-connect").style.opacity = "1";
+			}
 		});
 		
 		const vcMute = document.getElementById("VC-mute");
@@ -740,8 +743,8 @@ try{
 		var serverUrl;
 		var muted=false;
 		var leaveVC = ()=>{
-			sendToServer("user-leave\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n");
-			sendToServer("user-list\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n");
+			sendToServer("user-leave\n"+clientID+"\n"+<%out.print(board);%>+"\n");
+			sendToServer("user-list\n"+clientID+"\n"+<%out.print(board);%>+"\n");
 			thisName=null;
 			targets.forEach((x)=>{closeVc(x.id)});
 		}
@@ -762,8 +765,10 @@ try{
 		  connection.onopen = function(evt) {
 		    //document.getElementById("leaveVC").removeAttribute("hidden");
 			document.getElementById("VC-disconnect").addEventListener("click",()=>{
-			sendToServer("user-join\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n");
-			targets.forEach((x)=>{invite(x.id);sendToServer("user-list\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n");});
+				if(canJoinVc){
+					sendToServer("user-join\n"+clientID+"\n"+<%out.print(board);%>+"\n");
+					targets.forEach((x)=>{invite(x.id);sendToServer("user-list\n"+clientID+"\n"+<%out.print(board);%>+"\n");});
+				}
 			});
 			document.getElementById("VC-connect").addEventListener("click",leaveVC);
 			document.getElementById("VC-deafen").addEventListener("click",()=>{
@@ -813,7 +818,7 @@ try{
 					targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=false;})})});
 					}
 			});
-			setInterval(()=>{sendToServer("hydar\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n")},2000);
+			setInterval(()=>{sendToServer("hydar\n"+clientID+"\n"+<%out.print(board);%>+"\n")},2000);
 			setInterval(()=>{timer--;targets.forEach((t3)=>{t3.timer-=1;});if(connection&&timer<-7){leaveVC();connection.close();}},1000);
 		  };
 		  connection.onclose=function(evt){
@@ -888,6 +893,7 @@ try{
 				}if(thisName!=null){
 					document.getElementById("vcList").innerHTML+=thisName+"<div style='display:inline;color:rgb(0,255,255)'> (you)</style>"+"<br>";
 				}
+				canJoinVc=true;
 				break;
 				  case "p2ptest":
 				  break;
@@ -917,7 +923,7 @@ try{
 					  
 					  await targets[getPeer(target)].pc.setLocalDescription(await targets[getPeer(target)].pc.createAnswer());
 					console.log("we made it to the end of offer thing, there was probably an error if this isn't here");
-				  sendToServer("vc-answer\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n"+target+"\n"+targets[getPeer(target)].pc.localDescription.sdp);
+				  sendToServer("vc-answer\n"+clientID+"\n"+<%out.print(board);%>+"\n"+target+"\n"+targets[getPeer(target)].pc.localDescription.sdp);
 				  break;
 				  case "vc-answer":
 				  console.log("got vc answer");
@@ -966,7 +972,7 @@ try{
 		}
 		function handleICECandidateEvent(target, event) {
 		  if (event.candidate) {
-		    sendToServer("new-ice-candidate\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n"+target+"\n"+event.candidate.candidate);
+		    sendToServer("new-ice-candidate\n"+clientID+"\n"+<%out.print(board);%>+"\n"+target+"\n"+event.candidate.candidate);
 		  }
 		}
 		
@@ -1025,7 +1031,7 @@ try{
 		    }
 		    console.log("---> Setting local description to the offer");
 		    await targets[getPeer(target)].pc.setLocalDescription(offer);
-			sendToServer("vc-offer\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n"+target+"\n"+targets[getPeer(target)].pc.localDescription.sdp+"\n");
+			sendToServer("vc-offer\n"+clientID+"\n"+<%out.print(board);%>+"\n"+target+"\n"+targets[getPeer(target)].pc.localDescription.sdp+"\n");
 			
 		  } catch(err) {
 		    console.log("*** The following error occurred while handling the negotiationneeded event:\neeeeeeeee");
