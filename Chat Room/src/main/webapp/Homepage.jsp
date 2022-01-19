@@ -875,7 +875,7 @@ try{
 					var tAlive=false;
 					var transportStates=[];
 					if(targets[x]&&targets[x].pc)
-						targets[x].pc.getSenders().forEach((x)=>(if(x.transport)transportStates.push(x.transport.state)));
+						targets[x].pc.getSenders().forEach((x)=>{if(x.transport)transportStates.push(x.transport.state);});
 					if(!targets[x]||targets[x].active==false||!targets[x].pc||transportStates.includes("failed"))
 						document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(255,0,0)'></style>"+"<br>";
 					else if(!targets[x].pc||targets[x].pc.iceConnectionState!="connected")
