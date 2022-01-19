@@ -26,7 +26,7 @@ form{ display: inline-block; }
 
 <%
 Class.forName("com.mysql.jdbc.Driver");
-Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatroom?autoReconnect=true&useSSL=false", "root", "hydar");
+Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatroom?autoReconnect=true&useSSL=false", "root", "catfish2001");
 try{
 	//CHECK IF BOARD IS SPECIFIED, and redirect if the user does not have perms.
 	
@@ -262,7 +262,7 @@ try{
 			}
 			.vcSwitches{
 				border-radius:5px;
-				opacity:0.6;
+				opacity:1;
 				position:relative;
 				align:center;
 				left:15px;
@@ -278,34 +278,22 @@ try{
 		<div class = "vcName"><b>Voice Channel</b></div>
 		<img id = "VC-disconnect" class = "vcSwitches" src = "images/VC-disconnect.png" width = 40px height=40px>
 		<img hidden id = "VC-connect" class = "vcSwitches" src = "images/VC-connect.png" width = 40px height=40px>
-		<img id = "VC-mute" class = "vcSwitches" src = "images/VC-muted.png" width = 40px height=40px>
-		<img hidden id = "VC-unmute" class = "vcSwitches" src = "images/VC-unmuted.png" width = 40px height=40px>
-		<img id = "VC-deafen" class = "vcSwitches" src = "images/VC-deafened.png" width = 40px height=40px>
-		<img hidden id = "VC-undeafen" class = "vcSwitches" src = "images/VC-undeafened.png" width = 40px height=40px>
+		<img hidden id = "VC-mute" class = "vcSwitches" src = "images/VC-muted.png" width = 40px height=40px>
+		<img id = "VC-unmute" class = "vcSwitches" src = "images/VC-unmuted.png" width = 40px height=40px>
+		<img hidden id = "VC-deafen" class = "vcSwitches" src = "images/VC-deafened.png" width = 40px height=40px>
+		<img id = "VC-undeafen" class = "vcSwitches" src = "images/VC-undeafened.png" width = 40px height=40px>
 		<script>
 		const vcConnect = document.getElementById("VC-connect");
 		vcConnect.addEventListener("click", () =>{
 			document.getElementById("VC-connect").setAttribute("hidden", true);
 			document.getElementById("VC-disconnect").removeAttribute("hidden");
 			document.getElementById("VC-connect").style.opacity = "0.6";
-			document.getElementById("VC-unmute").setAttribute("hidden", true);
-			document.getElementById("VC-mute").removeAttribute("hidden");
-			document.getElementById("VC-unmute").style.opacity = "0.6";
-			document.getElementById("VC-undeafen").setAttribute("hidden", true);
-			document.getElementById("VC-deafen").removeAttribute("hidden");
-			document.getElementById("VC-undeafen").style.opacity = "0.6";
 		});
 		const vcDisconnect = document.getElementById("VC-disconnect");
 		vcDisconnect.addEventListener("click", () =>{
 			document.getElementById("VC-disconnect").setAttribute("hidden", true);
 			document.getElementById("VC-connect").removeAttribute("hidden");
 			document.getElementById("VC-connect").style.opacity = "1";
-			document.getElementById("VC-mute").setAttribute("hidden", true);
-			document.getElementById("VC-unmute").removeAttribute("hidden");
-			document.getElementById("VC-unmute").style.opacity = "1";
-			document.getElementById("VC-deafen").setAttribute("hidden", true);
-			document.getElementById("VC-undeafen").removeAttribute("hidden");
-			document.getElementById("VC-undeafen").style.opacity = "1";
 		});
 		
 		const vcMute = document.getElementById("VC-mute");
@@ -338,7 +326,7 @@ try{
 		<b>Members:</b>
 			<div id = "vcList" class ="vcMembers">
 			
-			Members go here
+			Loading Members...
 			
 			</div>
 		</div>
@@ -632,397 +620,428 @@ try{
 	
 	
 	%>
-		<script>
-			var idle = 0;
-			document.addEventListener('click',()=>{idle=0;document.querySelector("link[rel*='icon']").href = "favicon.ico";document.getElementById("bar").setAttribute("hidden",true);});
-			document.addEventListener('hover',()=>{idle=0;});
-			document.addEventListener('keypress',()=>{idle=0;});
-			document.addEventListener('mousemove',()=>{idle=0;});
-			function refresh(a,b){
-				idle+=1;
-				var x=document.location.toString();
-				var n=x.substring(0,x.indexOf('?'));
-				if(x.indexOf('?')<0)n=x;
-				var q=<%out.print(board);%>;
-				if(x.indexOf("board=")<0)q=1; 
-				if(x.includes("input_text"))return;
-				$.get(n+"?board="+q+"&autoOn=autoOff").then(function (data) {
-					var parser = new DOMParser();
-					var doc = parser.parseFromString(data, "text/html");
-					const hdar = document.createElement("div");
-					hdar.setAttribute("id","msgs");
-					hdar.innerHTML=doc.getElementById("msgs").innerHTML;var x=(parseInt(doc.getElementById("lastID").innerHTML)-parseInt(document.getElementById("lastID").innerHTML));
-					document.querySelectorAll("[id='two']")[1].innerHTML="Instant update</a>";
-					if(document.querySelectorAll("[id='two']")[0].innerHTML.includes("Off")){
-						if(!b)x-=1;
-						document.getElementById("txtHint").innerHTML=""+(x>0?x:"No")+" new posts.<br>Post"+(x==1?"":"s")+" will be listed here...";
-						//setTimeout(() => {
-						//	document.getElementById("txtHint").innerHTML="Posts will be listed here...";
-						//},8000);
+	<script>
+		var idle = 0;
+		document.addEventListener('click',()=>{idle=0;document.querySelector("link[rel*='icon']").href = "favicon.ico";document.getElementById("bar").setAttribute("hidden",true);});
+		document.addEventListener('hover',()=>{idle=0;});
+		document.addEventListener('keypress',()=>{idle=0;});
+		document.addEventListener('mousemove',()=>{idle=0;});
+		function refresh(a,b){
+			idle+=1;
+			var x=document.location.toString();
+			var n=x.substring(0,x.indexOf('?'));
+			if(x.indexOf('?')<0)n=x;
+			var q=<%out.print(board);%>;
+			if(x.indexOf("board=")<0)q=1; 
+			if(x.includes("input_text"))return;
+			$.get(n+"?board="+q+"&autoOn=autoOff").then(function (data) {
+				var parser = new DOMParser();
+				var doc = parser.parseFromString(data, "text/html");
+				const hdar = document.createElement("div");
+				hdar.setAttribute("id","msgs");
+				hdar.innerHTML=doc.getElementById("msgs").innerHTML;var x=(parseInt(doc.getElementById("lastID").innerHTML)-parseInt(document.getElementById("lastID").innerHTML));
+				document.querySelectorAll("[id='two']")[1].innerHTML="Instant update</a>";
+				if(document.querySelectorAll("[id='two']")[0].innerHTML.includes("Off")){
+					if(!b)x-=1;
+					document.getElementById("txtHint").innerHTML=""+(x>0?x:"No")+" new posts.<br>Post"+(x==1?"":"s")+" will be listed here...";
+					//setTimeout(() => {
+					//	document.getElementById("txtHint").innerHTML="Posts will be listed here...";
+					//},8000);
+				}
+				if(!b){
+					if(!(hdar.innerHTML==document.getElementById("msgs").innerHTML)){
+						document.getElementById("msgs").parentNode.replaceChild(hdar,document.getElementById("msgs"));
 					}
-					if(!b){
-						if(!(hdar.innerHTML==document.getElementById("msgs").innerHTML)){
-							document.getElementById("msgs").parentNode.replaceChild(hdar,document.getElementById("msgs"));
-						}
-					}else{
-						if(!(hdar.innerHTML==document.getElementById("msgs").innerHTML)){
-							for(i in document.getElementById("msgs").querySelectorAll("[id = 'three']")){
-								if(hdar.querySelectorAll("[id = 'three']").length>i){
-									document.getElementById("msgs").querySelectorAll("[id = 'three']")[i].parentNode.replaceChild(hdar.querySelectorAll("[id = 'three']")[0],document.getElementById("msgs").querySelectorAll("[id = 'three']")[i]);
+				}else{
+					if(!(hdar.innerHTML==document.getElementById("msgs").innerHTML)){
+						for(i in document.getElementById("msgs").querySelectorAll("[id = 'three']")){
+							if(hdar.querySelectorAll("[id = 'three']").length>i){
+								document.getElementById("msgs").querySelectorAll("[id = 'three']")[i].parentNode.replaceChild(hdar.querySelectorAll("[id = 'three']")[0],document.getElementById("msgs").querySelectorAll("[id = 'three']")[i]);
+							}
+						}hdar.innerHTML=doc.getElementById("msgs").innerHTML;
+					if((x!=0)&&a){
+						document.getElementById("msgs").parentNode.replaceChild(hdar,document.getElementById("msgs"));
+						if((!document.hasFocus()||idle>14)&&document.getElementById("profileName").innerHTML!=document.getElementById("msgUser").innerHTML){
+							document.querySelector("link[rel*='icon']").href = "favicon2.ico";
+							document.getElementById("bar").removeAttribute("hidden");
+							try{
+								h=new Notification(document.getElementById("msgUser").innerHTML,{body:document.getElementById("msgText").innerHTML,icon:"images/notifhydar.png"});
+								var pingSound = new Audio("audio/ping.mp3");
+								pingSound.volume = <%out.print(volume * 0.2);%>;
+								<%
+								if(pings == 1){
+									%>pingSound.play();	<%
 								}
-							}hdar.innerHTML=doc.getElementById("msgs").innerHTML;
-						if((x!=0)&&a){
-							document.getElementById("msgs").parentNode.replaceChild(hdar,document.getElementById("msgs"));
-							if((!document.hasFocus()||idle>14)&&document.getElementById("profileName").innerHTML!=document.getElementById("msgUser").innerHTML){
-								document.querySelector("link[rel*='icon']").href = "favicon2.ico";
-								document.getElementById("bar").removeAttribute("hidden");
-								try{
-									h=new Notification(document.getElementById("msgUser").innerHTML,{body:document.getElementById("msgText").innerHTML,icon:"images/notifhydar.png"});
-									var pingSound = new Audio("audio/ping.mp3");
-									pingSound.volume = <%out.print(volume * 0.2);%>;
-									<%
-									if(pings == 1){
-										%>pingSound.play();	<%
-									}
-									%>
-								}catch(e){
+								%>
+							}catch(e){
 
-								}
 							}
 						}
 					}
-				}	
-				}).fail(function () {document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
-			}function fullRefresh(){
-				refresh(true,true);	
-			}function halfRefresh(){
-				refresh(false,true);	
-			}function extraRefresh(){
-				refresh(true,false);
-			}function post(){
-				
-				var x=document.location.toString();
-				var n=x.substring(0,x.indexOf('?')).replace("Homepage.jsp","SubmitPost.jsp");
-				if(x.indexOf('?')<0)n=x.replace("Homepage.jsp","SubmitPost.jsp");
-				var q=<%out.print(board);%>;
-				if(x.indexOf("board=")<0)q=1;
-				$.get(n+"?autoOn=autoOff&input_text="+encodeURIComponent(document.forms[3].input_text.value)+"&board_num="+q).then(extraRefresh).fail(function(){document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
-				document.forms[3].input_text.value="";
-			}
-			document.querySelectorAll("[id='two']")[1].addEventListener('click',fullRefresh);
-		</script>
-	<script>
-	var myHostname = window.location.hostname;
-var vcvolume=1;
-var timer=15;
-if (!myHostname) {
-  myHostname = "localhost";
-}var connection = null;
-var clientID = eval(<%out.print(session.getAttribute("userid"));%>);
-var thisName=null;
-var targets=[];
-function getPeer(id){
-	for(var x in targets){
-		if(targets[x].id==id)
-			return x;
-	}return null;
-}
-var constraints = {
-	audio: 
-	{
-		"autoGainControl": true,
-		"echoCancellation": true,
-		"noiseSuppression": true
-	}
-}
-var connection=null;
-var serverUrl;
-var muted=false;
-var leaveVC = ()=>{
-	sendToServer("user-leave\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n");
-	sendToServer("user-list\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n");
-	thisName=null;
-	targets.forEach((x)=>{closeVc(x.id)});
-}
-async function apply(t,c) {
-  await t.applyConstraints(Object.assign(track.getSettings(), c));
-}
-var sendToServer = (s)=>{
-	connection.send(s);
-	console.log("OUT"+s.substring(0,s.indexOf("\n")));
-}
-  var scheme = "ws";
-  if (document.location.protocol === "https:") {
-    scheme += "s";
-  }
-  serverUrl = scheme + "://" + myHostname + ":"+document.location.port+"/HydaRTCSignal.jsp";
-  console.log("Connecting to server: "+serverUrl);
-  connection = new WebSocket(serverUrl);
-  connection.onopen = function(evt) {
-    //document.getElementById("leaveVC").removeAttribute("hidden");
-	document.getElementById("VC-connect").addEventListener("click",()=>{
-	sendToServer("user-join\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n");
-	targets.forEach((x)=>{invite(x.id);sendToServer("user-list\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n");});
-	});
-	document.getElementById("VC-disconnect").addEventListener("click",leaveVC);
-	document.getElementById("VC-deafen").addEventListener("click",()=>{
-		if(vcvolume>0){
-			vcvolume=0;
-			try{
-				targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=0;});
-			}catch(e){}
-		}else{
-			vcvolume=1;
-			try{
-				targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=1;});
-			}catch(e){}
-			}
-	});
-	document.getElementById("VC-mute").addEventListener("click",()=>{
-		
-		if(muted){
-			muted=false;
-			targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=true;})})});
-		}else{
-			muted=true;
-			targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=false;})})});
-			}
-	});
-	setInterval(()=>{sendToServer("hydar\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n")},2000);
-	setInterval(()=>{timer--;if(connection&&timer<-7){leaveVC();connection.close();}},1000);
-  };
-  connection.onclose=function(evt){
-	//leaveVC();
-	//setTimeout(joinVC,2500);
-  }
-  connection.onerror = function(evt) {
-	leaveVC();
-	//setTimeout(joinVC,2500);
-    console.dir(evt);
-  }
-  connection.onmessage = async function(evt) {
-	  timer=15;
-	  var msg = evt.data;
-	  var type = msg.substring(0,msg.indexOf('\n'));
-	  msg = msg.substring(msg.indexOf('\n')+1);
-	  var user = msg.substring(0,msg.indexOf('\n'));
-	  msg = msg.substring(msg.indexOf('\n')+1);
-	  var board = msg.substring(0,msg.indexOf('\n'));
-	  msg = msg.substring(msg.indexOf('\n')+1);
-			console.log("IN:"+type);
-	  switch(type){
-		  case "user-leave":
-			break;
-		  case "user-list":
-			clientID=eval(user);
-			var ids = msg.substring(0,msg.indexOf('\n'));
-			msg = msg.substring(msg.indexOf('\n')+1);
-		    oldTargets = targets.concat();
-			newTargets = eval(ids);
-		    var userList = eval(msg);
-			var tempTargets=[];
-			for(var x in newTargets){
-				if(newTargets[x]==clientID){
-					thisName=userList[x];
-					continue;
-				}var oldIndex=-1;
-				for(var i in oldTargets){
-					if(oldTargets[i].id==newTargets[x]){
-						oldIndex=i;
-					}
 				}
-				if(oldTargets[oldIndex]){
-					tempTargets.push({id:newTargets[x],pc:oldTargets[oldIndex].pc,active:oldTargets[oldIndex].active,name:userList[x]});
-				}else{
-					tempTargets.push({id:newTargets[x],pc:null,active:false,name:userList[x]});
-				}
-			}
-			targets = tempTargets.concat();
-			document.getElementById("vcList").innerHTML="";
-			for(var x in targets){
-				if(!targets[x]||targets[x].active==false)
-					document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(255,0,0)'></style>"+"<br>";
-				else if(!targets[x].pc||targets[x].pc.iceConnectionState!="connected")
-					document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(0,255,255)'>connecting...</style>"+"<br>";
-				else if(targets[x].active==true)
-					document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(0,255,0)'>(connected)</style>"+"<br>";
-			}if(thisName!=null){
-				document.getElementById("vcList").innerHTML+=thisName+"<div style='display:inline;color:rgb(255,255,0)'>(you)</style>"+"<br>";
-			}
-			break;
-		  case "p2ptest":
-		  break;
-		  case "vc-offer":
-			var target = parseInt(user);
-			var sdp = msg.substring(msg.indexOf('\n')+1);
-			var desc = new RTCSessionDescription({sdp:(new String(sdp)+"\r\n"),type:"offer"});
-			if(!targets[getPeer(target)]){
-				targets.push({id:target,pc:null});
-			}
-			  if (!targets[getPeer(target)].pc){
-				  await createPeerConnection(target);
-			  }
-				console.log ("  - Setting remote description");
-				await targets[getPeer(target)].pc.setRemoteDescription(desc);
-				  var stream = await navigator.mediaDevices.getUserMedia(constraints);
-
-				try {
-				  stream.getTracks().forEach(
-					(track)=>{
-					targets[getPeer(target)].pc.addTrack(track, stream)}
-				  );
-				} catch(err) {
-				   console.dir(err);
-				  return;
-				}
-			  
-			  await targets[getPeer(target)].pc.setLocalDescription(await targets[getPeer(target)].pc.createAnswer());
-			console.log("we made it to the end of offer thing, there was probably an error if this isn't here");
-		  sendToServer("vc-answer\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n"+target+"\n"+targets[getPeer(target)].pc.localDescription.sdp);
-		  break;
-		  case "vc-answer":
-		  console.log("got vc answer");
-		  var target = parseInt(user);
-			var sdp = msg.substring(msg.indexOf('\n')+1);
-			var desc = new RTCSessionDescription({sdp:(new String(sdp)+"\r\n"),type:"answer"});
-			await targets[getPeer(target)].pc.setRemoteDescription(desc);//handle error maybe
-		  break;
-		  case "new-ice-candidate":
-		  var target = user;
-			var sdp = msg.substring(msg.indexOf('\n')+1);
-			var candidate = new RTCIceCandidate({candidate:new String(sdp),sdpMid:"audio"});
-			try {
-				 await targets[getPeer(target)].pc.addIceCandidate(candidate);
-			  } catch(err) {
-				//
-			  }
-			  break;
-		  case "user-leave":
-			closeVc(parseInt(user));
-			  break;
-		  default:
-			break;
-	  }
-  }
-  
-async function invite(target){
-	if (targets[getPeer(target)]&&targets[getPeer(target)].pc&&targets[getPeer(target)].active) {
-	return;
-  }if(!targets[getPeer(target)]){
-	  targets.push({id:target,pc:null});
-  }
-    console.log("Setting up connection to invite user: " + target);
-    await createPeerConnection(target);
-
-    var stream = await navigator.mediaDevices.getUserMedia(constraints);
-    try {
-      stream.getTracks().forEach(
-	   (track)=>{
-	   targets[getPeer(target)].pc.addTrack(track,stream)}
-      );
-    } catch(err) {
-		console.log("couldnt add track");
-    }
-  
-}
-function handleICECandidateEvent(target, event) {
-  if (event.candidate) {
-    sendToServer("new-ice-candidate\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n"+target+"\n"+event.candidate.candidate);
-  }
-}
-
-async function closeVc(target){
-
-  console.log("Closing the call");
-  if(!targets[getPeer(target)]){
-	  return;
-  }
-  if (targets[getPeer(target)].pc) {
-    console.log("--> Closing the peer connection");
-targets[getPeer(target)].active=false;
-	for(var s1 in targets[getPeer(target)].pc.getSenders())
-		targets[getPeer(target)].pc.removeTrack(targets[getPeer(target)].pc.getSenders()[s1]);
-    targets[getPeer(target)].pc.ontrack = null;
-    targets[getPeer(target)].pc.onnicecandidate = null;
-    targets[getPeer(target)].pc.oniceconnectionstatechange = null;
-    targets[getPeer(target)].pc.onsignalingstatechange = null;
-    targets[getPeer(target)].pc.onicegatheringstatechange = null;
-    targets[getPeer(target)].pc.onnotificationneeded = null;
-    await targets[getPeer(target)].pc.close();
-    targets[getPeer(target)].pc=null;
-    //transceivers.splice(targets.indexOf(target),1);
-	var localAudio = document.getElementById("hydar_audio"+target);
-	if(localAudio)
-	localAudio.remove();
-  }
-}
-function handleICEConnectionStateChangeEvent(target,event) {
-  console.log("*** ICE connection state changed for "+target);
-  if(getPeer(target)==null)
-	  return;
-	if(targets[getPeer(target)].pc)
-  switch(targets[getPeer(target)].pc.iceConnectionState) {
-    case "closed":
-    case "failed":
-    case "disconnected":
-      closeVc(target);
-      break;
-  }
-}
-function handleSignalingStateChangeEvent(target,event) {
-  console.log("*** WebRTC signaling state changed to: " + targets[getPeer(target)].pc.signalingState);
-  switch(targets[getPeer(target)].pc.signalingState) {
-    case "closed":
-      closeVc(target);//possible connection param
-      break;
-  }
-}
-async function handleNegotiationNeededEvent(target) {
-  try {
-    console.log("---> Creating offer");
-    var offer = await targets[getPeer(target)].pc.createOffer();
-    if (targets[getPeer(target)].pc.signalingState != "stable") {
-      return;
-    }
-    console.log("---> Setting local description to the offer");
-    await targets[getPeer(target)].pc.setLocalDescription(offer);
-	sendToServer("vc-offer\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n"+target+"\n"+targets[getPeer(target)].pc.localDescription.sdp+"\n");
+			}	
+			}).fail(function () {document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
+		}function fullRefresh(){
+			refresh(true,true);	
+		}function halfRefresh(){
+			refresh(false,true);	
+		}function extraRefresh(){
+			refresh(true,false);
+		}function post(){
+			
+			var x=document.location.toString();
+			var n=x.substring(0,x.indexOf('?')).replace("Homepage.jsp","SubmitPost.jsp");
+			if(x.indexOf('?')<0)n=x.replace("Homepage.jsp","SubmitPost.jsp");
+			var q=<%out.print(board);%>;
+			if(x.indexOf("board=")<0)q=1;
+			$.get(n+"?autoOn=autoOff&input_text="+encodeURIComponent(document.forms[3].input_text.value)+"&board_num="+q).then(extraRefresh).fail(function(){document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
+			document.forms[3].input_text.value="";
+		}
+		document.querySelectorAll("[id='two']")[1].addEventListener('click',fullRefresh);
+	</script>
 	
-  } catch(err) {
-    console.log("*** The following error occurred while handling the negotiationneeded event:\neeeeeeeee");
-    console.dir(err);
-  };
-}
-function handleTrackEvent(target,event) {
-	targets[getPeer(target)].active=true;
-  console.log("*** Track event");
-  if(!document.getElementById("hydar_audio"+target)){
-	var e = document.createElement("audio");
-	e.setAttribute("id","hydar_audio"+target);
-	document.body.append(e);
-  }document.getElementById("hydar_audio"+target).srcObject = event.streams[0];
-  document.getElementById("hydar_audio"+target).volume = volume;
-  document.getElementById("hydar_audio"+target).play();
-}
-function createPeerConnection(target) {
-	return new Promise((resolve)=>{
-  console.log("Setting up a connection...");
-  targets[getPeer(target)].pc = new RTCPeerConnection({
-    iceServers: [     // Information about ICE servers - Use your own!
-      { urls: ["stun:"+myHostname+":3478"]}
-	 // ,
-	 // {urls: ["stun:stun3.l.google.com:19302"]}
-    ]
-  });
-  targets[getPeer(target)].pc.onicecandidate = (event)=>{handleICECandidateEvent(target,event)};
-  targets[getPeer(target)].pc.oniceconnectionstatechange = (event)=>{handleICEConnectionStateChangeEvent(target,event)};
-  targets[getPeer(target)].pc.onicegatheringstatechange = (event)=>{};
-  targets[getPeer(target)].pc.onsignalingstatechange = (event)=>{handleSignalingStateChangeEvent(target,event)};
-  targets[getPeer(target)].pc.onnegotiationneeded = ()=>{handleNegotiationNeededEvent(target)};
-  targets[getPeer(target)].pc.ontrack = (event)=>{handleTrackEvent(target, event)};
-  resolve(true);
-	});
-}
+	
+	
+	<%//VC SCRIPT %>
+	
+	
+	
+	<script>
+		var myHostname = window.location.hostname;
+		var vcvolume=<%out.print(volume * 0.2);%>;
+		var timer=15;
+		if (!myHostname) {
+		  myHostname = "localhost";
+		}var connection = null;
+		var clientID = eval(<%out.print(session.getAttribute("userid"));%>);
+		var thisName=null;
+		var targets=[];
+		function getPeer(id){
+			for(var x in targets){
+				if(targets[x].id==id)
+					return x;
+			}return null;
+		}
+		var constraints = {
+			audio: 
+			{
+				"autoGainControl": true,
+				"echoCancellation": true,
+				"noiseSuppression": true
+			}
+		}
+		var connection=null;
+		var serverUrl;
+		var muted=false;
+		var leaveVC = ()=>{
+			sendToServer("user-leave\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n");
+			sendToServer("user-list\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n");
+			thisName=null;
+			targets.forEach((x)=>{closeVc(x.id)});
+		}
+		async function apply(t,c) {
+		  await t.applyConstraints(Object.assign(track.getSettings(), c));
+		}
+		var sendToServer = (s)=>{
+			connection.send(s);
+			console.log("OUT"+s.substring(0,s.indexOf("\n")));
+		}
+		  var scheme = "ws";
+		  if (document.location.protocol === "https:") {
+		    scheme += "s";
+		  }
+		  serverUrl = scheme + "://" + myHostname + ":"+document.location.port+"/HydaRTCSignal.jsp";
+		  console.log("Connecting to server: "+serverUrl);
+		  connection = new WebSocket(serverUrl);
+		  connection.onopen = function(evt) {
+		    //document.getElementById("leaveVC").removeAttribute("hidden");
+			document.getElementById("VC-disconnect").addEventListener("click",()=>{
+			sendToServer("user-join\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n");
+			targets.forEach((x)=>{invite(x.id);sendToServer("user-list\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n");});
+			});
+			document.getElementById("VC-connect").addEventListener("click",leaveVC);
+			document.getElementById("VC-deafen").addEventListener("click",()=>{
+				if(vcvolume>0){
+					vcvolume=0;
+					try{
+						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=0;});
+					}catch(e){}
+				}else{
+					vcvolume= <%out.print(volume * 0.2);%>;
+					try{
+						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=1;});
+					}catch(e){}
+					}
+			});
+			document.getElementById("VC-undeafen").addEventListener("click",()=>{
+				if(vcvolume>0){
+					vcvolume=0;
+					try{
+						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=0;});
+					}catch(e){}
+				}else{
+					vcvolume=<%out.print(volume * 0.2);%>;
+					try{
+						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=1;});
+					}catch(e){}
+					}
+			});
+			
+			document.getElementById("VC-mute").addEventListener("click",()=>{
+				
+				if(muted){
+					muted=false;
+					targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=true;})})});
+				}else{
+					muted=true;
+					targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=false;})})});
+					}
+			});
+			document.getElementById("VC-unmute").addEventListener("click",()=>{
+				
+				if(muted){
+					muted=false;
+					targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=true;})})});
+				}else{
+					muted=true;
+					targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=false;})})});
+					}
+			});
+			setInterval(()=>{sendToServer("hydar\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n")},2000);
+			setInterval(()=>{timer--;if(connection&&timer<-7){leaveVC();connection.close();}},1000);
+		  };
+		  connection.onclose=function(evt){
+			//leaveVC();
+			//setTimeout(joinVC,2500);
+		  }
+		  connection.onerror = function(evt) {
+			leaveVC();
+			//setTimeout(joinVC,2500);
+		    console.dir(evt);
+		  }
+		  connection.onmessage = async function(evt) {
+			  timer=15;
+			  var msg = evt.data;
+			  var type = msg.substring(0,msg.indexOf('\n'));
+			  msg = msg.substring(msg.indexOf('\n')+1);
+			  var user = msg.substring(0,msg.indexOf('\n'));
+			  msg = msg.substring(msg.indexOf('\n')+1);
+			  var board = msg.substring(0,msg.indexOf('\n'));
+			  msg = msg.substring(msg.indexOf('\n')+1);
+					console.log("IN:"+type);
+			  switch(type){
+				  case "user-leave":
+					break;
+				  case "user-list":
+					clientID=eval(user);
+					var ids = msg.substring(0,msg.indexOf('\n'));
+					msg = msg.substring(msg.indexOf('\n')+1);
+				    oldTargets = targets.concat();
+					newTargets = eval(ids);
+				    var userList = eval(msg);
+					var tempTargets=[];
+					for(var x in newTargets){
+						if(newTargets[x]==clientID){
+							thisName=userList[x];
+							continue;
+						}var oldIndex=-1;
+						for(var i in oldTargets){
+							if(oldTargets[i].id==newTargets[x]){
+								oldIndex=i;
+							}
+						}
+						if(oldTargets[oldIndex]){
+							tempTargets.push({id:newTargets[x],pc:oldTargets[oldIndex].pc,active:oldTargets[oldIndex].active,name:userList[x]});
+						}else{
+							tempTargets.push({id:newTargets[x],pc:null,active:false,name:userList[x]});
+						}
+					}
+					targets = tempTargets.concat();
+					document.getElementById("vcList").innerHTML="";
+					for(var x in targets){
+						if(!targets[x]||targets[x].active==false)
+							document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(255,0,0)'></style>"+"<br>";
+						else if(!targets[x].pc||targets[x].pc.iceConnectionState!="connected")
+							document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(0,255,255)'> connecting...</style>"+"<br>";
+						else if(targets[x].active==true)
+							document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(0,255,0)'> (connected)</style>"+"<br>";
+					}if(thisName!=null){
+						document.getElementById("vcList").innerHTML+=thisName+"<div style='display:inline;color:rgb(255,255,0)'> (you)</style>"+"<br>";
+					}
+					break;
+				  case "p2ptest":
+				  break;
+				  case "vc-offer":
+					var target = parseInt(user);
+					var sdp = msg.substring(msg.indexOf('\n')+1);
+					var desc = new RTCSessionDescription({sdp:(new String(sdp)+"\r\n"),type:"offer"});
+					if(!targets[getPeer(target)]){
+						targets.push({id:target,pc:null});
+					}
+					  if (!targets[getPeer(target)].pc){
+						  await createPeerConnection(target);
+					  }
+						console.log ("  - Setting remote description");
+						await targets[getPeer(target)].pc.setRemoteDescription(desc);
+						  var stream = await navigator.mediaDevices.getUserMedia(constraints);
+		
+						try {
+						  stream.getTracks().forEach(
+							(track)=>{
+							targets[getPeer(target)].pc.addTrack(track, stream)}
+						  );
+						} catch(err) {
+						   console.dir(err);
+						  return;
+						}
+					  
+					  await targets[getPeer(target)].pc.setLocalDescription(await targets[getPeer(target)].pc.createAnswer());
+					console.log("we made it to the end of offer thing, there was probably an error if this isn't here");
+				  sendToServer("vc-answer\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n"+target+"\n"+targets[getPeer(target)].pc.localDescription.sdp);
+				  break;
+				  case "vc-answer":
+				  console.log("got vc answer");
+				  var target = parseInt(user);
+					var sdp = msg.substring(msg.indexOf('\n')+1);
+					var desc = new RTCSessionDescription({sdp:(new String(sdp)+"\r\n"),type:"answer"});
+					await targets[getPeer(target)].pc.setRemoteDescription(desc);//handle error maybe
+				  break;
+				  case "new-ice-candidate":
+				  var target = user;
+					var sdp = msg.substring(msg.indexOf('\n')+1);
+					var candidate = new RTCIceCandidate({candidate:new String(sdp),sdpMid:"audio"});
+					try {
+						 await targets[getPeer(target)].pc.addIceCandidate(candidate);
+					  } catch(err) {
+						//
+					  }
+					  break;
+				  case "user-leave":
+					closeVc(parseInt(user));
+					  break;
+				  default:
+					break;
+			  }
+		  }
+		  
+		async function invite(target){
+			if (targets[getPeer(target)]&&targets[getPeer(target)].pc&&targets[getPeer(target)].active) {
+			return;
+		  }if(!targets[getPeer(target)]){
+			  targets.push({id:target,pc:null});
+		  }
+		    console.log("Setting up connection to invite user: " + target);
+		    await createPeerConnection(target);
+		
+		    var stream = await navigator.mediaDevices.getUserMedia(constraints);
+		    try {
+		      stream.getTracks().forEach(
+			   (track)=>{
+			   targets[getPeer(target)].pc.addTrack(track,stream)}
+		      );
+		    } catch(err) {
+				console.log("couldnt add track");
+		    }
+		  
+		}
+		function handleICECandidateEvent(target, event) {
+		  if (event.candidate) {
+		    sendToServer("new-ice-candidate\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n"+target+"\n"+event.candidate.candidate);
+		  }
+		}
+		
+		async function closeVc(target){
+		
+		  console.log("Closing the call");
+		  if(!targets[getPeer(target)]){
+			  return;
+		  }
+		  if (targets[getPeer(target)].pc) {
+		    console.log("--> Closing the peer connection");
+		targets[getPeer(target)].active=false;
+			for(var s1 in targets[getPeer(target)].pc.getSenders())
+				targets[getPeer(target)].pc.removeTrack(targets[getPeer(target)].pc.getSenders()[s1]);
+		    targets[getPeer(target)].pc.ontrack = null;
+		    targets[getPeer(target)].pc.onnicecandidate = null;
+		    targets[getPeer(target)].pc.oniceconnectionstatechange = null;
+		    targets[getPeer(target)].pc.onsignalingstatechange = null;
+		    targets[getPeer(target)].pc.onicegatheringstatechange = null;
+		    targets[getPeer(target)].pc.onnotificationneeded = null;
+		    await targets[getPeer(target)].pc.close();
+		    targets[getPeer(target)].pc=null;
+		    //transceivers.splice(targets.indexOf(target),1);
+			var localAudio = document.getElementById("hydar_audio"+target);
+			if(localAudio)
+			localAudio.remove();
+		  }
+		}
+		function handleICEConnectionStateChangeEvent(target,event) {
+		  console.log("*** ICE connection state changed for "+target);
+		  if(getPeer(target)==null)
+			  return;
+			if(targets[getPeer(target)].pc)
+		  switch(targets[getPeer(target)].pc.iceConnectionState) {
+		    case "closed":
+		    case "failed":
+		    case "disconnected":
+		      closeVc(target);
+		      break;
+		  }
+		}
+		function handleSignalingStateChangeEvent(target,event) {
+		  console.log("*** WebRTC signaling state changed to: " + targets[getPeer(target)].pc.signalingState);
+		  switch(targets[getPeer(target)].pc.signalingState) {
+		    case "closed":
+		      closeVc(target);//possible connection param
+		      break;
+		  }
+		}
+		async function handleNegotiationNeededEvent(target) {
+		  try {
+		    console.log("---> Creating offer");
+		    var offer = await targets[getPeer(target)].pc.createOffer();
+		    if (targets[getPeer(target)].pc.signalingState != "stable") {
+		      return;
+		    }
+		    console.log("---> Setting local description to the offer");
+		    await targets[getPeer(target)].pc.setLocalDescription(offer);
+			sendToServer("vc-offer\n"+clientID+"\n"+<%out.print(request.getParameter("board"));%>+"\n"+target+"\n"+targets[getPeer(target)].pc.localDescription.sdp+"\n");
+			
+		  } catch(err) {
+		    console.log("*** The following error occurred while handling the negotiationneeded event:\neeeeeeeee");
+		    console.dir(err);
+		  };
+		}
+		function handleTrackEvent(target,event) {
+			targets[getPeer(target)].active=true;
+		  console.log("*** Track event");
+		  if(!document.getElementById("hydar_audio"+target)){
+			var e = document.createElement("audio");
+			e.setAttribute("id","hydar_audio"+target);
+			document.body.append(e);
+		  }document.getElementById("hydar_audio"+target).srcObject = event.streams[0];
+		  document.getElementById("hydar_audio"+target).volume = vcvolume;
+		  document.getElementById("hydar_audio"+target).play();
+		}
+		function createPeerConnection(target) {
+			return new Promise((resolve)=>{
+		  console.log("Setting up a connection...");
+		  targets[getPeer(target)].pc = new RTCPeerConnection({
+		    iceServers: [     // Information about ICE servers - Use your own!
+		      { urls: ["stun:"+myHostname+":3478"]}
+			 // ,
+			 // {urls: ["stun:stun3.l.google.com:19302"]}
+		    ]
+		  });
+		  targets[getPeer(target)].pc.onicecandidate = (event)=>{handleICECandidateEvent(target,event)};
+		  targets[getPeer(target)].pc.oniceconnectionstatechange = (event)=>{handleICEConnectionStateChangeEvent(target,event)};
+		  targets[getPeer(target)].pc.onicegatheringstatechange = (event)=>{};
+		  targets[getPeer(target)].pc.onsignalingstatechange = (event)=>{handleSignalingStateChangeEvent(target,event)};
+		  targets[getPeer(target)].pc.onnegotiationneeded = ()=>{handleNegotiationNeededEvent(target)};
+		  targets[getPeer(target)].pc.ontrack = (event)=>{handleTrackEvent(target, event)};
+		  resolve(true);
+			});
+		}
 	</script>
 	<%
 	
