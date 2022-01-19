@@ -684,59 +684,14 @@ class ServerThread extends Thread {
 	}
 
 }
-class HydarStunThread extends Thread {
-	DatagramSocket client = null;
-	public HydarStunThread(DatagramSocket socket) {
-		this.client = socket;
-	}
-	@Override
-	public void run() {
-		while(true){
-			try{
-			byte[] d = new byte[200];
-			byte[] r = new byte[32];
-			DatagramPacket receive = new DatagramPacket(d, 200);
-			this.client.receive(receive);
-			
-			if(!((int)d[0]==0&&(int)d[1]==1))
-				continue;
-			int length = ((d[2] & 0xff) << 8) | (d[3] & 0xff);
-			if(d[4]==0x21&&d[5]==0x12&&d[6]==-92&&d[7]==0x42){
-				r[0]=0x01;
-				r[1]=0x01;
-				r[2]=0x00;
-				r[3]=0x0C;
-				for(int i=4;i<20;i++){
-					r[i]=d[i];
-				}
-				r[20]=0x00;
-				r[21]=0x20;
-				r[24]=0x00;
-				r[25]=0x01;
-				r[27]=(byte)(((receive.getPort()) & 0xFF)^ 0x12 );
-				r[26]=(byte)((((receive.getPort()) & 0xFF00)>>8)^ 0x21);
-				int i=0;
-				for(i=0;i<receive.getAddress().getAddress().length;i++)
-					r[28+i]=(byte)((receive.getAddress().getAddress()[i]) ^ d[4+i]);
-				r[22]=0x00;
-				r[23]=(byte)(i+4);
-				this.client.send(new DatagramPacket(r,28+i,receive.getAddress(),receive.getPort()));
-				
-			}else{
-				//failed
-				continue;
-			}
-			}catch(Exception e){
-				
-			}
-		}
-	}
-}
+
 class HydarStunInstance extends Thread{
-	DatagramSocket server;
+	public DatagramSocket server;
 	public HydarStunInstance(int port){
 		try{
-			server = new DatagramSocket(port);
+			this.server = new DatagramSocket(port);
+			this.server.setReceiveBufferSize(2000);
+			this.server.setSoTimeout(5000);
 		}catch(Exception e){
 				e.printStackTrace();
 				return;
@@ -746,11 +701,47 @@ class HydarStunInstance extends Thread{
 	public void run() {
 		System.out.println("Starting STUN server...");
 			try{
-				server.setReceiveBufferSize(2000);
-				server.setSoTimeout(5000);
-				HydarStunThread t = new HydarStunThread(server);
-				t.start();
+				while(true){
+					try{
+						byte[] d = new byte[200];
+						byte[] r = new byte[32];
+						DatagramPacket receive = new DatagramPacket(d, 200);
+						this.server.receive(receive);
+						
+						if(!((int)d[0]==0&&(int)d[1]==1))
+							continue;
+						int length = ((d[2] & 0xff) << 8) | (d[3] & 0xff);
+						if(d[4]==0x21&&d[5]==0x12&&d[6]==-92&&d[7]==0x42){
+							r[0]=0x01;
+							r[1]=0x01;
+							r[2]=0x00;
+							r[3]=0x0C;
+							for(int i=4;i<20;i++){
+								r[i]=d[i];
+							}
+							r[20]=0x00;
+							r[21]=0x20;
+							r[24]=0x00;
+							r[25]=0x01;
+							r[27]=(byte)(((receive.getPort()) & 0xFF)^ 0x12 );
+							r[26]=(byte)((((receive.getPort()) & 0xFF00)>>8)^ 0x21);
+							int i=0;
+							for(i=0;i<receive.getAddress().getAddress().length;i++)
+								r[28+i]=(byte)((receive.getAddress().getAddress()[i]) ^ d[4+i]);
+							r[22]=0x00;
+							r[23]=(byte)(i+4);
+							this.server.send(new DatagramPacket(r,28+i,receive.getAddress(),receive.getPort()));
+							
+						}else{
+							//failed
+							continue;
+						}
+					}catch(Exception e){
+						e.printStackTrace();
+					}
+				}
 			}catch(Exception e){
+				e.printStackTrace();
 				return;
 			}
 	}
@@ -884,7 +875,7 @@ public class Hydar {
 			htmls.put(n,html);
 			//System.out.println(javas);
 			int index=0;
-			String x__="import java.util.HashMap;\nimport java.nio.charset.StandardCharsets;\nimport java.net.URLDecoder;\nimport java.io.*;\nimport java.util.concurrent.*;import java.sql.*;\npublic class "+n.substring(n.lastIndexOf("\\")+1).substring(n.lastIndexOf("/")+1)+"{\npublic "+n.substring(n.lastIndexOf("\\")+1).substring(n.lastIndexOf("/")+1)+"(){\n}\n"+o+v+i+a+q+u+a_+r_+t+a__+"public Object[] jsp_Main(String jsp_param, ConcurrentHashMap<String, String> jsp_attr) {\ntry{\n"+x_;
+			String x__="import java.util.HashMap;\nimport java.nio.charset.StandardCharsets;\nimport java.net.URLDecoder;\nimport java.util.concurrent.*;import java.sql.*;\npublic class "+n.substring(n.lastIndexOf("\\")+1).substring(n.lastIndexOf("/")+1)+"{\npublic "+n.substring(n.lastIndexOf("\\")+1).substring(n.lastIndexOf("/")+1)+"(){\n}\n"+o+v+i+a+q+u+a_+r_+t+a__+"public Object[] jsp_Main(String jsp_param, ConcurrentHashMap<String, String> jsp_attr) {\ntry{\n"+x_;
 			//System.out.println(new Date(j.lastModified()));
 			//System.out.println(n);
 			timestamps.put(e,new Date(j.lastModified()));
@@ -1121,7 +1112,7 @@ public class Hydar {
 			return;
 		}
 		
-		HydarStunInstance stun = new HydarStunInstance(3379);
+		HydarStunInstance stun = new HydarStunInstance(3478);
 		new Thread(stun).start();
 		//server loop(only ends on ctrl-c)
 		ArrayList<ServerThread> threads = new ArrayList<ServerThread>(5);
