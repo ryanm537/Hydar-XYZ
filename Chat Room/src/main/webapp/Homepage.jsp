@@ -1024,14 +1024,16 @@ try{
 		}
 		async function handleNegotiationNeededEvent(target) {
 		  try {
-		    console.log("---> Creating offer");
-		    var offer = await targets[getPeer(target)].pc.createOffer();
-		    if (targets[getPeer(target)].pc.signalingState != "stable") {
-		      return;
-		    }
-		    console.log("---> Setting local description to the offer");
-		    await targets[getPeer(target)].pc.setLocalDescription(offer);
-			sendToServer("vc-offer\n"+clientID+"\n"+<%out.print(board);%>+"\n"+target+"\n"+targets[getPeer(target)].pc.localDescription.sdp+"\n");
+			if(targets[getPeer(target)].pc.signalingState!="stable"){//idk what im doing
+				console.log("---> Creating offer");
+				var offer = await targets[getPeer(target)].pc.createOffer();
+				if (targets[getPeer(target)].pc.signalingState != "stable") {
+				  return;
+				}
+				console.log("---> Setting local description to the offer");
+				await targets[getPeer(target)].pc.setLocalDescription(offer);
+				sendToServer("vc-offer\n"+clientID+"\n"+<%out.print(board);%>+"\n"+target+"\n"+targets[getPeer(target)].pc.localDescription.sdp+"\n");
+			}console.log("didnt create offer eee");
 			
 		  } catch(err) {
 		    console.log("*** The following error occurred while handling the negotiationneeded event:\neeeeeeeee");
