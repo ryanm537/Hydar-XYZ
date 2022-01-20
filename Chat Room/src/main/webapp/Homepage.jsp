@@ -515,7 +515,7 @@ try{
 	
 	out.print("<style> .nav{text-align:center; font-family:calibri; list-style-type:none; margin:0; padding:0} .nav li{color:rgb(255,255,255); display:inline-block;  font-size:20px;  position:relative; top:-12px;}</style>");
 	out.print("<ul class=\"nav\"><li>");
-	out.print("<iframe name=\"dummyframe\" id=\"dummyframe\" style=\"display: none;\"></iframe>");
+	out.print("<iframe disabled name=\"dummyframe\" id=\"dummyframe\" style=\"display: none;\"></iframe>");
 	out.print("<form onsubmit=\"post()\" action=\"\" target=\"dummyframe\">");
 
 	%>
