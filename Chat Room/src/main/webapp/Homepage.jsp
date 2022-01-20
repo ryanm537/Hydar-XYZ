@@ -97,7 +97,7 @@ try{
 
 	volume = volume/100;
 	pingvolume = (pingvolume/100) * 2;
-	voicevolume = (voicevolume/100) * 2;
+	voicevolume = 1 < ((voicevolume/100) * volume * 2) ? 1 : ((voicevolume/100) * volume * 2);
 	//CHECK IF AUTO REFRESH IS ON
 	
 	String autoRefresh = request.getParameter("autoOn");
@@ -717,7 +717,7 @@ try{
 	
 	<script>
 		var myHostname = window.location.hostname;
-		var vcvolume=<%out.print(volume * 0.2 * voicevolume);%>;
+		var vcvolume=<%out.print(voicevolume);%>;
 		var timer=15;
 		if (!myHostname) {
 		  myHostname = "localhost";
@@ -778,7 +778,7 @@ try{
 						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=0;});
 					}catch(e){}
 				}else{
-					vcvolume= <%out.print(volume * 0.2 * voicevolume);%>;
+					vcvolume= <%out.print(voicevolume);%>;
 					try{
 						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=vcvolume;});
 					}catch(e){}
@@ -791,7 +791,7 @@ try{
 						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=0;});
 					}catch(e){}
 				}else{
-					vcvolume=<%out.print(volume * 0.2 * voicevolume);%>;
+					vcvolume=<%out.print(voicevolume);%>;
 					try{
 						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=vcvolume;});
 					}catch(e){}
@@ -1024,16 +1024,14 @@ try{
 		}
 		async function handleNegotiationNeededEvent(target) {
 		  try {
-			if(targets[getPeer(target)].pc.signalingState!="stable"){//idk what im doing
-				console.log("---> Creating offer");
-				var offer = await targets[getPeer(target)].pc.createOffer();
-				if (targets[getPeer(target)].pc.signalingState != "stable") {
-				  return;
-				}
-				console.log("---> Setting local description to the offer");
-				await targets[getPeer(target)].pc.setLocalDescription(offer);
-				sendToServer("vc-offer\n"+clientID+"\n"+<%out.print(board);%>+"\n"+target+"\n"+targets[getPeer(target)].pc.localDescription.sdp+"\n");
-			}console.log("didnt create offer eee");
+		    console.log("---> Creating offer");
+		    var offer = await targets[getPeer(target)].pc.createOffer();
+		    if (targets[getPeer(target)].pc.signalingState != "stable") {
+		      return;
+		    }
+		    console.log("---> Setting local description to the offer");
+		    await targets[getPeer(target)].pc.setLocalDescription(offer);
+			sendToServer("vc-offer\n"+clientID+"\n"+<%out.print(board);%>+"\n"+target+"\n"+targets[getPeer(target)].pc.localDescription.sdp+"\n");
 			
 		  } catch(err) {
 		    console.log("*** The following error occurred while handling the negotiationneeded event:\neeeeeeeee");
