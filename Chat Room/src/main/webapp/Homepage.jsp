@@ -802,20 +802,20 @@ try{
 				
 				if(muted){
 					muted=false;
-					targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=true;})})});
+					targets.forEach((conn)=>{conn.pc.getSenders().forEach((strm)=>{strm.enabled=true;})});
 				}else{
 					muted=true;
-					targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=false;})})});
+					targets.forEach((conn)=>{conn.pc.getSenders().forEach((strm)=>{strm.enabled=false;})});
 					}
 			});
 			document.getElementById("VC-unmute").addEventListener("click",()=>{
 				
 				if(muted){
 					muted=false;
-					targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=true;})})});
+					targets.forEach((conn)=>{conn.pc.getSenders().forEach((strm)=>{strm.enabled=true;})});
 				}else{
 					muted=true;
-					targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=false;})})});
+					targets.forEach((conn)=>{conn.pc.getSenders().forEach((strm)=>{strm.enabled=false;})});
 					}
 			});
 			setInterval(()=>{sendToServer("hydar\n"+clientID+"\n"+<%out.print(board);%>+"\n")},2000);
