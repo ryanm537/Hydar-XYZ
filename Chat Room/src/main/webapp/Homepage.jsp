@@ -769,7 +769,7 @@ try{
 				document.getElementById("VC-disconnect").addEventListener("click",()=>{
 					if(canJoinVc){
 						sendToServer("user-join\n"+clientID+"\n"+<%out.print(board);%>+"\n");
-						targets.forEach((x)=>{invite(x.id);sendToServer("user-list\n"+clientID+"\n"+<%out.print(board);%>+"\n");});
+						targets.forEach((x)=>{vc_invite(x.id);sendToServer("user-list\n"+clientID+"\n"+<%out.print(board);%>+"\n");});
 					}
 				});
 				document.getElementById("VC-connect").addEventListener("click",leaveVC);
@@ -953,7 +953,7 @@ try{
 			  }
 		  }
 		  makeSocket();
-		async function invite(target){
+		async function vc_invite(target){
 			if (targets[getPeer(target)]&&targets[getPeer(target)].pc&&targets[getPeer(target)].active) {
 			return;
 		  }if(!targets[getPeer(target)]){
