@@ -97,8 +97,7 @@ try{
 
 	volume = volume/100;
 	pingvolume = (pingvolume/100) * 2;
-	double voicevolume1 = voicevolume/100;
-	voicevolume = 1 < (voicevolume1 * volume * 2) ? 1 : (voicevolume1 * volume * 2);
+	voicevolume = (voicevolume/100) * 2;
 	//CHECK IF AUTO REFRESH IS ON
 	
 	String autoRefresh = request.getParameter("autoOn");
@@ -718,7 +717,7 @@ try{
 	
 	<script>
 		var myHostname = window.location.hostname;
-		var vcvolume=<%out.print(voicevolume);%>;
+		var vcvolume=<%out.print(volume * 0.2 * voicevolume);%>;
 		var timer=10;
 		if (!myHostname) {
 		  myHostname = "localhost";
@@ -763,199 +762,197 @@ try{
 		  serverUrl = scheme + "://" + myHostname + ":"+document.location.port+"/HydaRTCSignal.jsp";
 		  console.log("Connecting to server: "+serverUrl);
 		  var makeSocket = function(){
-		  connection = new WebSocket(serverUrl);
-		  
-		  connection.onopen = function(evt) {
-		    //document.getElementById("leaveVC").removeAttribute("hidden");
-			document.getElementById("VC-disconnect").addEventListener("click",()=>{
-				if(canJoinVc){
-					sendToServer("user-join\n"+clientID+"\n"+<%out.print(board);%>+"\n");
-					targets.forEach((x)=>{invite(x.id);sendToServer("user-list\n"+clientID+"\n"+<%out.print(board);%>+"\n");});
-				}
-			});
-			document.getElementById("VC-connect").addEventListener("click",leaveVC);
-			document.getElementById("VC-deafen").addEventListener("click",()=>{
-				if(vcvolume>0){
-					vcvolume=0;
-					try{
-						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=0;});
-					}catch(e){}
-				}else{
-					vcvolume= <%out.print(voicevolume);%>;
-					try{
-						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=vcvolume;});
-					}catch(e){}
-					}
-			});
-			document.getElementById("VC-undeafen").addEventListener("click",()=>{
-				if(vcvolume>0){
-					vcvolume=0;
-					try{
-						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=0;});
-					}catch(e){}
-				}else{
-					vcvolume=<%out.print(voicevolume);%>;
-					try{
-						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=vcvolume;});
-					}catch(e){}
-					}
-			});
-			
-			document.getElementById("VC-mute").addEventListener("click",()=>{
-				
-				if(muted){
-					muted=false;
-					targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=true;})})});
-				}else{
-					muted=true;
-					targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=false;})})});
-					}
-			});
-			document.getElementById("VC-unmute").addEventListener("click",()=>{
-				
-				if(muted){
-					muted=false;
-					targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=true;})})});
-				}else{
-					muted=true;
-					targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=false;})})});
-					}
-			});
-			setInterval(()=>{sendToServer("hydar\n"+clientID+"\n"+<%out.print(board);%>+"\n")},2000);
-			setInterval(()=>{timer--;targets.forEach((t3)=>{t3.timer-=1;});if(timer<0){canJoinVc=false;thisName=null;targets.forEach((x)=>{closeVc(x.id)});if(connection){connection.close();connection=null;}document.getElementById("vcList").innerHTML="Server connection lost. Trying to connect...";try{makeSocket();}catch(e7){}}},1000);
-		  };
-		  connection.onclose=function(evt){
-			//leaveVC();
-			//setTimeout(joinVC,2500);
-		  }
-		  connection.onerror = function(evt) {
-			//leaveVC();
-			//setTimeout(joinVC,2500);
-		    console.dir(evt);
-		  }
-		  connection.onmessage = async function(evt) {
-			  timer=7;
+			  connection = new WebSocket(serverUrl);
 			  
-			  var msg = evt.data;
-			  var type = msg.substring(0,msg.indexOf('\n'));
-			  msg = msg.substring(msg.indexOf('\n')+1);
-			  var user = msg.substring(0,msg.indexOf('\n'));
-			  msg = msg.substring(msg.indexOf('\n')+1);
-			  var board = msg.substring(0,msg.indexOf('\n'));
-			  msg = msg.substring(msg.indexOf('\n')+1);
-					console.log("IN:"+type);
-			  switch(type){
-				  case "user-leave":
-					break;
-				  case "user-list":
-					clientID=eval(user);
-				var ids = msg.substring(0,msg.indexOf('\n'));
-				msg = msg.substring(msg.indexOf('\n')+1);
-			    oldTargets = targets.concat();
-				newTargets = eval(ids);
-			    var userList = eval(msg);
-				var tempTargets=[];
-				var isJoined=false;
-				for(var x in newTargets){
-					if(newTargets[x]==clientID){
-						thisName=userList[x];
-						isJoined=true;
-						continue;
-					}var oldIndex=-1;
-					for(var i in oldTargets){
-						if(oldTargets[i].id==newTargets[x]){
-							oldIndex=i;
-						}
+			  connection.onopen = function(evt) {
+				//document.getElementById("leaveVC").removeAttribute("hidden");
+				document.getElementById("VC-disconnect").addEventListener("click",()=>{
+					if(canJoinVc){
+						sendToServer("user-join\n"+clientID+"\n"+<%out.print(board);%>+"\n");
+						targets.forEach((x)=>{invite(x.id);sendToServer("user-list\n"+clientID+"\n"+<%out.print(board);%>+"\n");});
 					}
-					if(oldTargets[oldIndex]){
-						tempTargets.push({id:newTargets[x],pc:oldTargets[oldIndex].pc,active:oldTargets[oldIndex].active,name:userList[x],timer:oldTargets[oldIndex].timer});
+				});
+				document.getElementById("VC-connect").addEventListener("click",leaveVC);
+				document.getElementById("VC-deafen").addEventListener("click",()=>{
+					if(vcvolume>0){
+						vcvolume=0;
+						try{
+							targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=0;});
+						}catch(e){}
 					}else{
-						tempTargets.push({id:newTargets[x],pc:null,active:false,name:userList[x],timer:100});
-					}
-				}
-				targets = tempTargets.concat();
-				document.getElementById("vcList").innerHTML="";
-				for(var x in targets){
-					var tAlive=false;
-					var transportStates=[];
-					if(targets[x]&&targets[x].pc)
-						targets[x].pc.getSenders().forEach((x)=>{if(x.transport)transportStates.push(x.transport.state);});
-					if(!targets[x]||targets[x].active==false||!targets[x].pc||transportStates.includes("failed"))
-						document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(255,0,0)'></style>"+"<br>";
-					else if(!targets[x].pc||targets[x].pc.iceConnectionState!="connected")
-						document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(255,128,0)'> connecting...</style>"+"<br>";
-					else if(transportStates.includes("connecting"))
-						document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(255,255,0)'> encrypting...</style>"+"<br>";
-					else if(targets[x].active==true){
-						tAlive=true;
-						targets[x].timer=3;
-						document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(0,255,0)'> (connected)</style>"+"<br>";
-					}if(!tAlive&&targets[x].timer<0){
-						targets[x].timer=3;
-						targets[x].pc.restartIce();
-					}
-				}if(thisName!=null){
-					document.getElementById("vcList").innerHTML+=thisName+"<div style='display:inline;color:rgb(0,255,255)'> (you)</style>"+"<br>";
-				}
-				canJoinVc=true;
-				break;
-				  case "p2ptest":
-				  break;
-				  case "vc-offer":
-					var target = parseInt(user);
-					var sdp = msg.substring(msg.indexOf('\n')+1);
-					var desc = new RTCSessionDescription({sdp:(new String(sdp)+"\r\n"),type:"offer"});
-					if(!targets[getPeer(target)]){
-						targets.push({id:target,pc:null});
-					}
-					  if (!targets[getPeer(target)].pc){
-						  await createPeerConnection(target);
-					  }
-						console.log ("  - Setting remote description");
-						await targets[getPeer(target)].pc.setRemoteDescription(desc);
-						  var stream = await navigator.mediaDevices.getUserMedia(constraints);
-		
-						try {
-						  stream.getTracks().forEach(
-							(track)=>{
-							targets[getPeer(target)].pc.addTrack(track, stream)}
-						  );
-						} catch(err) {
-						   console.dir(err);
-						  return;
+						vcvolume= <%out.print(volume * 0.2 * voicevolume);%>;
+						try{
+							targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=vcvolume;});
+						}catch(e){}
 						}
-					  
-					  await targets[getPeer(target)].pc.setLocalDescription(await targets[getPeer(target)].pc.createAnswer());
-					console.log("we made it to the end of offer thing, there was probably an error if this isn't here");
-				  sendToServer("vc-answer\n"+clientID+"\n"+<%out.print(board);%>+"\n"+target+"\n"+targets[getPeer(target)].pc.localDescription.sdp);
-				  break;
-				  case "vc-answer":
-				  console.log("got vc answer");
-				  var target = parseInt(user);
-					var sdp = msg.substring(msg.indexOf('\n')+1);
-					var desc = new RTCSessionDescription({sdp:(new String(sdp)+"\r\n"),type:"answer"});
-					await targets[getPeer(target)].pc.setRemoteDescription(desc);//handle error maybe
-				  break;
-				  case "new-ice-candidate":
-				  var target = user;
-					var sdp = msg.substring(msg.indexOf('\n')+1);
-					var candidate = new RTCIceCandidate({candidate:new String(sdp),sdpMid:"audio"});
-					try {
-						 await targets[getPeer(target)].pc.addIceCandidate(candidate);
-					  } catch(err) {
-						//
-					  }
-					  break;
-				  case "user-leave":
-					closeVc(parseInt(user));
-					  break;
-				  default:
+				});
+				document.getElementById("VC-undeafen").addEventListener("click",()=>{
+					if(vcvolume>0){
+						vcvolume=0;
+						try{
+							targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=0;});
+						}catch(e){}
+					}else{
+						vcvolume=<%out.print(volume * 0.2 * voicevolume);%>;
+						try{
+							targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=vcvolume;});
+						}catch(e){}
+						}
+				});
+				
+				document.getElementById("VC-mute").addEventListener("click",()=>{
+					
+					if(muted){
+						muted=false;
+						targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=true;})})});
+					}else{
+						muted=true;
+						targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=false;})})});
+						}
+				});
+				document.getElementById("VC-unmute").addEventListener("click",()=>{
+					
+					if(muted){
+						muted=false;
+						targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=true;})})});
+					}else{
+						muted=true;
+						targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=false;})})});
+						}
+				});
+			  }
+			  connection.onclose=function(evt){
+				//leaveVC();
+				//setTimeout(joinVC,2500);
+			  }
+			  connection.onerror = function(evt) {
+				//leaveVC();
+				//setTimeout(joinVC,2500);
+				console.dir(evt);
+			  }
+			  connection.onmessage = async function(evt) {
+				  timer=7;
+				  
+				  var msg = evt.data;
+				  var type = msg.substring(0,msg.indexOf('\n'));
+				  msg = msg.substring(msg.indexOf('\n')+1);
+				  var user = msg.substring(0,msg.indexOf('\n'));
+				  msg = msg.substring(msg.indexOf('\n')+1);
+				  var board = msg.substring(0,msg.indexOf('\n'));
+				  msg = msg.substring(msg.indexOf('\n')+1);
+						console.log("IN:"+type);
+				  switch(type){
+					  case "user-leave":
+						break;
+					  case "user-list":
+						clientID=eval(user);
+					var ids = msg.substring(0,msg.indexOf('\n'));
+					msg = msg.substring(msg.indexOf('\n')+1);
+					oldTargets = targets.concat();
+					newTargets = eval(ids);
+					var userList = eval(msg);
+					var tempTargets=[];
+					var isJoined=false;
+					for(var x in newTargets){
+						if(newTargets[x]==clientID){
+							thisName=userList[x];
+							isJoined=true;
+							continue;
+						}var oldIndex=-1;
+						for(var i in oldTargets){
+							if(oldTargets[i].id==newTargets[x]){
+								oldIndex=i;
+							}
+						}
+						if(oldTargets[oldIndex]){
+							tempTargets.push({id:newTargets[x],pc:oldTargets[oldIndex].pc,active:oldTargets[oldIndex].active,name:userList[x],timer:oldTargets[oldIndex].timer});
+						}else{
+							tempTargets.push({id:newTargets[x],pc:null,active:false,name:userList[x],timer:100});
+						}
+					}
+					targets = tempTargets.concat();
+					document.getElementById("vcList").innerHTML="";
+					for(var x in targets){
+						var tAlive=false;
+						var transportStates=[];
+						if(targets[x]&&targets[x].pc)
+							targets[x].pc.getSenders().forEach((x)=>{if(x.transport)transportStates.push(x.transport.state);});
+						if(!targets[x]||targets[x].active==false||!targets[x].pc||transportStates.includes("failed"))
+							document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(255,0,0)'></style>"+"<br>";
+						else if(!targets[x].pc||targets[x].pc.iceConnectionState!="connected")
+							document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(255,128,0)'> connecting...</style>"+"<br>";
+						else if(transportStates.includes("connecting"))
+							document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(255,255,0)'> encrypting...</style>"+"<br>";
+						else if(targets[x].active==true){
+							tAlive=true;
+							targets[x].timer=3;
+							document.getElementById("vcList").innerHTML+=targets[x].name+"<div style='display:inline;color:rgb(0,255,0)'> (connected)</style>"+"<br>";
+						}if(!tAlive&&targets[x].timer<0){
+							targets[x].timer=3;
+							if(targets[x].pc)
+								targets[x].pc.restartIce();
+						}
+					}if(thisName!=null){
+						document.getElementById("vcList").innerHTML+=thisName+"<div style='display:inline;color:rgb(0,255,255)'> (you)</style>"+"<br>";
+					}
+					canJoinVc=true;
 					break;
+					  case "p2ptest":
+					  break;
+					  case "vc-offer":
+						var target = parseInt(user);
+						var sdp = msg.substring(msg.indexOf('\n')+1);
+						var desc = new RTCSessionDescription({sdp:(new String(sdp)+"\r\n"),type:"offer"});
+						if(!targets[getPeer(target)]){
+							targets.push({id:target,pc:null});
+						}
+						  if (!targets[getPeer(target)].pc){
+							  await createPeerConnection(target);
+						  }
+							console.log ("  - Setting remote description");
+							await targets[getPeer(target)].pc.setRemoteDescription(desc);
+							  var stream = await navigator.mediaDevices.getUserMedia(constraints);
+			
+							try {
+							  stream.getTracks().forEach(
+								(track)=>{
+								targets[getPeer(target)].pc.addTrack(track, stream)}
+							  );
+							} catch(err) {
+							   console.dir(err);
+							  return;
+							}
+						  
+						  await targets[getPeer(target)].pc.setLocalDescription(await targets[getPeer(target)].pc.createAnswer());
+						console.log("we made it to the end of offer thing, there was probably an error if this isn't here");
+					  sendToServer("vc-answer\n"+clientID+"\n"+<%out.print(board);%>+"\n"+target+"\n"+targets[getPeer(target)].pc.localDescription.sdp);
+					  break;
+					  case "vc-answer":
+					  console.log("got vc answer");
+					  var target = parseInt(user);
+						var sdp = msg.substring(msg.indexOf('\n')+1);
+						var desc = new RTCSessionDescription({sdp:(new String(sdp)+"\r\n"),type:"answer"});
+						await targets[getPeer(target)].pc.setRemoteDescription(desc);//handle error maybe
+					  break;
+					  case "new-ice-candidate":
+					  var target = user;
+						var sdp = msg.substring(msg.indexOf('\n')+1);
+						var candidate = new RTCIceCandidate({candidate:new String(sdp),sdpMid:"audio"});
+						try {
+							 await targets[getPeer(target)].pc.addIceCandidate(candidate);
+						  } catch(err) {
+							//
+						  }
+						  break;
+					  case "user-leave":
+						closeVc(parseInt(user));
+						  break;
+					  default:
+						break;
+				  }
 			  }
 		  }
-		  }
 		  makeSocket();
-		  sendToServer("hydar\n"+clientID+"\n"+<%out.print(board);%>+"\n");
 		async function invite(target){
 			if (targets[getPeer(target)]&&targets[getPeer(target)].pc&&targets[getPeer(target)].active) {
 			return;
