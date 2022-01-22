@@ -97,7 +97,8 @@ try{
 
 	volume = volume/100;
 	pingvolume = (pingvolume/100) * 2;
-	voicevolume = (voicevolume/100) * 2;
+	double voicevolume1 = voicevolume/100;
+	voicevolume = 1 < (voicevolume1 * volume * 2) ? 1 : (voicevolume1 * volume * 2);
 	//CHECK IF AUTO REFRESH IS ON
 	
 	String autoRefresh = request.getParameter("autoOn");
@@ -717,7 +718,7 @@ try{
 	
 	<script>
 		var myHostname = window.location.hostname;
-		var vcvolume=<%out.print(volume * 0.2 * voicevolume);%>;
+		var vcvolume=<%out.print(voicevolume);%>;
 		var timer=10;
 		if (!myHostname) {
 		  myHostname = "localhost";
@@ -780,7 +781,7 @@ try{
 						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=0;});
 					}catch(e){}
 				}else{
-					vcvolume= <%out.print(volume * 0.2 * voicevolume);%>;
+					vcvolume= <%out.print(voicevolume);%>;
 					try{
 						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=vcvolume;});
 					}catch(e){}
@@ -793,7 +794,7 @@ try{
 						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=0;});
 					}catch(e){}
 				}else{
-					vcvolume=<%out.print(volume * 0.2 * voicevolume);%>;
+					vcvolume=<%out.print(voicevolume);%>;
 					try{
 						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=vcvolume;});
 					}catch(e){}
