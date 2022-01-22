@@ -173,14 +173,15 @@ class ServerThread extends Thread {
 								output.flush();
 								continue;
 							}
-							data = Files.readString(Paths.get("." + firstLine[1]), StandardCharsets.ISO_8859_1);
+							//System.out.println(Hydar.statics.keySet());
+							data = Hydar.statics.get((firstLine[1].startsWith("/"))?(firstLine[1].substring(1)):(firstLine[1]));
 							s = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US);
 							s.setTimeZone(TimeZone.getTimeZone("GMT"));
 							st = Hydar.timestamps.get(firstLine[1].substring(firstLine[1].indexOf("/")+1).replace("/","\\"));
 							StringBuffer timestampBuffer=new StringBuffer("");
 							s.format(st,timestampBuffer,new FieldPosition(0));
 							timestamp = timestampBuffer.toString();
-						} catch (IOException e) {
+						} catch (Exception e) {
 							//create file to test what caused error(could also use e)
 							File f = new File("." + firstLine[1]);
 							if (!f.exists()) {
@@ -294,12 +295,18 @@ class ServerThread extends Thread {
 											+ "\r\n\r\n" + "403 Forbidden").getBytes(StandardCharsets.ISO_8859_1));
 											break;
 									}
-								}if(!booled)
-									output.write(
+								}if(!booled){
+									if(data.length()==0)
+										output.write(
+										("HTTP/1.1 204 No Content\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nContent-Encoding: identity\r\nContent-Length: "
+												+ data.length() + "\r\nContent-Type: text/html;charset=ISO-8859-1"
+												+ "\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT"+"\r\nSet-Cookie: HYDAR_sessionID="+this.session+"; SameSite=Strict\r\n\r\n" + data + "").getBytes(StandardCharsets.ISO_8859_1));
+									else output.write(
 									("HTTP/1.1 200 OK\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nContent-Encoding: identity\r\nContent-Length: "
 											+ data.length() + "\r\nContent-Type: " + mime
 											+ "\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT\r\nLast-Modified: " + timestamp
 											+ "\r\n\r\n" + data + "").getBytes(StandardCharsets.ISO_8859_1));
+								}
 							}else{
 								
 								int i=0;
@@ -378,10 +385,15 @@ class ServerThread extends Thread {
 											+ "\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT"+"\r\nSet-Cookie: HYDAR_sessionID="+this.session+"; SameSite=Strict\r\n\r\n" + Hydar.err + "").getBytes(StandardCharsets.ISO_8859_1));
 								}else if(re==null){
 									//System.out.println(newData);
-									output.write(
-									("HTTP/1.1 200 OK\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nContent-Encoding: identity\r\nContent-Length: "
-											+ newData.length() + "\r\nContent-Type: text/html;charset=ISO-8859-1"
-											+ "\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT"+"\r\nSet-Cookie: HYDAR_sessionID="+this.session+"; SameSite=Strict\r\n\r\n" + newData + "").getBytes(StandardCharsets.ISO_8859_1));
+									if(newData.length()==0)
+										output.write(
+										("HTTP/1.1 204 No Content\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nContent-Encoding: identity\r\nContent-Length: "
+												+ newData.length() + "\r\nContent-Type: text/html;charset=ISO-8859-1"
+												+ "\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT"+"\r\nSet-Cookie: HYDAR_sessionID="+this.session+"; SameSite=Strict\r\n\r\n" + newData + "").getBytes(StandardCharsets.ISO_8859_1));
+									else output.write(
+										("HTTP/1.1 200 OK\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nContent-Encoding: identity\r\nContent-Length: "
+												+ newData.length() + "\r\nContent-Type: text/html;charset=ISO-8859-1"
+												+ "\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT"+"\r\nSet-Cookie: HYDAR_sessionID="+this.session+"; SameSite=Strict\r\n\r\n" + newData + "").getBytes(StandardCharsets.ISO_8859_1));
 								}else output.write(
 									("HTTP/1.1 302 Found\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nContent-Encoding: identity\r\nContent-Length: "
 											+ 0 + "\r\nLocation: "+re+"\r\nContent-Type: text/html;charset=ISO-8859-1"
@@ -389,12 +401,6 @@ class ServerThread extends Thread {
 								
 							}
 											
-						} else if (firstLine[0].equals("POST")) {//deprecated
-							output.write(
-									("HTTP/1.1 200 OK\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nContent-Encoding: identity\r\nContent-Length: "
-											+ data.length() + "\r\nContent-Type: " + mime
-											+ "\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT\r\nLast-Modified: " + timestamp
-											+ "\r\n\r\n" + data + "").getBytes(StandardCharsets.ISO_8859_1));
 						} else if (firstLine[0].equals("HEAD")) {
 							output.write(
 									("HTTP/1.1 200 OK\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nContent-Encoding: identity\r\nContent-Length: "
@@ -616,10 +622,11 @@ class ServerThread extends Thread {
 							}else if(type.equals("user-join")){
 									Hydar.addUser(Integer.parseInt(user),b,this.session);
 									target=-1;
+									toWrite="";
 							}else if(type.equals("user-leave")){
 									Hydar.dropUser(Integer.parseInt(user),b,this.session);
 									target=-1;
-							
+									toWrite="";
 							}else{
 								//rtc message - just relay it to the target
 								line=line.substring(line.indexOf("\n")+1);
@@ -643,6 +650,7 @@ class ServerThread extends Thread {
 									for(String f:Hydar.vcList.get(b))
 										friendlyList.add("\""+f+"\"");
 									for(Integer t2:Hydar.vc.get(b)){
+										System.out.println("i wrote something to "+t2+" lol");
 										toWrite = "user-list\n"+t2+"\n"+b+"\n"+Hydar.vc.get(b).toString()+"\n"+friendlyList.toString();
 										Hydar.wsWrite(toWrite,Hydar.ws.get(t2));
 									}//target=Integer.parseInt(user);
@@ -792,6 +800,7 @@ public class Hydar {
 	public static ConcurrentHashMap<Integer,ArrayList<String>> vcList;//board id => username
 	public static ConcurrentHashMap<String,Class> classes;//class name => class
 	public static ConcurrentHashMap<String,Date> timestamps;//file name => time
+	public static ConcurrentHashMap<String,String> statics;//file name => data
 	public static ConcurrentHashMap<String,ArrayList<String>> htmls;//class name => html strings
 	//session ID => (attribute name=>value)
 	public static ConcurrentHashMap<String,ConcurrentHashMap<String,String>> attr = new ConcurrentHashMap<String,ConcurrentHashMap<String,String>>();
@@ -965,12 +974,14 @@ public class Hydar {
 				return diag;
 			}else{
 				double r = Math.random();
-				if(r<0.33)
+				if(r<0.25)
 					System.out.println(e+": Compilation failed. You are fat");
-				else if(r<0.67)
+				else if(r<0.50)
 					System.out.println(e+": Compilation failed. laugh at this person");
-				else
+				else if(r<0.75)
 					System.out.println(e+": Compilation failed + ratio");
+				else
+					System.out.println(e+": Compilation failed. more like cringe compilation LMAO");
 				return -1;
 			}
 		}catch(Exception e){
@@ -1019,6 +1030,7 @@ public class Hydar {
 		compilerOptions.add("-Xlint:deprecation");
 		File dir = new File(".");
 		timestamps = new ConcurrentHashMap<String,Date>();
+		statics = new ConcurrentHashMap<String,String>();
 		vc = new ConcurrentHashMap<Integer,ArrayList<Integer>>();
 		vcList = new ConcurrentHashMap<Integer,ArrayList<String>>();
 		ws = new ConcurrentHashMap<Integer,OutputStream>();
@@ -1058,9 +1070,11 @@ public class Hydar {
 					path=path.substring(1);
 				else path=path.substring(path.lastIndexOf(".\\")+2);
 				timestamps.put(path,new Date(f.lastModified()));
-				
+				String fstr="";
+				try{fstr=Files.readString(f.toPath(), StandardCharsets.ISO_8859_1);}catch(IOException e1){}
 				if(path.endsWith(".jsp"))
 					jsp.add(f);
+				statics.put(path.replace("\\","/"),fstr);
 			}
 			File cache = new File("./HydarCompilerCache");
 			if(cache.isDirectory()){
@@ -1182,6 +1196,8 @@ public class Hydar {
 						if(timestamps.get(e)!=null&&(timestamps.get(e).getTime()>j.lastModified()))
 							j.setLastModified(new Date().getTime());
 						timestamps.put(e,new Date(j.lastModified()));
+						String fstr="";
+						try{fstr=Files.readString(j.toPath(), StandardCharsets.ISO_8859_1);}catch(IOException e1){}
 						if(e.endsWith(".jsp")){
 							Class temp = classes.get(e);
 							ArrayList<String> tempH = htmls.get(e);
@@ -1197,7 +1213,7 @@ public class Hydar {
 							}else{
 								System.out.println("Successfully replaced: "+e+", warnings: "+diag2);
 							}
-						}
+						}statics.put(e.replace("\\","/"),fstr);
 					}
 				}
 			}

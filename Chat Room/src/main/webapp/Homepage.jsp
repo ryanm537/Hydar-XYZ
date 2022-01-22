@@ -97,7 +97,7 @@ try{
 
 	volume = volume/100;
 	pingvolume = (pingvolume/100) * 2;
-	voicevolume = 1 < ((voicevolume/100) * volume * 2) ? 1 : ((voicevolume/100) * volume * 2);
+	voicevolume = (voicevolume/100) * 2;
 	//CHECK IF AUTO REFRESH IS ON
 	
 	String autoRefresh = request.getParameter("autoOn");
@@ -717,8 +717,8 @@ try{
 	
 	<script>
 		var myHostname = window.location.hostname;
-		var vcvolume=<%out.print(voicevolume);%>;
-		var timer=15;
+		var vcvolume=<%out.print(volume * 0.2 * voicevolume);%>;
+		var timer=10;
 		if (!myHostname) {
 		  myHostname = "localhost";
 		}var connection = null;
@@ -761,7 +761,9 @@ try{
 		  }
 		  serverUrl = scheme + "://" + myHostname + ":"+document.location.port+"/HydaRTCSignal.jsp";
 		  console.log("Connecting to server: "+serverUrl);
+		  var makeSocket = function(){
 		  connection = new WebSocket(serverUrl);
+		  
 		  connection.onopen = function(evt) {
 		    //document.getElementById("leaveVC").removeAttribute("hidden");
 			document.getElementById("VC-disconnect").addEventListener("click",()=>{
@@ -778,7 +780,7 @@ try{
 						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=0;});
 					}catch(e){}
 				}else{
-					vcvolume= <%out.print(voicevolume);%>;
+					vcvolume= <%out.print(volume * 0.2 * voicevolume);%>;
 					try{
 						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=vcvolume;});
 					}catch(e){}
@@ -791,7 +793,7 @@ try{
 						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=0;});
 					}catch(e){}
 				}else{
-					vcvolume=<%out.print(voicevolume);%>;
+					vcvolume=<%out.print(volume * 0.2 * voicevolume);%>;
 					try{
 						targets.forEach((x)=>{document.getElementById("hydar_audio"+x.id).volume=vcvolume;});
 					}catch(e){}
@@ -802,24 +804,24 @@ try{
 				
 				if(muted){
 					muted=false;
-					targets.forEach((conn)=>{conn.pc.getSenders().forEach((strm)=>{strm.enabled=true;})});
+					targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=true;})})});
 				}else{
 					muted=true;
-					targets.forEach((conn)=>{conn.pc.getSenders().forEach((strm)=>{strm.enabled=false;})});
+					targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=false;})})});
 					}
 			});
 			document.getElementById("VC-unmute").addEventListener("click",()=>{
 				
 				if(muted){
 					muted=false;
-					targets.forEach((conn)=>{conn.pc.getSenders().forEach((strm)=>{strm.enabled=true;})});
+					targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=true;})})});
 				}else{
 					muted=true;
-					targets.forEach((conn)=>{conn.pc.getSenders().forEach((strm)=>{strm.enabled=false;})});
+					targets.forEach((conn)=>{conn.pc.getLocalStreams().forEach((strm)=>{strm.getAudioTracks().forEach((track)=>{track.enabled=false;})})});
 					}
 			});
 			setInterval(()=>{sendToServer("hydar\n"+clientID+"\n"+<%out.print(board);%>+"\n")},2000);
-			setInterval(()=>{timer--;targets.forEach((t3)=>{t3.timer-=1;});if(connection&&timer<-7){leaveVC();connection.close();}},1000);
+			setInterval(()=>{timer--;targets.forEach((t3)=>{t3.timer-=1;});if(timer<0){canJoinVc=false;thisName=null;targets.forEach((x)=>{closeVc(x.id)});if(connection){connection.close();connection=null;}document.getElementById("vcList").innerHTML="Server connection lost. Trying to connect...";try{makeSocket();}catch(e7){}}},1000);
 		  };
 		  connection.onclose=function(evt){
 			//leaveVC();
@@ -831,7 +833,8 @@ try{
 		    console.dir(evt);
 		  }
 		  connection.onmessage = async function(evt) {
-			  timer=15;
+			  timer=7;
+			  
 			  var msg = evt.data;
 			  var type = msg.substring(0,msg.indexOf('\n'));
 			  msg = msg.substring(msg.indexOf('\n')+1);
@@ -949,7 +952,9 @@ try{
 					break;
 			  }
 		  }
-		  
+		  }
+		  makeSocket();
+		  sendToServer("hydar\n"+clientID+"\n"+<%out.print(board);%>+"\n");
 		async function invite(target){
 			if (targets[getPeer(target)]&&targets[getPeer(target)].pc&&targets[getPeer(target)].active) {
 			return;
@@ -1024,14 +1029,15 @@ try{
 		}
 		async function handleNegotiationNeededEvent(target) {
 		  try {
-		    console.log("---> Creating offer");
-		    var offer = await targets[getPeer(target)].pc.createOffer();
-		    if (targets[getPeer(target)].pc.signalingState != "stable") {
-		      return;
-		    }
-		    console.log("---> Setting local description to the offer");
-		    await targets[getPeer(target)].pc.setLocalDescription(offer);
+			console.log("---> Creating offer");
+			var offer = await targets[getPeer(target)].pc.createOffer();
+			if (targets[getPeer(target)].pc.signalingState != "stable") {
+			  return;
+			}
+			console.log("---> Setting local description to the offer");
+			await targets[getPeer(target)].pc.setLocalDescription(offer);
 			sendToServer("vc-offer\n"+clientID+"\n"+<%out.print(board);%>+"\n"+target+"\n"+targets[getPeer(target)].pc.localDescription.sdp+"\n");
+			console.log("didnt create offer eee");
 			
 		  } catch(err) {
 		    console.log("*** The following error occurred while handling the negotiationneeded event:\neeeeeeeee");
