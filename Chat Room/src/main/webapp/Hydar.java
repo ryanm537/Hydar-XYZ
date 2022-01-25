@@ -4,9 +4,11 @@ import java.util.Comparator;
 import java.util.Collections;
 import java.util.Base64;
 import java.util.Locale;
+import java.util.zip.GZIPOutputStream;
 import java.net.DatagramSocket;
 import java.net.DatagramPacket;
 import java.net.URI;
+import java.net.InetAddress;
 import java.net.URL;
 import java.net.Socket;
 import java.net.URLClassLoader;
@@ -14,6 +16,7 @@ import java.net.SocketTimeoutException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.BufferedReader;
 import java.io.StringWriter;
 import java.io.PrintWriter;
@@ -63,72 +66,82 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 class ServerThread extends Thread {
-	Socket client = null;
+	public Socket client = null;
 	boolean isWebSocket;
 	String wsKey=null;
 	String session=null;
 	String prevBoard;
+	OutputStream output;
+	public volatile boolean alive;
 	// constructor initializes socket
-	public ServerThread(Socket socket) {
+	public ServerThread(Socket socket) throws IOException{
 		this.client = socket;
 		this.isWebSocket = false;
+		this.alive=true;
+		this.output = this.client.getOutputStream();
 	}
 	@Override
 	public void run() {
 		try {
-			boolean alive=true;
+			this.alive=true;
 			this.client.setSoTimeout(5000);
 			SimpleDateFormat s = null;
 			InputStream input = this.client.getInputStream();
 			InputStreamReader ir = new InputStreamReader(input, Charset.forName("UTF-8"));
-			BufferedReader buffer = new BufferedReader(ir);
-			OutputStream output = this.client.getOutputStream();
-			String line;
 			int so=0;
 			int size=1024;
 			int pls=0;
+			String headers = "";
 			byte[] sb = new byte[1024];
 			byte[] pl = new byte[1024];
 			int ping=12;
+			String line="";
 			prevBoard="";
 			String prevUser="";
-			while(alive){
+			while(this.alive){
+				boolean gzip=false;
+				//update last used time for session
+				if(this.session!=null&&Hydar.attr.get(this.session)!=null){
+					ConcurrentHashMap<String,String> newAttr = Hydar.attr.get(this.session);
+					newAttr.put("lastUsed",""+new Date().getTime());
+					Hydar.attr.put(this.session,newAttr);
+				}
 				if(!this.isWebSocket){
-				//readLine blocks until 5s
+				//read blocks for 5 seconds
 					try {
-						line = buffer.readLine();
+						char[] buffer=new char[1024];
+						int l4=ir.read(buffer,0,1024);
+						line = new String(buffer);
+						headers = new String(line);
 					} catch (java.net.SocketTimeoutException ste) {
+						//timed out(close)
 						output.write(("HTTP/1.1 408 Request Timeout\r\nServer: Large_Hydar/1.1\r\n\r\n" + "408 Request Timeout" + "").getBytes());
-						//System.out.println("timeout");
-						//flush output and wait .25s(done for every output)
-						output.flush();
-						try {
-							Thread.sleep(1);
-						} catch (InterruptedException e) {
-							Thread.currentThread().interrupt();
-						}
-						alive=false;
+						this.alive=false;
 						output.close();
 						input.close();
 						ir.close();
-						buffer.close();
 						this.client.close();
 						return;
 					}
-					if (line != null) {
+					if (line.length()>0) {
 						
 						//reads rest of the request(headers)
-						String headers = new String();
 						this.client.setSoTimeout(1);
 						try {
-							for (String head; (head = buffer.readLine()) != null; headers += head+"\n")
-								;
+							for (char[] buffer=new char[1024]; (ir.read(buffer,0,1024))>0&&headers.length()<8193; headers += new String(buffer));
 						} catch (java.net.SocketTimeoutException seee) {
 							//socket times out at end of input(set to 1ms to make it faster, only once per request)
 						}
 						this.client.setSoTimeout(5000);
-						String[] heads = headers.split("\n");
-						String[] firstLine = line.split(" ");
+						//too long
+						if(headers.length()>=8192){
+							headers="";
+							ir.skip(1000000000);
+							output.write("HTTP/1.1 431 Request Header Fields Too Large\r\nServer: Large_Hydar/1.1\r\n\r\n431 Request Header Fields Too Large".getBytes());
+							continue;
+						}
+						String[] heads =headers.split("\r\n");
+						String[] firstLine = heads[0].split(" ");
 						// malformed input
 						if (firstLine.length < 3) {
 							output.write(("HTTP/1.1 400 Bad Request\r\nServer: Large_Hydar/1.1\r\n\r\n" + "400 Bad Request" + "").getBytes());
@@ -138,20 +151,20 @@ class ServerThread extends Thread {
 							} catch (InterruptedException e) {
 								Thread.currentThread().interrupt();
 							}
-							alive=false;
+							this.alive=false;
 							output.close();
 							input.close();
 							ir.close();
-							buffer.close();
 							this.client.close();
 							return;
 						}
+						//search = request parameters, firstLine[1] = request path
 						String search = "";
 						if(firstLine[1].indexOf("?")>=0){
 							search = firstLine[1].substring(firstLine[1].indexOf("?")+1);
 							firstLine[1] = firstLine[1].substring(0,firstLine[1].indexOf("?"));
-						}System.out.println(""+client.getInetAddress()+"> " + firstLine[0] + " " + firstLine[1] + " " + firstLine[2]);
-						
+						}
+						System.out.println(""+client.getInetAddress()+"> " + firstLine[0] + " " + firstLine[1] + " " + firstLine[2]);
 						//tests http version
 						if (!(firstLine[2].equals("HTTP/1.0")) && !(firstLine[2].equals("HTTP/1.1")) && !(firstLine[2].equals("HTTP/2.0"))) {
 							output.write(("HTTP/1.1 505 HTTP Version Not Supported\r\nServer: Large_Hydar/1.1\r\nContent-Length: "+Hydar.err_l+"\r\n\r\n"
@@ -163,44 +176,20 @@ class ServerThread extends Thread {
 							firstLine[1] = "/Login.jsp";
 						}
 						String data="";
+						//check last modified for the file(from hash table)
 						Date st=null;
 						String timestamp = "";
-						try {
-							//don't allow requests outside of current folder
-							Path p = Paths.get("." + firstLine[1]).normalize();
-							if (p.toString().contains("..")) {
-								output.write(("HTTP/1.1 403 Forbidden\r\nServer: Large_Hydar/1.1\r\nContent-Length: "+Hydar.err_l+"\r\n\r\n" + Hydar.err).getBytes());
-								output.flush();
-								continue;
-							}
-							//System.out.println(Hydar.statics.keySet());
-							data = Hydar.statics.get((firstLine[1].startsWith("/"))?(firstLine[1].substring(1)):(firstLine[1]));
-							s = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US);
-							s.setTimeZone(TimeZone.getTimeZone("GMT"));
-							st = Hydar.timestamps.get(firstLine[1].substring(firstLine[1].indexOf("/")+1).replace("/","\\"));
-							StringBuffer timestampBuffer=new StringBuffer("");
-							s.format(st,timestampBuffer,new FieldPosition(0));
-							timestamp = timestampBuffer.toString();
-						} catch (Exception e) {
-							//create file to test what caused error(could also use e)
-							File f = new File("." + firstLine[1]);
-							if (!f.exists()) {
-								output.write(("HTTP/1.1 404 Not Found\r\nServer: Large_Hydar/1.1\r\nContent-Length: "+Hydar.err_l+"\r\n\r\n" + Hydar.err).getBytes(StandardCharsets.ISO_8859_1));
-							} else if (!Files.isReadable(Paths.get("." + firstLine[1]))) {
-								output.write(("HTTP/1.1 403 Forbidden\r\nServer: Large_Hydar/1.1\r\nContent-Length: "+Hydar.err_l+"\r\n\r\n" + Hydar.err).getBytes(StandardCharsets.ISO_8859_1));
-							} else {
-								output.write(("HTTP/1.1 500 Internal Server Error\r\nServer: Large_Hydar/1.1\r\nContent-Length: "+Hydar.err_l+"\r\n\r\n" + Hydar.err)
-										.getBytes(StandardCharsets.ISO_8859_1));
-							}
-							output.flush();
-							continue;
-						}
-						
+						s = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US);
+						s.setTimeZone(TimeZone.getTimeZone("GMT"));
+						st = Hydar.timestamps.get(firstLine[1].substring(firstLine[1].indexOf("/")+1));
+						StringBuffer timestampBuffer=new StringBuffer("");
+						s.format(st,timestampBuffer,new FieldPosition(0));
+						timestamp = timestampBuffer.toString();
 						//mime type
 						String mime = Files.probeContentType(Paths.get(firstLine[1]));
 						if (mime == null)
 							mime = "application/octet-stream";
-						
+						//load cookies
 						this.session=null;
 						String modif = null;
 						boolean upgrade=false;
@@ -209,23 +198,19 @@ class ServerThread extends Thread {
 						ArrayList<String> cookieK = new ArrayList<String>();
 						ArrayList<String> cookieV = new ArrayList<String>();
 						for (String str : heads) {
-							if (str.startsWith("If-Modified-Since: ")) {
-								//System.out.println(str+"\n");
+							if (str.startsWith("If-Modified-Since: ")) 
 								modif = str.substring(str.indexOf(":") + 2);
-							}
 							if (str.startsWith("Connection: ")) {
-								//System.out.println(str+"\n");
-								if((str.substring(str.indexOf(":") + 2).toLowerCase().contains("close")))alive=false;
+								if((str.substring(str.indexOf(":") + 2).toLowerCase().contains("close")))this.alive=false;
 								if((str.substring(str.indexOf(":") + 2).toLowerCase().contains("upgrade")))upgrade=true;
 							}if (str.startsWith("Upgrade: ")) {
-								//System.out.println(str+"\n");
 								protocol = str.substring(str.indexOf(":") + 2);
 							}if (str.startsWith("Sec-WebSocket-Key: ")) {
-								//System.out.println(str+"\n");
 								this.wsKey=str.substring(str.indexOf(":") + 2);
 							}if (str.startsWith("Cookie: ")) {
 										Collections.addAll(cookies, str.substring(str.indexOf(":") + 2).split(";"));
-							}
+							}if (str.startsWith("Accept-Encoding: ")) 
+								if((str.substring(str.indexOf(":") + 2).toLowerCase().contains("gzip")))gzip=true;
 						}int cc=0;
 						for(String inc: cookies){
 							int x = inc.indexOf('=');
@@ -238,29 +223,48 @@ class ServerThread extends Thread {
 								cc++;
 							}
 						}
-						
+						String path = (firstLine[1].startsWith("/"))?(firstLine[1].substring(1)):(firstLine[1]);
+						if(data==null){
+							zipWrite("HTTP/1.1 404 Not Found\r\nServer: Large_Hydar/1.1\r\nContent-Length: ",Hydar.er(gzip),"\r\n\r\n",Hydar.err,gzip);
+							continue;//hash table miss
+						}
 						if(upgrade&&(!protocol.equals("websocket")||this.session==null||!(firstLine[1].endsWith("HydaRTCSignal.jsp")))){
-							output.write(("HTTP/1.1 400 Bad Request\r\nServer: Large_Hydar/1.1\r\nContent-Length: "+Hydar.err_l+"\r\n\r\n" + Hydar.err).getBytes(StandardCharsets.ISO_8859_1));
-							output.flush();
-							continue;
-							
+							zipWrite("HTTP/1.1 400 Bad Request\r\nServer: Large_Hydar/1.1\r\nContent-Length: ",Hydar.er(gzip),"\r\n\r\n",Hydar.err,gzip);
+							continue;//upgrade not allowed(various reasons)
 						}else if(upgrade){
-							
 							try{
+								//initialize websocket
 								this.isWebSocket=true;
 								this.wsKey+="258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 								MessageDigest md = MessageDigest.getInstance("SHA-1");
 								md.update(this.wsKey.getBytes("UTF-8"), 0, this.wsKey.length());
 								byte[] digest = md.digest();
 								this.wsKey= Base64.getEncoder().encodeToString(digest);
-								output.write(("HTTP/1.1 101 Switching Protocols\r\nServer: Large_Hydar/1.1\r\nUpgrade: websocket\r\nContent-Encoding: identity\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: "+this.wsKey+"\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT\r\n\r\n")
+								output.write(("HTTP/1.1 101 Switching Protocols\r\nServer: Large_Hydar/1.1\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: "+this.wsKey+"\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT\r\n\r\n")
 											.getBytes());
 								Hydar.ws.put(Integer.parseInt(Hydar.attr.get(this.session).get("userid")),this.client.getOutputStream());
 								output.flush();
 							}catch(Exception e){}
 							continue;
-						}if(this.session==null){
-							this.session="HYDAR-"+UUID.randomUUID().toString();
+						}if(this.session==null||firstLine[1].contains("Verify.jsp")||(Hydar.attr.get(this.session)!=null&&Hydar.attr.get(this.session).get("ip")!=null&&!this.client.getInetAddress().toString().equals(Hydar.attr.get(this.session).get("ip")))){
+							//new session: old session doesn't exist, wrong ip, or you relogged
+							if(this.session!=null)
+								Hydar.attr.remove(this.session);
+							ConcurrentHashMap<String,String> tmpAttr = new ConcurrentHashMap<String,String>();
+							char[] id = new char[36];
+							id[0]='h';id[1]='y';id[2]='d';id[35]='r';
+							SecureRandom rng = new SecureRandom();
+							for(int i=3;i<id.length-1;i++)
+								id[i]=(char)('a'+rng.nextInt(26));
+							this.session=new String(id);
+							while(Hydar.attr.containsKey(this.session)){
+								for(int i=3;i<id.length-1;i++)
+									id[i]=(char)('a'+rng.nextInt(26));
+								this.session=new String(id);
+							}
+							tmpAttr.put("lastUsed",""+new Date().getTime());
+							tmpAttr.put("ip",this.client.getInetAddress().toString());
+							Hydar.attr.put(this.session,tmpAttr);
 						}
 						if (modif != null) {
 							Date ct = null;
@@ -270,45 +274,44 @@ class ServerThread extends Thread {
 							} catch (ParseException eeeee) {
 								b = true;
 							}
-							
 							//compares times of last modified and if-modified-since to test for 304(only on GET)
-							//System.out.println("c"+ct.getTime()+"s"+st.getTime());
-							if (!firstLine[1].endsWith(".jsp")&&!b && ct.getTime() >= st.getTime() && firstLine[0].equals("GET")) {
-								output.write(("HTTP/1.1 304 Not Modified\r\nServer: Large_Hydar/1.1\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT\r\n\r\n")
+							if (!firstLine[1].endsWith(".jsp")&&!b && (ct.getTime()-st.getTime()>=-1000) && firstLine[0].equals("GET")) {
+								output.write(("HTTP/1.1 304 Not Modified\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT\r\nServer: Large_Hydar/1.1\r\n\r\n")
 										.getBytes());
 								output.flush();
 								continue;
 							}
 						}
-						
+						//load the file from hash table
+						if(gzip)
+							data = Hydar.staticZ.get(path);
+						if(!gzip||data==null){
+							if(!firstLine[1].endsWith(".jsp"))
+								gzip=false;
+							data = Hydar.statics.get(path);
+						}
+						String encoding = (gzip)?"Content-Encoding: gzip\r\n":"Content-Encoding: identity\r\n";
 						//get and post return identically, but different implementations are used for later
 						if (firstLine[0].equals("GET")||firstLine[0].equals("POST")) {
 							if(!firstLine[1].endsWith(".jsp")){
+								//not jsp: just send the data
 								boolean booled=false;
 								for(String x:Hydar.banned){
 									if(firstLine[1].contains(x)){
 										booled=true;
-										output.write(
-											("HTTP/1.1 403 Forbidden\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nContent-Encoding: identity\r\nContent-Length: "
-											+ "403 Forbidden".length() + "\r\nContent-Type: " + mime
-											+ "\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT\r\nLast-Modified: " + timestamp
-											+ "\r\n\r\n" + "403 Forbidden").getBytes(StandardCharsets.ISO_8859_1));
+										zipWrite(
+											"HTTP/1.1 403 Forbidden\r\nAllow: GET, POST, HEAD\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT\r\nServer: Large_Hydar/1.1\r\nContent-Length: ",Hydar.er(gzip),"\r\nContent-Type: " + mime
+											+ "\r\nLast-Modified: " + timestamp
+											+ "\r\n\r\n",Hydar.err,gzip);
 											break;
 									}
 								}if(!booled){
-									if(data.length()==0)
-										output.write(
-										("HTTP/1.1 204 No Content\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nContent-Encoding: identity\r\nContent-Length: "
-												+ data.length() + "\r\nContent-Type: text/html;charset=ISO-8859-1"
-												+ "\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT"+"\r\nSet-Cookie: HYDAR_sessionID="+this.session+"; SameSite=Strict\r\n\r\n" + data + "").getBytes(StandardCharsets.ISO_8859_1));
-									else output.write(
-									("HTTP/1.1 200 OK\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nContent-Encoding: identity\r\nContent-Length: "
-											+ data.length() + "\r\nContent-Type: " + mime
-											+ "\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT\r\nLast-Modified: " + timestamp
-											+ "\r\n\r\n" + data + "").getBytes(StandardCharsets.ISO_8859_1));
+									output.write(("HTTP/1.1 "+((data.length()==0)?"204 No Content":"200 OK")+"\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT\r\nContent-Length: "+data.length()+"\r\n"+encoding+"Content-Type: " + mime
+											+ "\r\nLast-Modified: " + timestamp
+											+ "\r\n\r\n"+data).getBytes(StandardCharsets.ISO_8859_1));
 								}
 							}else{
-								
+								//jsp: execute
 								int i=0;
 								String newData="";
 								while(data.indexOf("<%@")>-1){
@@ -320,20 +323,19 @@ class ServerThread extends Thread {
 								boolean ise=false;
 								String re=null;
 								if(data.indexOf("<%")>-1){
-									//newData+=data.substring(0,data.indexOf("<%"));
-									//data=data.substring(data.indexOf("%>")+2);
 									try{
-										String name = firstLine[1].substring(firstLine[1].indexOf("./")+2).replace("/","\\");
+										String name = firstLine[1].substring(firstLine[1].indexOf("./")+2);
 										name = name.substring(0,name.lastIndexOf("."));
 										if(Hydar.attr.get(session)==null)
 											Hydar.attr.put(session,new ConcurrentHashMap<String,String>());
 										ConcurrentHashMap<String,String> tmpAttr = new ConcurrentHashMap<String,String>(Hydar.attr.get(this.session));
+										//run the stored method
 										Object[] ret = Hydar.jsp_invoke(name,this.session,search);
-										if(ret.length==0){
+										if(ret.length==0){//error
 											ise=true;
 											newData=Hydar.err;
 											data="";
-										}else{
+										}else{//parse the object array{whether this attr was changed, value of this attr, html output, redirect}
 											@SuppressWarnings("unchecked")ConcurrentHashMap<String,Boolean> ak = (ConcurrentHashMap<String,Boolean>)ret[0];
 											@SuppressWarnings("unchecked")ConcurrentHashMap<String,String> av = (ConcurrentHashMap<String,String>)ret[1];
 											String h = (String)ret[2];
@@ -359,15 +361,14 @@ class ServerThread extends Thread {
 									}catch(Exception e){
 										e.printStackTrace();
 										try {
-											output.write(("HTTP/1.1 500 Internal Server Error\r\nServer: Large_Hydar/1.1\r\nContent-Length: "+Hydar.err_l+"\r\n\r\n" + Hydar.err).getBytes(StandardCharsets.ISO_8859_1));
-											output.flush();
+											zipWrite("HTTP/1.1 500 Internal Server Error\r\nServer: Large_Hydar/1.1\r\nContent-Length: ",Hydar.er(gzip),"\r\n\r\n",Hydar.err,gzip);
+											output.close();
+											this.client.close();
 											try {
 												Thread.sleep(1);
 											} catch (InterruptedException ee) {
 												Thread.currentThread().interrupt();
 											}
-											output.close();
-											this.client.close();
 											return;
 										} catch (IOException eee) {
 											//failed to send the error code
@@ -380,55 +381,51 @@ class ServerThread extends Thread {
 									newData+=data;
 								}
 								if(ise){
-									output.write(("HTTP/1.1 500 Internal Server Error\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nContent-Encoding: identity\r\nContent-Length: "
-											+ Hydar.err_l + "\r\nContent-Type: text/html;charset=ISO-8859-1"
-											+ "\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT"+"\r\nSet-Cookie: HYDAR_sessionID="+this.session+"; SameSite=Strict\r\n\r\n" + Hydar.err + "").getBytes(StandardCharsets.ISO_8859_1));
+									zipWrite("HTTP/1.1 500 Internal Server Error\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nContent-Length: ",Hydar.er(gzip),"\r\nContent-Type: text/html;charset=ISO-8859-1"
+											+ "\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT"+"\r\nSet-Cookie: HYDAR_sessionID="+this.session+"; SameSite=Strict;Secure;HttpOnly\r\n\r\n",Hydar.err,gzip);
 								}else if(re==null){
-									//System.out.println(newData);
-									if(newData.length()==0)
-										output.write(
-										("HTTP/1.1 204 No Content\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nContent-Encoding: identity\r\nContent-Length: "
-												+ newData.length() + "\r\nContent-Type: text/html;charset=ISO-8859-1"
-												+ "\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT"+"\r\nSet-Cookie: HYDAR_sessionID="+this.session+"; SameSite=Strict\r\n\r\n" + newData + "").getBytes(StandardCharsets.ISO_8859_1));
-									else output.write(
-										("HTTP/1.1 200 OK\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nContent-Encoding: identity\r\nContent-Length: "
-												+ newData.length() + "\r\nContent-Type: text/html;charset=ISO-8859-1"
-												+ "\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT"+"\r\nSet-Cookie: HYDAR_sessionID="+this.session+"; SameSite=Strict\r\n\r\n" + newData + "").getBytes(StandardCharsets.ISO_8859_1));
-								}else output.write(
-									("HTTP/1.1 302 Found\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nContent-Encoding: identity\r\nContent-Length: "
+									zipWrite("HTTP/1.1 "+((newData.length()==0)?"204 No Content":"200 OK")+"\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nContent-Length: ",-1,"\r\nContent-Type: text/html;charset=ISO-8859-1"
+											+ "\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT"+"\r\nSet-Cookie: HYDAR_sessionID="+this.session+"; SameSite=Strict;Secure;HttpOnly\r\n\r\n",newData,gzip);
+								}else{output.write(
+									("HTTP/1.1 302 Found\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nContent-Length: "
 											+ 0 + "\r\nLocation: "+re+"\r\nContent-Type: text/html;charset=ISO-8859-1"
-											+ "\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT" + "\r\nSet-Cookie: HYDAR_sessionID="+this.session+"; SameSite=Strict\r\n\r\n" + "").getBytes(StandardCharsets.ISO_8859_1));
-								
+											+ "\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT" + "\r\nSet-Cookie: HYDAR_sessionID="+this.session+"; SameSite=Strict;Secure;HttpOnly\r\n\r\n" + "").getBytes(StandardCharsets.ISO_8859_1));
+									output.flush();
+								}
 							}
 											
 						} else if (firstLine[0].equals("HEAD")) {
 							output.write(
-									("HTTP/1.1 200 OK\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nContent-Encoding: identity\r\nContent-Length: "
+									("HTTP/1.1 200 OK\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nContent-Length: "
 											+ data.length() + "\r\nContent-Type: " + mime
 											+ "\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT\r\nLast-Modified: " + timestamp)
 													.getBytes(StandardCharsets.ISO_8859_1));
 						} else if (firstLine[0].equals("PUT") || firstLine[0].equals("DELETE") || firstLine[0].equals("LINK")
 								|| firstLine[0].equals("UNLINK")) {
 							output.write(("HTTP/1.1 501 Not Implemented\r\nServer: Large_Hydar/1.1\r\n\r\n501 Not Implemented").getBytes());
+							output.flush();
 						} else {
 							output.write(("HTTP/1.1 400 Bad Request\r\nServer: Large_Hydar/1.1\r\n\r\n400 Bad Request").getBytes());
+							output.flush();
 						}
 						try {
 							Thread.sleep(1);
 						} catch (InterruptedException ee) {
 							Thread.currentThread().interrupt();
 						}
-					}else alive=false;
+					}else this.alive=false;
 					
 				}else{
+					//WEBSOCKET LOOP
 					int len=0;
 					this.client.setSoTimeout(1000);
-					//System.out.println(this);
+					int off=2;
+					long length=0;
 					ping-=1;
-					if(ping<0){
+					if(ping<0){//nothing sent for a while
 						if(Hydar.attr.get(this.session)!=null&&Hydar.attr.get(this.session).get("userid")!=null&&Hydar.ws.containsKey(Integer.parseInt(Hydar.attr.get(this.session).get("userid"))))
 									Hydar.ws.remove(Integer.parseInt(Hydar.attr.get(this.session).get("userid")));
-						alive=false;
+						this.alive=false;
 					}else{
 						try {
 							len = input.read(sb,size-1024,800);
@@ -439,65 +436,7 @@ class ServerThread extends Thread {
 						pls+=len;
 						sb = Arrays.copyOf(sb,size);
 						this.client.setSoTimeout(1);
-						long l5=0;
-						int off=2;
-						try{
-							int l = (sb[1])&0b01111111;
-							if(l==126){
-								l5=((sb[2]&0xff)<<8)|(sb[3]&0xff);
-								off=4;
-							}else if(l==127){
-								for (int i=2;i<10;i++) {
-									l5<<=8;
-									l5|=(sb[i]&0xff);
-								}
-								off=10;
-							}else{
-								l5=l;
-							}
-						}catch(Exception e){
-						}
-						int tries=3;
-						while(len==800||l5>(pls-4-off)){
-							try{
-								len = input.read(sb,size-1024,800);
-								size+=len;
-								pls+=len;
-								sb = Arrays.copyOf(sb,size);
-							}catch(SocketTimeoutException ste2){tries--;if(tries>0)continue;else break;}
-						}
-						
-						this.client.setSoTimeout(1000);
-						if(size>0&&sb[so]<0){
-							so+=size+len;
-							sb = Arrays.copyOf(sb,size);
-						}else {
-							//input =client.getInputStream();
-							System.out.println("else");
-							continue;
-						}
-					}
-					
-					if(so>0||!alive){
-						ping=8;
-						pls=0;
-						if(so<2){
-							//empty
-							pl=new byte[1024];
-							sb= new byte[1024];
-							continue;
-						}
-						if(((sb[1]&(byte)0x80)>>7)==1){
-							//not masked(close)
-							System.out.println("E");
-							if(Hydar.attr.get(this.session)!=null&&Hydar.attr.get(this.session).get("userid")!=null&&Hydar.ws.containsKey(Integer.parseInt(Hydar.attr.get(this.session).get("userid"))))
-								Hydar.ws.remove(Integer.parseInt(Hydar.attr.get(this.session).get("userid")));
-							alive=false;
-						}
-						//parse content length
 						int l = (sb[1])&0b01111111;
-						long length=0;
-						int off;
 						if(l==126){
 							length=((sb[2]&0xff)<<8)|(sb[3]&0xff);
 							off=4;
@@ -509,29 +448,65 @@ class ServerThread extends Thread {
 							off=10;
 						}else{
 							length=l;
-							off=2;
-						}if((len+so)<length){
+						}
+						int tries=3;
+						while((len==800||length>(pls-4-off))&&pls<65536){
+							try{
+								len = input.read(sb,size-1024,800);
+								size+=len;
+								pls+=len;
+								sb = Arrays.copyOf(sb,size);
+							}catch(SocketTimeoutException ste2){tries--;if(tries>0)continue;else break;}
+						}
+						if(pls>=65536){//overflow
+							input.skip(1000000000);
+							continue;
+						}
+						this.client.setSoTimeout(1000);
+						if(size>0&&sb[so]<0){
+							so+=size+len;
+							sb = Arrays.copyOf(sb,size);
+						}else {
+							//input =client.getInputStream();
+							System.out.println("else");
+							continue;
+						}
+					}
+					
+					if(so>0||!this.alive){
+						ping=8;
+						pls=0;
+						if(alive&&so<2){
+							//empty
+							pl=new byte[1024];
+							sb= new byte[1024];
+							continue;
+						}
+						if(((sb[1]&(byte)0x80)>>7)==1){
+							//not masked(close)
+							System.out.println("E");
+							if(Hydar.attr.get(this.session)!=null&&Hydar.attr.get(this.session).get("userid")!=null&&Hydar.ws.containsKey(Integer.parseInt(Hydar.attr.get(this.session).get("userid"))))
+								Hydar.ws.remove(Integer.parseInt(Hydar.attr.get(this.session).get("userid")));
+							this.alive=false;
+						}
+						if(alive&&(len+so)<length){
 							continue;
 						}
 						pl =new byte[size];
 						size=1024;
 						so=0;
 						//decode data
-						//System.out.println(new String(sb));
 						for(int i=0;i<length;i++){
-							//System.out.println((sb[off+(i%4)]));
 							pl[i]=(byte)((sb[i+off+4])^(sb[off+(i%4)]));
 						}
-						//System.out.println("lol this is length "+length);
-						//System.out.println(new String(pl));
 						line = new String(pl,Charset.forName("UTF-8")).trim()+"\n";
-						int op = (sb[0])&0x0f;
+						byte op = (byte)(sb[0]&0x0f);
 						//System.out.println("OP: "+op);
-						if(op == 0x08||sb[0]==0x88|(sb[0]==0xff&&sb[1]==0x00)){
+						if(op == 0x08||sb[0]==0x88||(sb[0]==0xff&&sb[1]==0x00)){
 							System.out.println("closed socket.");
 							//output.write(pl);
 							output.close();
-							alive=false;
+							this.alive=false;
 							if(Hydar.attr.get(this.session)!=null&&Hydar.attr.get(this.session).get("userid")!=null&&Hydar.ws.containsKey(Integer.parseInt(Hydar.attr.get(this.session).get("userid")))){
 								System.out.println("successfully removed socket");
 								Hydar.ws.remove(Integer.parseInt(Hydar.attr.get(this.session).get("userid")));
@@ -560,9 +535,14 @@ class ServerThread extends Thread {
 								//e.printStackTrace();
 							}
 							int b = Integer.parseInt(board);
-							if(alive==false){
+							if(this.alive==false){
 								Hydar.dropUser(Integer.parseInt(user),b,this.session);
 								break;
+							}
+							if(Hydar.attr.get(this.session)==null){
+								sb=new byte[1024];
+								pl=new byte[1024];
+								continue;
 							}
 							if(!user.equals(Hydar.attr.get(this.session).get("userid"))){
 								user=Hydar.attr.get(this.session).get("userid");
@@ -588,7 +568,7 @@ class ServerThread extends Thread {
 								e.printStackTrace();
 								if(Hydar.attr.get(this.session)!=null&&Hydar.attr.get(this.session).get("userid")!=null&&Hydar.ws.containsKey(Integer.parseInt(Hydar.attr.get(this.session).get("userid"))))
 									Hydar.ws.remove(Integer.parseInt(Hydar.attr.get(this.session).get("userid")));
-								alive=false;
+								this.alive=false;
 							}
 								
 							if(fail){
@@ -604,7 +584,7 @@ class ServerThread extends Thread {
 									Hydar.vc.put(b,new ArrayList<Integer>());
 									Hydar.vcList.put(b,new ArrayList<String>());
 							}
-							if(alive&&type.equals("hydar")){
+							if(this.alive&&type.equals("hydar")){
 								if(Hydar.vc.get(b)==null){
 									Hydar.vc.put(b,new ArrayList<Integer>());
 									Hydar.vcList.put(b,new ArrayList<String>());
@@ -652,10 +632,21 @@ class ServerThread extends Thread {
 									for(Integer t2:Hydar.vc.get(b)){
 										System.out.println("i wrote something to "+t2+" lol");
 										toWrite = "user-list\n"+t2+"\n"+b+"\n"+Hydar.vc.get(b).toString()+"\n"+friendlyList.toString();
+										if(Hydar.ws.get(t2)!=null)
 										Hydar.wsWrite(toWrite,Hydar.ws.get(t2));
+										else{
+											this.alive=false;
+											Hydar.dropUser(t2,b,this.session);
+										}
 									}//target=Integer.parseInt(user);
-								}else Hydar.wsWrite(toWrite,Hydar.ws.get(target));
-								
+								}else{
+									if(Hydar.ws.get(target)!=null)
+										Hydar.wsWrite(toWrite,Hydar.ws.get(target));
+										else{
+											this.alive=false;
+											Hydar.dropUser(target,b,this.session);
+										}
+								}
 								//System.out.println("i wrote something to "+target+" lol");
 							}
 						}
@@ -664,7 +655,7 @@ class ServerThread extends Thread {
 					
 					}
 					
-				}if(!alive)break;
+				}if(!this.alive)break;
 			}
 				
 				if(this.isWebSocket&&Hydar.attr.get(this.session)!=null&&Hydar.attr.get(this.session).get("userid")!=null&&Hydar.ws.containsKey(Integer.parseInt(Hydar.attr.get(this.session).get("userid")))){
@@ -676,11 +667,9 @@ class ServerThread extends Thread {
 				} catch (InterruptedException eeee) {
 					Thread.currentThread().interrupt();
 				}
-				output.flush();
 				output.close();
 				input.close();
 				ir.close();
-				buffer.close();
 				this.client.close();
 				return;
 					
@@ -692,7 +681,7 @@ class ServerThread extends Thread {
 					OutputStream output = this.client.getOutputStream();
 					output.write(
 							("HTTP/1.1 500 Internal Server Error\r\nServer: Large_Hydar/1.1\r\n\r\n" + "500 Internal Server Error" + "").getBytes());
-					output.flush();
+					
 					output.close();
 				}else if(Hydar.attr.get(this.session)!=null&&Hydar.attr.get(this.session).get("userid")!=null&&Hydar.ws.containsKey(Integer.parseInt(Hydar.attr.get(this.session).get("userid")))){
 						Hydar.ws.remove(Integer.parseInt(Hydar.attr.get(this.session).get("userid")));
@@ -711,7 +700,27 @@ class ServerThread extends Thread {
 			}
 		}
 	}
-
+	public void zipWrite(String headers1, long q, String headers2, String data, boolean doGzip) throws IOException{
+		long l1;
+		if(q>-1){
+			l1=q;
+		}else{
+			l1=(doGzip)?(Hydar.zipLength(data)):data.length();
+		}
+		output.write(headers1.getBytes(StandardCharsets.ISO_8859_1));
+		output.write((""+l1).getBytes(StandardCharsets.ISO_8859_1));
+		output.write(("\r\nContent-Encoding: "+(doGzip?"gzip":"identity")).getBytes(StandardCharsets.ISO_8859_1));
+		output.write(headers2.getBytes(StandardCharsets.ISO_8859_1));
+		if(doGzip){
+			//output.flush();
+			GZIPOutputStream out2 = new GZIPOutputStream(output);
+			out2.write(data.getBytes(StandardCharsets.ISO_8859_1));
+			out2.finish();
+		}else{
+			output.write(data.getBytes(StandardCharsets.ISO_8859_1));
+			output.flush();
+		}
+	}
 }
 
 class HydarStunInstance extends Thread{
@@ -793,17 +802,48 @@ public class Hydar {
 	public static URLClassLoader ucl;
 	public static String err;
 	public static int err_l;
+	public static long err_zl;
 	public static String[] banned;
 	private static ArrayList<String> compilerOptions;
-	public static ConcurrentHashMap<Integer,OutputStream> ws;//user id => stream(only for websockets)
-	public static ConcurrentHashMap<Integer,ArrayList<Integer>> vc;//board id => user id
-	public static ConcurrentHashMap<Integer,ArrayList<String>> vcList;//board id => username
-	public static ConcurrentHashMap<String,Class> classes;//class name => class
-	public static ConcurrentHashMap<String,Date> timestamps;//file name => time
-	public static ConcurrentHashMap<String,String> statics;//file name => data
-	public static ConcurrentHashMap<String,ArrayList<String>> htmls;//class name => html strings
+	public static volatile ConcurrentHashMap<InetAddress,Integer> ipThreads;//ip => number of threads
+	public static volatile ConcurrentHashMap<Integer,OutputStream> ws;//user id => stream(only for websockets)
+	public static volatile ConcurrentHashMap<Integer,ArrayList<Integer>> vc;//board id => user id
+	public static volatile ConcurrentHashMap<Integer,ArrayList<String>> vcList;//board id => username
+	public static volatile ConcurrentHashMap<String,Class> classes;//class name => class
+	public static volatile ConcurrentHashMap<String,Date> timestamps;//file name => time
+	public static volatile ConcurrentHashMap<String,String> statics;//file name => data
+	public static volatile ConcurrentHashMap<String,String> staticZ;//file name => zip data
+	public static volatile ConcurrentHashMap<String,ArrayList<String>> htmls;//class name => html strings
 	//session ID => (attribute name=>value)
-	public static ConcurrentHashMap<String,ConcurrentHashMap<String,String>> attr = new ConcurrentHashMap<String,ConcurrentHashMap<String,String>>();
+	public static volatile ConcurrentHashMap<String,ConcurrentHashMap<String,String>> attr = new ConcurrentHashMap<String,ConcurrentHashMap<String,String>>();
+	public static long zipLength(String data){
+		try{
+			ByteArrayOutputStream out1= new ByteArrayOutputStream(0);
+			GZIPOutputStream out = new GZIPOutputStream(out1);
+			out.write(data.getBytes(StandardCharsets.ISO_8859_1));
+			out.finish();
+			long x = out1.size();
+			out1.close();
+			out.close();
+			return x;
+		}catch(IOException e){return -1;}//not possible
+	}public static String zipString(String data){
+		try{
+			ByteArrayOutputStream out1= new ByteArrayOutputStream(0);
+			GZIPOutputStream out = new GZIPOutputStream(out1);
+			out.write(data.getBytes(StandardCharsets.ISO_8859_1));
+			out.finish();
+			String x = out1.toString(StandardCharsets.ISO_8859_1);
+			float ratio = (float)x.length()/(float)data.length();
+			out1.close();
+			out.close();
+			if(ratio>0.9)return null;
+			return x;
+		}catch(IOException e){return null;}//not possible
+	}
+	public static long er(boolean gzip){
+		return gzip?err_zl:err_l;
+	}
 	public static Object[] jsp_invoke(String name, String session, String params){
 		try{
 			Class c = Hydar.classes.get(name);
@@ -874,15 +914,15 @@ public class Hydar {
 	public static int compile(File j){
 		try{
 			int diag=0;
-			String path=j.toPath().toString();
+			String path=j.toPath().toString().replace("\\","/");
 			String s = Files.readString(j.toPath(), StandardCharsets.ISO_8859_1);
 			ArrayList<String> javas = new ArrayList<String>();
 			while(s.indexOf("<%@")>-1){
 				s=s.substring(s.indexOf("%>")+2);
 			}
 			String x_="this.jsp_attr_values=new ConcurrentHashMap<String,String>(jsp_attr);\nthis.jsp_urlParams=jsp_param;\nthis.jsp_attr_set=new ConcurrentHashMap<String,Boolean>();\nfor(String jsp_local_s:jsp_attr.keySet()){\nthis.jsp_attr_set.put(jsp_local_s,false);}\nthis.jsp_urlParams=new String(jsp_param);\nthis.jsp_redirect=null;\nthis.jsp_html=\"\";";
-			String e=path.substring(path.lastIndexOf(".\\")+2,path.lastIndexOf('.'))+".jsp";
-			String n=path.substring(path.lastIndexOf(".\\")+2,path.lastIndexOf('.'));
+			String e=path.substring(path.lastIndexOf("./")+2,path.lastIndexOf('.'))+".jsp";
+			String n=path.substring(path.lastIndexOf("./")+2,path.lastIndexOf('.'));
 			String o="private String jsp_urlParams;\nprivate String jsp_redirect;\nprivate String jsp_html;\n";
 			String v="private ConcurrentHashMap<String,Boolean> jsp_attr_set;\n";
 			String i="private ConcurrentHashMap<String,String> jsp_attr_values;\n";
@@ -904,7 +944,7 @@ public class Hydar {
 			htmls.put(n,html);
 			//System.out.println(javas);
 			int index=0;
-			String x__="import java.util.HashMap;\nimport java.nio.charset.StandardCharsets;\nimport java.io.InputStreamReader;\nimport java.net.URLDecoder;\nimport java.util.concurrent.ConcurrentHashMap;\nimport java.sql.Connection;\nimport java.sql.DriverManager;\nimport java.sql.SQLException;\nimport java.sql.ResultSet;\nimport java.sql.Statement;\nimport java.io.BufferedReader;\nimport java.io.InputStream;\npublic class "+n.substring(n.lastIndexOf("\\")+1).substring(n.lastIndexOf("/")+1)+"{\npublic "+n.substring(n.lastIndexOf("\\")+1).substring(n.lastIndexOf("/")+1)+"(){\n}\n"+o+v+i+a+q+u+a_+r_+t+a__+"public Object[] jsp_Main(String jsp_param, ConcurrentHashMap<String, String> jsp_attr) {\ntry{\n"+x_;
+			String x__="import java.util.HashMap;\nimport java.nio.charset.StandardCharsets;\nimport java.io.InputStreamReader;\nimport java.net.URLDecoder;\nimport java.util.concurrent.ConcurrentHashMap;\nimport java.sql.Connection;\nimport java.sql.DriverManager;\nimport java.sql.SQLException;\nimport java.sql.ResultSet;\nimport java.sql.Statement;\nimport java.io.BufferedReader;\nimport java.io.InputStream;\npublic class "+n.substring(n.lastIndexOf("/")+1)+"{\npublic "+n.substring(n.lastIndexOf("\\")+1).substring(n.lastIndexOf("/")+1)+"(){\n}\n"+o+v+i+a+q+u+a_+r_+t+a__+"public Object[] jsp_Main(String jsp_param, ConcurrentHashMap<String, String> jsp_attr) {\ntry{\n"+x_;
 			//System.out.println(new Date(j.lastModified()));
 			//System.out.println(n);
 			timestamps.put(e,new Date(j.lastModified()));
@@ -931,10 +971,9 @@ public class Hydar {
 			StringWriter writer = new StringWriter();
 			PrintWriter out = new PrintWriter(writer);
 			out.println(x__);
-			//System.out.println(x__);
 			File cache = new File("./HydarCompilerCache");
 			Path target = Paths.get("./HydarCompilerCache/"+n+".class");
-			try{
+			try{//replace class file
 			target.toFile().delete();
 			}catch(Exception eeeeeeeeee){}
 			Files.createDirectories(target.getParent());
@@ -942,7 +981,7 @@ public class Hydar {
 			fileManager.setLocation(StandardLocation.CLASS_OUTPUT, Arrays.asList(target.getParent().toFile()));
 			try{
 			Writer fileWriter = new FileWriter("./HydarCompilerCache/"+n+".java", false);
-			fileWriter.write(x__);
+			fileWriter.write(x__);//creates the java file(not needed, but useful)
 			fileWriter.close();
 			}catch(Exception eeeeeeeeee){}
 			out.close();
@@ -950,7 +989,7 @@ public class Hydar {
 			Iterable<? extends JavaFileObject> compilationUnits = Arrays.asList(file);
 			CompilationTask task = compiler.getTask(null, fileManager, diagnostics, compilerOptions, null, compilationUnits);
 			boolean success = task.call();
-			for (Diagnostic diagnostic : diagnostics.getDiagnostics()) {
+			for (Diagnostic diagnostic : diagnostics.getDiagnostics()) {//warnings and errors
 				  diag++;
 				  System.out.println(diagnostic.getCode());
 				  System.out.println(diagnostic.getKind());
@@ -960,9 +999,8 @@ public class Hydar {
 
 				}
 			if(success){
-				//System.out.println(path);
 				File f = new File("./HydarCompilerCache/"+n+".class");
-				//Path moved = Files.move(Paths.get(n+".class"),target);
+				//load class and update hash table
 				try{
 					ucl = new URLClassLoader(new URL[]{target.getParent().toFile().toURI().toURL()});
 					Class c = ucl.loadClass(n.substring(n.lastIndexOf("\\")+1).substring(n.lastIndexOf("/")+1));
@@ -1023,6 +1061,7 @@ public class Hydar {
 		err+="</body>";
 		err+="</html>";
 		err_l=err.length();
+		err_zl=zipLength(err);
 		banned = new String[]{".class",".java",".jar",".bat"};
 		compilerOptions = new ArrayList<String>();
 		compilerOptions.add("-cp");
@@ -1031,16 +1070,18 @@ public class Hydar {
 		File dir = new File(".");
 		timestamps = new ConcurrentHashMap<String,Date>();
 		statics = new ConcurrentHashMap<String,String>();
+		staticZ = new ConcurrentHashMap<String,String>();
 		vc = new ConcurrentHashMap<Integer,ArrayList<Integer>>();
 		vcList = new ConcurrentHashMap<Integer,ArrayList<String>>();
 		ws = new ConcurrentHashMap<Integer,OutputStream>();
+		ipThreads = new ConcurrentHashMap<InetAddress,Integer>();
 		int errors=0;
 		try{
 			Class.forName("com.mysql.jdbc.Driver");
 		}catch(Exception exc){
 			exc.printStackTrace();
 		}
-		try{
+		try{//read files(compile if jsp) to memory
 			ArrayList<File> jsp = new ArrayList<File>();
 			ArrayList<File> allFiles = new ArrayList<File>();
 				try {
@@ -1065,16 +1106,20 @@ public class Hydar {
 					e.printStackTrace();
 				}
 			for(File f:allFiles){
-				String path = f.toPath().toString();
+				String path = f.toPath().toString().replace("\\","/");
 				if(path.startsWith("/")||path.startsWith("\\"))
 					path=path.substring(1);
-				else path=path.substring(path.lastIndexOf(".\\")+2);
+				else path=path.substring(path.lastIndexOf("./")+2);
 				timestamps.put(path,new Date(f.lastModified()));
 				String fstr="";
 				try{fstr=Files.readString(f.toPath(), StandardCharsets.ISO_8859_1);}catch(IOException e1){}
 				if(path.endsWith(".jsp"))
 					jsp.add(f);
-				statics.put(path.replace("\\","/"),fstr);
+				else{
+					String z=zipString(fstr);
+					if(z!=null)staticZ.put(path,z);
+				}
+				statics.put(path,fstr);
 			}
 			File cache = new File("./HydarCompilerCache");
 			if(cache.isDirectory()){
@@ -1117,7 +1162,7 @@ public class Hydar {
 			System.exit(0);
 		}
 		SSLServerSocket server = null;
-		try {
+		try {//ssl initialization
 			KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
 			InputStream tstore = Hydar.class.getResourceAsStream("/" + "trust.jks");
 			trustStore.load(tstore, "hydarhydar".toCharArray());
@@ -1137,7 +1182,7 @@ public class Hydar {
 			ctx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), SecureRandom.getInstanceStrong());
 			}
 			SSLServerSocketFactory factory = ctx.getServerSocketFactory();
-			server = (SSLServerSocket)factory.createServerSocket(port);
+			server = (SSLServerSocket)factory.createServerSocket(port,256);
 			//server.setNeedClientAuth(true);
 			server.setEnabledProtocols(new String[] {"TLSv1.3"});
 		} catch (Exception f) {
@@ -1149,17 +1194,23 @@ public class Hydar {
 		HydarStunInstance stun = new HydarStunInstance(3478);
 		new Thread(stun).start();
 		//server loop(only ends on ctrl-c)
-		ArrayList<ServerThread> threads = new ArrayList<ServerThread>(5);
+		ArrayList<ServerThread> threads = new ArrayList<ServerThread>();
 		Date lastUpdate = new Date();
 		try{
 			server.setSoTimeout(1000);
 		}catch(Exception eeeeeee){
 			System.out.println("???");
 		}while (true) {
-
-			if(new Date().getTime()-lastUpdate.getTime()>2000){
+			long newTime=new Date().getTime();
+			if(newTime-lastUpdate.getTime()>2000){
 				//xd
-				//afkCheck();
+				afkCheck();
+				//check sessions
+				for(String key:Hydar.attr.keySet()){
+					if(newTime-Long.parseLong(Hydar.attr.get(key).get("lastUsed"))>3600000){
+						Hydar.attr.remove(key);
+					}
+				}
 				//check files(recompile as needed)
 				lastUpdate = new Date();
 				ArrayList<String> replaced = new ArrayList<String>();
@@ -1187,9 +1238,9 @@ public class Hydar {
 					e.printStackTrace();
 				}
 				for(File j:allFiles){
-					
-					String path=j.toPath().toString();
-					String e=path.substring(path.lastIndexOf(".\\")+2);
+					//check times to decide whether to replace
+					String path=j.toPath().toString().replace("\\","/");
+					String e=path.substring(path.lastIndexOf("./")+2);
 					if(e.startsWith("/"))e=e.substring(1);
 					if(!j.isDirectory()&&(timestamps.get(e)==null||(timestamps.get(e).getTime()!=j.lastModified()))){
 						System.out.println("Replacing file "+e+"...");
@@ -1213,7 +1264,11 @@ public class Hydar {
 							}else{
 								System.out.println("Successfully replaced: "+e+", warnings: "+diag2);
 							}
-						}statics.put(e.replace("\\","/"),fstr);
+						}else{String z=zipString(fstr);
+						if(z!=null)staticZ.put(e,z);
+						}
+						statics.put(e,fstr);
+						
 					}
 				}
 			}
@@ -1221,37 +1276,59 @@ public class Hydar {
 			
 			try {
 				client = server.accept();
+				//client.setTcpNoDelay(true);
+				ipThreads = new ConcurrentHashMap<InetAddress,Integer>();
+				//for (ServerThread l:threads){System.out.println(l.isWebSocket);}
+				for (int i = 0; i < threads.size(); i++) {
+					if (threads.get(i)!=null&&(threads.get(i).alive||threads.get(i).isAlive())&&threads.get(i).client!=null) {
+				ipThreads.put(threads.get(i).client.getInetAddress(),(ipThreads.get(threads.get(i).client.getInetAddress())==null)?1:ipThreads.get(threads.get(i).client.getInetAddress())+1);}
+				if(threads.get(i)!=null&&!threads.get(i).alive&&!threads.get(i).isAlive()){
+						threads.set(i,null);
+					}
+				}//fix all this garbage
+				if(client!=null&&client.getInetAddress()!=null&&ipThreads.get(client.getInetAddress())!=null&&ipThreads.get(client.getInetAddress())>4){
+					OutputStream output = client.getOutputStream();
+					output.write(("HTTP/1.1 429 Too Many Requests\r\nServer: Large_Hydar/1.1\r\nContent-Length: "+Hydar.err_l+"\r\n\r\n" + Hydar.err).getBytes(StandardCharsets.ISO_8859_1));
+					output.flush();
+					output.close();
+					client.close();
+					continue;
+				}
 				ServerThread connection = new ServerThread(client);
 				int alives = 0;
 				int index = -1;
 				boolean run = false;
 				//find dead threads and replace them
 				for (int i = 0; i < threads.size(); i++) {
-					if (index<0&&!threads.get(i).isAlive()) {
-						index = i;
-						threads.set(i, connection);
-						break;
+					if (threads.get(i)==null||(!threads.get(i).alive&&!threads.get(i).isAlive())) {
+						if(index<0){
+							index = i;
+							threads.set(i, connection);
+						}
 					} else
 						alives++;
 				}
 				//all threads are dead -> reset threadpool
-				//System.out.println("ALIVE: "+alives+", EXIST: "+ManagementFactory.getThreadMXBean().getThreadCount());
-				if (alives == 0) {
-					threads = new ArrayList<ServerThread>(5);
+				//System.out.println("ALIVE: "+alives+", EXIST: ");
+				if (alives == 0&&index==-1) {
+					threads = new ArrayList<ServerThread>();
 					threads.add(connection);
 					index = 0;
 					run = true;
 					new Thread(threads.get(index)).start();
 					continue;
-				}else if(index>-1){
+				}
+				
+				else if(index>-1){
 					//at least 1 thread is dead, so just replace it
 					run = true;
-					threads.get(index).start();
+					threads.set(index,connection);
+					new Thread(threads.get(index)).start();
 					continue;
 				}
-				//expand threadpool, or give 505 if already 50+
-				if (!run && alives >= threads.size()) {
-					if (!run && alives < 50) {
+				//expand threadpool, or give 505 if already 256+
+				if (!run) {
+					if (!run && alives < 256) {
 						threads.add(connection);
 						index = threads.size() - 1;
 						run = true;
@@ -1260,7 +1337,7 @@ public class Hydar {
 					} else {
 						try {
 							OutputStream output = client.getOutputStream();
-							output.write(("HTTP/1.1 505 Service Unavailable\r\nServer: Large_Hydar/1.1\r\n\r\n505 Service Unavailable").getBytes());
+							output.write(("HTTP/1.1 505 Service Unavailable\r\nServer: Large_Hydar/1.1\r\nContent-Length: "+Hydar.err_l+"\r\n\r\n" + Hydar.err).getBytes(StandardCharsets.ISO_8859_1));
 							output.flush();
 							try {
 								Thread.sleep(1);
@@ -1278,7 +1355,7 @@ public class Hydar {
 
 				}
 			} catch (Exception e) {
-				//System.out.println("Failed to accept");
+				//e.printStackTrace();
 			}
 			
 
