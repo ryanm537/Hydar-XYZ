@@ -742,7 +742,7 @@ class HydarStunInstance extends Thread{
 				while(true){
 					try{
 						byte[] d = new byte[200];
-						byte[] r = new byte[32];
+						byte[] r = new byte[48];
 						DatagramPacket receive = new DatagramPacket(d, 200);
 						this.server.receive(receive);
 						
@@ -750,17 +750,23 @@ class HydarStunInstance extends Thread{
 							continue;
 						int length = ((d[2] & 0xff) << 8) | (d[3] & 0xff);
 						if(d[4]==0x21&&d[5]==0x12&&d[6]==-92&&d[7]==0x42){
+							boolean ipv4=(receive.getAddress().getAddress().length==4);
 							r[0]=0x01;
 							r[1]=0x01;
 							r[2]=0x00;
-							r[3]=0x0C;
+							if(ipv4)
+								r[3]=0x0C;
+							else r[3]=0x18;
 							for(int i=4;i<20;i++){
 								r[i]=d[i];
 							}
 							r[20]=0x00;
 							r[21]=0x20;
 							r[24]=0x00;
-							r[25]=0x01;
+							if(ipv4)
+								r[25]=0x01;
+							else r[25]=0x02;
+							System.out.println((int)r[25]);
 							r[27]=(byte)(((receive.getPort()) & 0xFF)^ 0x12 );
 							r[26]=(byte)((((receive.getPort()) & 0xFF00)>>8)^ 0x21);
 							int i=0;
@@ -1194,7 +1200,7 @@ public class Hydar {
 		HydarStunInstance stun = new HydarStunInstance(3478);
 		new Thread(stun).start();
 		//server loop(only ends on ctrl-c)
-		ArrayList<ServerThread> threads = new ArrayList<ServerThread>();
+		ArrayList<ServerThread> threads = new ArrayList<ServerThread>(256);
 		Date lastUpdate = new Date();
 		try{
 			server.setSoTimeout(1000);
