@@ -1286,7 +1286,7 @@ public class Hydar {
 						threads.set(i,null);
 					}
 				}//fix all this garbage
-				if(client!=null&&client.getInetAddress()!=null&&ipThreads.get(client.getInetAddress())!=null&&ipThreads.get(client.getInetAddress())>4){
+				if(client!=null&&client.getInetAddress()!=null&&ipThreads.get(client.getInetAddress())!=null&&ipThreads.get(client.getInetAddress())>100){
 					OutputStream output = client.getOutputStream();
 					output.write(("HTTP/1.1 429 Too Many Requests\r\nServer: Large_Hydar/1.1\r\nContent-Length: "+Hydar.err_l+"\r\n\r\n" + Hydar.err).getBytes(StandardCharsets.ISO_8859_1));
 					output.flush();
