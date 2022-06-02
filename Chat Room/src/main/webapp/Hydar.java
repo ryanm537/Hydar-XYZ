@@ -523,6 +523,7 @@ class ServerThread extends Thread {
 							continue;
 						}else{
 							String type="";String user=prevUser;String board=prevBoard;
+							int b=-1;
 							try{
 								type = line.substring(0,line.indexOf("\n"));
 								line=line.substring(line.indexOf("\n")+1);
@@ -531,10 +532,13 @@ class ServerThread extends Thread {
 								board = line.substring(0,line.indexOf("\n"));
 								prevBoard=board;
 								prevUser=user;
+								b = Integer.parseInt(board);
 							}catch(Exception e){
 								//e.printStackTrace();
 							}
-							int b = Integer.parseInt(board);
+							if(b==-1){
+								continue;	
+							}
 							if(this.alive==false){
 								Hydar.dropUser(Integer.parseInt(user),b,this.session);
 								break;
