@@ -523,7 +523,6 @@ class ServerThread extends Thread {
 							continue;
 						}else{
 							String type="";String user=prevUser;String board=prevBoard;
-							int b=-1;
 							try{
 								type = line.substring(0,line.indexOf("\n"));
 								line=line.substring(line.indexOf("\n")+1);
@@ -532,13 +531,10 @@ class ServerThread extends Thread {
 								board = line.substring(0,line.indexOf("\n"));
 								prevBoard=board;
 								prevUser=user;
-								b = Integer.parseInt(board);
 							}catch(Exception e){
 								//e.printStackTrace();
 							}
-							if(b==-1){
-								continue;	
-							}
+							int b = Integer.parseInt(board);
 							if(this.alive==false){
 								Hydar.dropUser(Integer.parseInt(user),b,this.session);
 								break;
@@ -1198,7 +1194,7 @@ public class Hydar {
 		HydarStunInstance stun = new HydarStunInstance(3478);
 		new Thread(stun).start();
 		//server loop(only ends on ctrl-c)
-		ArrayList<ServerThread> threads = new ArrayList<ServerThread>(512);
+		ArrayList<ServerThread> threads = new ArrayList<ServerThread>();
 		Date lastUpdate = new Date();
 		try{
 			server.setSoTimeout(1000);
