@@ -1198,7 +1198,7 @@ public class Hydar {
 		HydarStunInstance stun = new HydarStunInstance(3478);
 		new Thread(stun).start();
 		//server loop(only ends on ctrl-c)
-		ArrayList<ServerThread> threads = new ArrayList<ServerThread>();
+		ArrayList<ServerThread> threads = new ArrayList<ServerThread>(512);
 		Date lastUpdate = new Date();
 		try{
 			server.setSoTimeout(1000);
