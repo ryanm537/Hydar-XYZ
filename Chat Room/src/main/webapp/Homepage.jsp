@@ -766,6 +766,7 @@ try{
 			  
 			  connection.onopen = function(evt) {
 				//document.getElementById("leaveVC").removeAttribute("hidden");
+				setInterval(()=>{sendToServer("hydar\n"+clientID+"\n"+<%out.print(board);%>+"\n")},2000);
 				document.getElementById("VC-disconnect").addEventListener("click",()=>{
 					if(canJoinVc){
 						sendToServer("user-join\n"+clientID+"\n"+<%out.print(board);%>+"\n");
