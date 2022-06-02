@@ -766,7 +766,6 @@ class HydarStunInstance extends Thread{
 							if(ipv4)
 								r[25]=0x01;
 							else r[25]=0x02;
-							System.out.println((int)r[25]);
 							r[27]=(byte)(((receive.getPort()) & 0xFF)^ 0x12 );
 							r[26]=(byte)((((receive.getPort()) & 0xFF00)>>8)^ 0x21);
 							int i=0;
