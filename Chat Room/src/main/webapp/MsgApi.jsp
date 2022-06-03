@@ -114,6 +114,7 @@ Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatr
 		out.print(fixedString.length());
 		out.print("<br>");
 		out.print(fixedString);
+		out.print("<br>");
 		count-=1;
 	}
 	
