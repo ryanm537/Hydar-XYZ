@@ -584,12 +584,15 @@ try{
 	int count = 25; // <- DISPLAYED POSTS LIMIT XXXXXXXXXXXXXXXXXX
 	int maxCount = count;
 	out.print("<div id='msgs'>");
+	ArrayList<Long> timestamps = new ArrayList<Long>();
 	while(result.next() && count > 0){
 		//time
+		//constantly updated array of timestamps in js
+		//
 		if(count==maxCount)
 			out.print("<div hidden style=\"display:none\" id=\"lastID\">"+result.getInt("post.id")+"</div>");
 		float timePassed = ((float)(System.currentTimeMillis() - result.getLong("post.created_date")) / 3600000);
-	
+		timestamps.add(result.getLong("post.created_date"));
 		out.print("<img src=\"" + result.getString("user.pfp") +"\" alt=\"hydar\" width = \"40px\" style=\"border-radius:40px\" height = \"40px\" align = \"left\" hspace = \"10\" vspace = \"15\">");
 		//other contents
 		out.print("<style> body{color:LightGrey; font-family:calibri; text-align:left; font-size:15px; display:block}</style>");
@@ -617,7 +620,7 @@ try{
 	
 		count-=1;
 	}
-	
+	out.print("<div hidden style=\"display:none\" id=\"timestamps\">"+timestamps+"</div>");
 	if(count == 25){
 		out.print("<div hidden style=\"display:none\" id=\"lastID\"> 0 </div>");
 	}
@@ -631,10 +634,85 @@ try{
 	%>
 	<script>
 		var idle = 0;
+		var lastID = parseInt(document.getElementById("lastID").innerHTML);
+		var timestamps = eval(document.getElementById("timestamps").innerHTML);
 		document.addEventListener('click',()=>{idle=0;document.querySelector("link[rel*='icon']").href = "favicon.ico";document.getElementById("bar").setAttribute("hidden",true);});
 		document.addEventListener('hover',()=>{idle=0;});
 		document.addEventListener('keypress',()=>{idle=0;});
 		document.addEventListener('mousemove',()=>{idle=0;});
+		function updateTimestamps(){
+			var now = Date.now()/1000;
+			for(var i in document.getElementById("msgs").querySelectorAll("[id = 'three']")){
+				var tString;
+				if(now/3600>=2){
+					tString=" ("+Math.floor(now/3600)+" hours ago)";
+				}else if(now/3600>=1){
+					tString=" ("+Math.floor(now/3600)+" hour ago)";
+				}else if(now/60>=2){
+					tString=" ("+Math.floor(now/60)+" minutes ago)";
+				}else if(now/60>=1){
+					tString=" ("+Math.floor(now/60)+" minute ago)";
+				}else{
+					tString=" (just now)";
+				}
+				document.getElementById("msgs").querySelectorAll("[id = 'three']")[i].innerHTML=tString;
+			}
+		}
+		setInterval(updateTimestamps,1000);
+		function apiRefresh(){
+			var x=document.location.toString().replace("Homepage","MsgApi");
+			var n=x.substring(0,x.indexOf('?'));
+			if(x.indexOf('?')<0)n=x;
+			var q=<%out.print(board);%>;
+			if(x.indexOf("board=")<0)q=1; 
+			if(x.includes("input_text"))return;
+			$.get(n+"?board="+q+"&last_id="+lastID).then(function (data) {
+				var parser = new DOMParser();
+				var doc = parser.parseFromString(data, "text/html");
+				var tooAdd=[];
+				var lines = doc.innerHTML.split("\n");
+				for(var i=0;i<lines.length;i+=6){
+					if(i==0&&eval(lines[i])==-1){
+						refresh(true,true);
+						return;
+					}
+					try{
+						document.getElementById("msgs").removeChild(document.getElementById("lastID"));
+						var toPrepend="";
+						toPrepend+="<div style='display:none' id='lastID' hidden=''>"+eval(lines[0])+"</div>";
+						toPrepend+="<img src = '"+lines[i+2]+"' alt='hydar' style='border-radius:40px' width='40px' vspace='15' hspace='10' height='40px' align='left'>"
+						toPrepend+="<style> body{color:LightGrey; font-family:calibri; text-align:left; font-size:15px; display:block}</style><br><b><div id='msgUser' style='display:inline'>"+lines[i+1]+"</div></b>";
+						toPrepend+="<div id='three' style='display:inline'><style> #three{color:Grey; font-family:calibri; text-align:left; font-size:15px; display:inline}</style>&nbsp;(just now): </div><br><div id='msgText' style='display:block; margin-left:60px; word-wrap: break-word;'>"+lines[i+5]+"</div><br clear='left'>";
+						document.getElementById("msgs").innerHTML=toPrepend+document.getElementById("msgs").innerHTML;
+						timestamps = concat([lines[i+3]],timestamps);
+						
+						while(document.getElementById("msgs").children.length>201){
+							document.getElementById("msgs").removeChild(document.getElementById("msgs").children[201]);
+							
+						}
+						if((!document.hasFocus()||idle>14)&&document.getElementById("profileName").innerHTML!=lines[i+1]){
+							document.querySelector("link[rel*='icon']").href = "favicon2.ico";
+							document.getElementById("bar").removeAttribute("hidden");
+							try{
+								h=new Notification(lines[i+1],{body:lines[i+5],icon:"images/notifhydar.png"});
+								var pingSound = new Audio("audio/ping.mp3");
+								pingSound.volume = <%out.print(volume * 0.2 * pingvolume);%>;
+								<%
+								if(pings == 1){
+									%>pingSound.play();	<%
+								}
+								%>
+							}catch(e){
+
+							}
+						}
+					}
+					catch(ee2){
+						console.log(ee2);
+					}
+				}
+			}).fail(function () {document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
+		}
 		function refresh(a,b){
 			idle+=1;
 			var x=document.location.toString();
@@ -650,6 +728,8 @@ try{
 				hdar.setAttribute("id","msgs");
 				hdar.innerHTML=doc.getElementById("msgs").innerHTML;var x=(parseInt(doc.getElementById("lastID").innerHTML)-parseInt(document.getElementById("lastID").innerHTML));
 				document.querySelectorAll("[id='two']")[1].innerHTML="Instant update</a>";
+				timestamps = eval(doc.getElementById("timestamps").innerHTML);
+				lastID = eval(doc.getElementById("lastID").innerHTML);
 				if(document.querySelectorAll("[id='two']")[0].innerHTML.includes("Off")){
 					if(!b)x-=1;
 					document.getElementById("txtHint").innerHTML=""+(x>0?x:"No")+" new posts.<br>Post"+(x==1?"":"s")+" will be listed here...";
@@ -733,7 +813,7 @@ try{
 		}
 		var constraints = {
 			audio: 
-			{
+			{ 
 				"autoGainControl": true,
 				"echoCancellation": true,
 				"noiseSuppression": true
@@ -1087,7 +1167,7 @@ try{
 	
 	if(autoRefresh.equals("autoOn")){
 		out.print("<script>");
-		out.print("setInterval(fullRefresh,1000);");
+		out.print("setInterval(apiRefresh,1000);");
 		out.print("</script>");
 	}else{
 		out.print("<script>");
