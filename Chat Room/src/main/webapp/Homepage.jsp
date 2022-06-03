@@ -936,13 +936,18 @@ try{
 						await targets[getPeer(target)].pc.setRemoteDescription(desc);//handle error maybe
 					  break;
 					  case "new-ice-candidate":
-					  var target = user;
-						var sdp = msg.substring(msg.indexOf('\n')+1);
-						var candidate = new RTCIceCandidate({candidate:new String(sdp),sdpMid:"audio"});
+						  var target = user;
+						msg = msg.substring(msg.indexOf('\n')+1);
+						  var remoteMid = msg.substring(0,msg.indexOf('\n'));
+						msg = msg.substring(msg.indexOf('\n')+1);
+						  var remoteMLI = msg.substring(0,msg.indexOf('\n'));
+						  var sdp = msg.substring(msg.indexOf('\n')+1);
+						var candidate = new RTCIceCandidate({candidate:new String(sdp),sdpMid:remoteMid,sdpMLineIndex:eval(remoteMLI)});
 						try {
 							 await targets[getPeer(target)].pc.addIceCandidate(candidate);
 						  } catch(err) {
-							//
+							  console.log("ADD ICE ERROR");
+							console.log(err);
 						  }
 						  break;
 					  case "user-leave":
@@ -975,8 +980,9 @@ try{
 		  
 		}
 		function handleICECandidateEvent(target, event) {
+		//make sure candidate exists(the event is triggered with no candidate to indicate end of trickle ice)
 		  if (event.candidate) {
-		    sendToServer("new-ice-candidate\n"+clientID+"\n"+<%out.print(board);%>+"\n"+target+"\n"+event.candidate.candidate);
+		    sendToServer("new-ice-candidate\n"+clientID+"\n"+<%out.print(board);%>+"\n"+target+"\n"+event.candidate.sdpMid+"\n"+event.candidate.sdpMLineIndex+"\n"+event.candidate.candidate);
 		  }
 		}
 		
