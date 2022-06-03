@@ -663,7 +663,7 @@ try{
 		}
 		setInterval(updateTimestamps,1000);
 		function apiRefresh(){
-			var x=document.location.toString().replace("Homepage","MsgApi");
+			var x=document.location.toString().replace("Homepage.jsp","MsgApi.jsp");
 			var n=x.substring(0,x.indexOf('?'));
 			if(x.indexOf('?')<0)n=x;
 			var q=<%out.print(board);%>;
@@ -720,7 +720,8 @@ try{
 					catch(ee2){
 						console.log(ee2);
 					}
-				}
+				}if(lines.length<6)
+						return;
 				document.getElementById("msgs").removeChild(document.getElementById("lastID"));
 				toPrepend="<div style='display:none' id='lastID' hidden=''>"+eval(lines[0])+"</div>"+toPrepend;
 				document.getElementById("msgs").innerHTML=toPrepend+document.getElementById("msgs").innerHTML;
