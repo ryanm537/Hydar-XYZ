@@ -101,8 +101,8 @@ Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatr
 				break;
 			}
 		}
-		String fixedString = result.getString("post.contents").replaceAll("<", "&lt;");
-		fixedString=fixedString.replaceAll("&lt;href", "<href").replaceAll("&lt;img", "<img").replaceAll("&lt;br", "<br");
+		String fixedString = result.getString("post.contents");//.replaceAll("<", "&lt;");
+		//fixedString=fixedString.replaceAll("&lt;href", "<href").replaceAll("&lt;img", "<img").replaceAll("&lt;br", "<br");
 		out.print(id);
 		out.print("<br>");
 		out.print(result.getString("user.username"));
