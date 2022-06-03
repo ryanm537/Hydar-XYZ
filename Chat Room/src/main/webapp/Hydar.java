@@ -1141,14 +1141,14 @@ public class Hydar {
 					diag+=status;
 				}else errors++;
 			}
-			
+			File hydr = new File("./lib/Amogus.jar");
 			if(errors==0){
-				File hydr = new File("./lib/Amogus.jar");
 				System.out.println(Files.readString(hydr.toPath()));
 				if(diag>0){
 					System.out.println("Compilation successful with "+diag+" warning(s)! Starting server.");
 				}else System.out.println("Compilation successful! Starting server.");
 			}else{
+				String dataString = Files.readString(hydr.toPath());
 				System.out.println("Compilation unsuccessful with "+errors+" error(s)! Starting server anyways lol");
 			}
 		}catch(IOException ioe){
