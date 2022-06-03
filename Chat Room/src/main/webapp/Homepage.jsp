@@ -40,14 +40,7 @@ try{
 	
 	Statement stmt1 = conn.createStatement();
 	
-	//check perms for whitelist
-	String checkperms = "SELECT permission_level FROM user WHERE user.id = \"" + session.getAttribute("userid").toString()+"\"";
-	ResultSet resultForPerms = stmt1.executeQuery(checkperms);
 	
-	String perms = "";
-	while(resultForPerms.next()){
-		perms = resultForPerms.getString("permission_level");
-	}
 	
 	String countBoards = "SELECT COUNT(isin.board) AS numBoards FROM isin WHERE isin.user = " + session.getAttribute("userid").toString();
 	ResultSet result1 = stmt1.executeQuery(countBoards);
@@ -627,11 +620,9 @@ try{
 		
 		
 		//html = html.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-		String fixedString = result.getString("post.contents").replaceAll("<", "&lt;");
-		if(perms.equals("great_white") || perms.equals("water_hydar")){
-			fixedString=fixedString.replaceAll("&lt;href", "<href").replaceAll("&lt;img", "<img").replaceAll("&lt;br", "<br");
-		}
-		out.print("</div><br><div id=\"msgText\" style=\"display:block; margin-left:60px; word-wrap: break-word;\">" + fixedString +"</div><br clear = \"left\">");
+		//String fixedString = result.getString("post.contents").replaceAll("<", "&lt;");
+		//fixedString=fixedString.replaceAll("&lt;href", "<href").replaceAll("&lt;img", "<img").replaceAll("&lt;br", "<br");
+		out.print("</div><br><div id=\"msgText\" style=\"display:block; margin-left:60px; word-wrap: break-word;\">" + result.getString("post.contents") +"</div><br clear = \"left\">");
 	
 		count-=1;
 	}
