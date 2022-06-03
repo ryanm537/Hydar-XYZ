@@ -672,12 +672,13 @@ try{
 			$.get(n+"?board="+q+"&last_id="+lastID).then(function (data) {
 				var lines=[]
 				try{
-					lines = data.trim().split("<br>");
+					lines = data.split("<br>");
 					lines.splice(lines.length-1);
 				}catch(how){
 					return;
 				}
-				for(var i=0;i<lines.length;i+=6){
+				var lineEnd=lines.length;
+				for(var i=0;i<lineEnd;i+=6){
 					if(i==0&&eval(lines[i])==-1){
 						refresh(true,true);
 						return;
@@ -685,6 +686,11 @@ try{
 					if(lines.length<6)
 						return;
 					try{
+						while(lines[i+5].length<lines[i+4]){
+							lines[i+5]+="<br>"+lines[i+6];
+							lineEnd--;
+							lines.splice(i+6,1);
+						}
 						document.getElementById("msgs").removeChild(document.getElementById("lastID"));
 						var toPrepend="";
 						toPrepend+="<div style='display:none' id='lastID' hidden=''>"+eval(lines[0])+"</div>";
