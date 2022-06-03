@@ -633,6 +633,7 @@ try{
 	
 	%>
 	<script>
+		var api;
 		var idle = 0;
 		var lastID = parseInt(document.getElementById("lastID").innerHTML);
 		var timestamps = eval(document.getElementById("timestamps").innerHTML);
@@ -779,7 +780,7 @@ try{
 					}
 				}
 			}	
-			}).fail(function () {document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
+			}).fail(fullRefresh);
 		}function fullRefresh(){
 			refresh(true,true);	
 		}function halfRefresh(){
@@ -787,7 +788,8 @@ try{
 		}function extraRefresh(){
 			refresh(true,false);
 		}function post(){
-			
+			clearInterval(api);
+			api = setInterval(apiRefresh,1000);
 			var x=document.location.toString();
 			var n=x.substring(0,x.indexOf('?')).replace("Homepage.jsp","SubmitPost.jsp");
 			if(x.indexOf('?')<0)n=x.replace("Homepage.jsp","SubmitPost.jsp");
@@ -1177,7 +1179,7 @@ try{
 	
 	if(autoRefresh.equals("autoOn")){
 		out.print("<script>");
-		out.print("setInterval(apiRefresh,1000);");
+		out.print("api = setInterval(apiRefresh,1000);");
 		out.print("</script>");
 	}else{
 		out.print("<script>");
