@@ -118,6 +118,7 @@ Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatr
 		count-=1;
 	}
 	
+	conn.close();
 	
 	// hydar hydar
 	
