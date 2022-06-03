@@ -647,15 +647,15 @@ try{
 				var dt = now-timestamps[i]/1000;
 				var tString="<style> #three{color:Grey; font-family:calibri; text-align:left; font-size:15px; display:inline}</style>";
 				if(dt/3600>=2){
-					tString="&nbsp;("+Math.floor(dt/3600)+" hours ago):";
+					tString+="&nbsp;("+Math.floor(dt/3600)+" hours ago):";
 				}else if(dt/3600>=1){
-					tString="&nbsp;("+Math.floor(dt/3600)+" hour ago):";
+					tString+="&nbsp;("+Math.floor(dt/3600)+" hour ago):";
 				}else if(dt/60>=2){
-					tString="&nbsp;("+Math.floor(dt/60)+" minutes ago):";
+					tString+="&nbsp;("+Math.floor(dt/60)+" minutes ago):";
 				}else if(dt/60>=1){
-					tString="&nbsp;("+Math.floor(dt/60)+" minute ago):";
+					tString+="&nbsp;("+Math.floor(dt/60)+" minute ago):";
 				}else{
-					tString="&nbsp;(just now)";
+					tString+="&nbsp;(just now)";
 				}
 				document.getElementById("msgs").querySelectorAll("[id = 'three']")[i].innerHTML=tString;
 			}
@@ -671,7 +671,7 @@ try{
 			$.get(n+"?board="+q+"&last_id="+lastID).then(function (data) {
 				var lines=[]
 				try{
-					lines = data.innerHTML.split("<br>");
+					lines = data.split("<br>");
 				}catch(how){
 					return;
 				}
