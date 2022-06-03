@@ -9,10 +9,10 @@
 <title>Login - Hydar</title>
 <link rel="shorcut icon" href="favicon.ico"/>
 </head>
-<script type="text/javascript" src ="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script type="text/javascript" src ="jquery-3.6.0.min.js"></script>
 <style>
 	body{
-		background-image:url('hydarface.png');
+		background-image:url('images/hydarface.png');
 		background-repeat:no-repeat;
 		background-attachment:fixed;
 		background-size:100% 150%;
@@ -85,17 +85,17 @@ form{ }
 <p style = "color:rgb(255,255,255);">
 
 <div class = "hydarlogo">
-<img src="hydar.png" alt="hydar" >
+<img src="images/hydar.png" alt="hydar" >
 </div>
 
 <%
-out.print("<p style = \"color:rgb(255,255,255); font-family:arial; font-size:20px; z-index:1; position:absolute; text-align:left; left:50%; display:block; top:calc(50% - 180px);\">"); %>
+out.print("<p style = \"color:rgb(255,255,255); font-family:calibri; font-size:20px; z-index:1; position:absolute; text-align:left; left:50%; display:block; top:calc(50% - 180px);\">"); %>
 <br>
 <b>
 Welcome to Hydar</b><br><br>
 Returning users login<br>
 <form method="get" action="Verify.jsp" >
-<p style = "color:rgb(255,255,255); font-family:arial; z-index:1; position:fixed; position:absolute; text-align:left; left:50%; display:block; top:calc(50% - 70px);">
+<p style = "color:rgb(255,255,255); font-family:calibri; z-index:1; position:fixed; position:absolute; text-align:left; left:50%; display:block; top:calc(50% - 70px);">
 
 <input  type="text" name="username" size = "20px" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px;" placeholder = "Username"><br>
 
@@ -103,8 +103,8 @@ Returning users login<br>
 <input type="password" name="password" size = "20px" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px; position:relative;top:4px;" placeholder = "Password">
 <input type="submit" name="submit" value = "Go" class= "button3"><br><br>
 </form>
-<p style = "color:rgb(255,255,255); font-family:arial;  z-index:1; position:fixed; position:absolute; text-align:left; left:50%; display:block; top:calc(50% + 120px);">
-Don't have an account? rip!<br>
+<p style = "color:rgb(255,255,255); font-family:calibri;  z-index:1; position:fixed; position:absolute; text-align:left; left:50%; display:block; top:calc(50% + 120px);">
+Don't have an account? rip!<br><a href = "VerifyAnonymous.jsp"; style ="color:rgb(170,220,255);"> Continue as Anonymous</a>
 
 </form>
 
