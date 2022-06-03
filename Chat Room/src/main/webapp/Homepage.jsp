@@ -671,7 +671,8 @@ try{
 			$.get(n+"?board="+q+"&last_id="+lastID).then(function (data) {
 				var lines=[]
 				try{
-					lines = data.split("<br>");
+					lines = data.trim().split("<br>");
+					lines.splice(lines.length-1);
 				}catch(how){
 					return;
 				}
