@@ -680,6 +680,8 @@ try{
 						refresh(true,true);
 						return;
 					}
+					if(lines.length<6)
+						return;
 					try{
 						document.getElementById("msgs").removeChild(document.getElementById("lastID"));
 						var toPrepend="";
