@@ -656,7 +656,7 @@ try{
 				}else if(dt/60>=1){
 					tString+="&nbsp;("+Math.floor(dt/60)+" minute ago):";
 				}else{
-					tString+="&nbsp;(just now)";
+					tString+="&nbsp;(just now):";
 				}
 				document.getElementById("msgs").querySelectorAll("[id = 'three']")[i].innerHTML=tString;
 			}
