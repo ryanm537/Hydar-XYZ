@@ -642,18 +642,20 @@ try{
 		document.addEventListener('mousemove',()=>{idle=0;});
 		function updateTimestamps(){
 			var now = Date.now()/1000;
+			
 			for(var i in document.getElementById("msgs").querySelectorAll("[id = 'three']")){
+				var dt = now-timestamps[i]/1000;
 				var tString;
-				if(now/3600>=2){
-					tString=" ("+Math.floor(now/3600)+" hours ago)";
-				}else if(now/3600>=1){
-					tString=" ("+Math.floor(now/3600)+" hour ago)";
-				}else if(now/60>=2){
-					tString=" ("+Math.floor(now/60)+" minutes ago)";
-				}else if(now/60>=1){
-					tString=" ("+Math.floor(now/60)+" minute ago)";
+				if(dt/3600>=2){
+					tString="&nbsp;("+Math.floor(dt/3600)+" hours ago)";
+				}else if(dt/3600>=1){
+					tString="&nbsp;("+Math.floor(dt/3600)+" hour ago)";
+				}else if(dt/60>=2){
+					tString="&nbsp;("+Math.floor(dt/60)+" minutes ago)";
+				}else if(dt/60>=1){
+					tString="&nbsp;("+Math.floor(dt/60)+" minute ago)";
 				}else{
-					tString=" (just now)";
+					tString="&nbsp;(just now)";
 				}
 				document.getElementById("msgs").querySelectorAll("[id = 'three']")[i].innerHTML=tString;
 			}
@@ -670,7 +672,9 @@ try{
 				var parser = new DOMParser();
 				var doc = parser.parseFromString(data, "text/html");
 				var tooAdd=[];
-				var lines = doc.innerHTML.split("\n");
+				var lines=[]
+				if(doc.innerHTML)
+					lines = doc.innerHTML.split("<br>");
 				for(var i=0;i<lines.length;i+=6){
 					if(i==0&&eval(lines[i])==-1){
 						refresh(true,true);
