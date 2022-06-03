@@ -645,15 +645,15 @@ try{
 			
 			for(var i in document.getElementById("msgs").querySelectorAll("[id = 'three']")){
 				var dt = now-timestamps[i]/1000;
-				var tString;
+				var tString="<style> #three{color:Grey; font-family:calibri; text-align:left; font-size:15px; display:inline}</style>";
 				if(dt/3600>=2){
-					tString="&nbsp;("+Math.floor(dt/3600)+" hours ago)";
+					tString="&nbsp;("+Math.floor(dt/3600)+" hours ago):";
 				}else if(dt/3600>=1){
-					tString="&nbsp;("+Math.floor(dt/3600)+" hour ago)";
+					tString="&nbsp;("+Math.floor(dt/3600)+" hour ago):";
 				}else if(dt/60>=2){
-					tString="&nbsp;("+Math.floor(dt/60)+" minutes ago)";
+					tString="&nbsp;("+Math.floor(dt/60)+" minutes ago):";
 				}else if(dt/60>=1){
-					tString="&nbsp;("+Math.floor(dt/60)+" minute ago)";
+					tString="&nbsp;("+Math.floor(dt/60)+" minute ago):";
 				}else{
 					tString="&nbsp;(just now)";
 				}
@@ -669,12 +669,12 @@ try{
 			if(x.indexOf("board=")<0)q=1; 
 			if(x.includes("input_text"))return;
 			$.get(n+"?board="+q+"&last_id="+lastID).then(function (data) {
-				var parser = new DOMParser();
-				var doc = parser.parseFromString(data, "text/html");
-				var tooAdd=[];
 				var lines=[]
-				if(doc.innerHTML)
-					lines = doc.innerHTML.split("<br>");
+				try{
+					lines = data.innerHTML.split("<br>");
+				}catch(how){
+					return;
+				}
 				for(var i=0;i<lines.length;i+=6){
 					if(i==0&&eval(lines[i])==-1){
 						refresh(true,true);
@@ -689,7 +689,9 @@ try{
 						toPrepend+="<div id='three' style='display:inline'><style> #three{color:Grey; font-family:calibri; text-align:left; font-size:15px; display:inline}</style>&nbsp;(just now): </div><br><div id='msgText' style='display:block; margin-left:60px; word-wrap: break-word;'>"+lines[i+5]+"</div><br clear='left'>";
 						document.getElementById("msgs").innerHTML=toPrepend+document.getElementById("msgs").innerHTML;
 						timestamps = concat([lines[i+3]],timestamps);
-						
+						while(timestamps.length>25){
+							timestamps.splice(25);
+						}
 						while(document.getElementById("msgs").children.length>201){
 							document.getElementById("msgs").removeChild(document.getElementById("msgs").children[201]);
 							

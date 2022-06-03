@@ -124,4 +124,3 @@ Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatr
 	
 	
 	%>
-</html>
