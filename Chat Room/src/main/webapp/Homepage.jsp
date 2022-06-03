@@ -669,6 +669,7 @@ try{
 			var q=<%out.print(board);%>;
 			if(x.indexOf("board=")<0)q=1; 
 			if(x.includes("input_text"))return;
+			var toPrepend="";
 			$.get(n+"?board="+q+"&last_id="+lastID).then(function (data) {
 				var lines=[]
 				try{
@@ -691,21 +692,13 @@ try{
 							lineEnd--;
 							lines.splice(i+6,1);
 						}
-						document.getElementById("msgs").removeChild(document.getElementById("lastID"));
-						var toPrepend="";
-						toPrepend+="<div style='display:none' id='lastID' hidden=''>"+eval(lines[0])+"</div>";
 						lastID=eval(lines[0]);
 						toPrepend+="<img src = '"+lines[i+2]+"' alt='hydar' style='border-radius:40px' width='40px' vspace='15' hspace='10' height='40px' align='left'>"
 						toPrepend+="<style> body{color:LightGrey; font-family:calibri; text-align:left; font-size:15px; display:block}</style><br><b><div id='msgUser' style='display:inline'>"+lines[i+1]+"</div></b>";
 						toPrepend+="<div id='three' style='display:inline'><style> #three{color:Grey; font-family:calibri; text-align:left; font-size:15px; display:inline}</style>&nbsp;(just now): </div><br><div id='msgText' style='display:block; margin-left:60px; word-wrap: break-word;'>"+lines[i+5]+"</div><br clear='left'>";
-						document.getElementById("msgs").innerHTML=toPrepend+document.getElementById("msgs").innerHTML;
 						timestamps = [lines[i+3]].concat(timestamps);
 						while(timestamps.length>25){
 							timestamps.splice(25);
-						}
-						while(document.getElementById("msgs").children.length>201){
-							document.getElementById("msgs").removeChild(document.getElementById("msgs").children[201]);
-							
 						}
 						if((!document.hasFocus()||idle>14)&&document.getElementById("profileName").innerHTML!=lines[i+1]){
 							document.querySelector("link[rel*='icon']").href = "favicon2.ico";
@@ -728,6 +721,14 @@ try{
 						console.log(ee2);
 					}
 				}
+				document.getElementById("msgs").removeChild(document.getElementById("lastID"));
+				toPrepend="<div style='display:none' id='lastID' hidden=''>"+eval(lines[0])+"</div>"+toPrepend;
+				document.getElementById("msgs").innerHTML=toPrepend+document.getElementById("msgs").innerHTML;
+				while(document.getElementById("msgs").children.length>201){
+					document.getElementById("msgs").removeChild(document.getElementById("msgs").children[201]);
+					
+				}
+				
 			}).fail(function () {document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
 		}
 		function refresh(a,b){
