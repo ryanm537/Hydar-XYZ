@@ -731,8 +731,8 @@ try{
 				document.getElementById("msgs").removeChild(document.getElementById("lastID"));
 				toPrepend="<div style='display:none' id='lastID' hidden=''>"+eval(lines[0])+"</div>"+toPrepend;
 				document.getElementById("msgs").innerHTML=toPrepend+document.getElementById("msgs").innerHTML;
-				while(document.getElementById("msgs").children.length>201){
-					document.getElementById("msgs").removeChild(document.getElementById("msgs").children[201]);
+				while(document.getElementById("msgs").children.length>(201+(lines.length-lineEnd))){
+					document.getElementById("msgs").removeChild(document.getElementById("msgs").children[201+(lines.length-lineEnd)]);
 					
 				}
 				
@@ -1023,7 +1023,9 @@ try{
 							try {
 							  stream.getTracks().forEach(
 								(track)=>{
-								targets[getPeer(target)].pc.addTrack(track, stream)}
+								if(muted)
+									track.enabled=false;
+								targets[getPeer(target)].pc.addTrack(track, stream);}
 							  );
 							} catch(err) {
 							   console.dir(err);
@@ -1078,7 +1080,9 @@ try{
 		    try {
 		      stream.getTracks().forEach(
 			   (track)=>{
-			   targets[getPeer(target)].pc.addTrack(track,stream)}
+				if(muted)
+					track.enabled=false;
+			   targets[getPeer(target)].pc.addTrack(track,stream);}
 		      );
 		    } catch(err) {
 				console.log("couldnt add track");
