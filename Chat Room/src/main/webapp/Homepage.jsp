@@ -436,7 +436,7 @@ try{
 			if(x.indexOf('?')<0)n=x.replace("Homepage.jsp","SubmitPost.jsp");
 			var q=<%out.print(board);%>;
 			if(x.indexOf("board=")<0)q=1;
-			$.get(n+"?autoOn=autoOff&input_text=/invite "+encodeURIComponent(document.forms[0].input_create.value)+"&board_num="+q).then(extraRefresh).fail(function(){document.querySelectorAll("[id='two']")[2].innerHTML="Loading...</a>";});
+			$.get(n+"?autoOn=autoOff&input_text=/invite "+encodeURIComponent(document.forms[0].input_create.value)+"&board_num="+q).then(apiRefresh).fail(function(){document.querySelectorAll("[id='two']")[2].innerHTML="Loading...</a>";});
 			document.forms[0].input_create.value="";
 		}
 
@@ -446,7 +446,7 @@ try{
 			if(x.indexOf('?')<0)n=x.replace("Homepage.jsp","SubmitPost.jsp");
 			var q=<%out.print(board);%>;
 			if(x.indexOf("board=")<0)q=1;
-			$.get(n+"?autoOn=autoOff&input_text=/kick "+encodeURIComponent(document.forms[1].input_remove.value)+"&board_num="+q).then(extraRefresh).fail(function(){document.querySelectorAll("[id='two']")[3].innerHTML="Loading...</a>";});
+			$.get(n+"?autoOn=autoOff&input_text=/kick "+encodeURIComponent(document.forms[1].input_remove.value)+"&board_num="+q).then(apiRefresh).fail(function(){document.querySelectorAll("[id='two']")[3].innerHTML="Loading...</a>";});
 			document.forms[1].input_remove.value="";
 		}
 		adminButtons();
@@ -809,7 +809,7 @@ try{
 			if(x.indexOf('?')<0)n=x.replace("Homepage.jsp","SubmitPost.jsp");
 			var q=<%out.print(board);%>;
 			if(x.indexOf("board=")<0)q=1;
-			$.get(n+"?autoOn=autoOff&input_text="+encodeURIComponent(document.forms[3].input_text.value)+"&board_num="+q).then(extraRefresh).fail(function(){document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
+			$.get(n+"?autoOn=autoOff&input_text="+encodeURIComponent(document.forms[3].input_text.value)+"&board_num="+q).then(apiRefresh).fail(function(){document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
 			document.forms[3].input_text.value="";
 		}
 		document.querySelectorAll("[id='two']")[1].addEventListener('click',fullRefresh);
