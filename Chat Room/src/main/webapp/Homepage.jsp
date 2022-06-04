@@ -519,7 +519,8 @@ try{
 	
 	out.print("<style> .nav{text-align:center; font-family:calibri; list-style-type:none; margin:0; padding:0} .nav li{color:rgb(255,255,255); display:inline-block;  font-size:20px;  position:relative; top:-12px;}</style>");
 	out.print("<ul class=\"nav\"><li>");
-	out.print("<form onsubmit=\"post()\" action=\"NoContent.jsp\">");
+	out.print("<iframe sandbox name=\"dummyframe\" id=\"dummyframe\" style=\"display: none;\"></iframe>");
+	out.print("<form onsubmit=\"post()\" action=\"NoContent.jsp\" target=\"dummyframe\">");
 
 	%>
 	<input id="input_text" type="text" name="input_text" size="80" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px;" placeholder = "Enter text to post..." autofocus="autofocus" onfocus="this.select()"/>
