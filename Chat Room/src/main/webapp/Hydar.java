@@ -703,6 +703,8 @@ class ServerThread extends Thread {
 	}
 	public void zipWrite(String headers1, long q, String headers2, String data, boolean doGzip) throws IOException{
 		long l1;
+		if(data.length()==0)
+			doGzip=false;
 		if(q>-1){
 			l1=q;
 		}else{
