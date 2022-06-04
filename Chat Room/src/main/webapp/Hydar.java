@@ -1283,7 +1283,7 @@ public class Hydar {
 			
 			try {
 				client = server.accept();
-				//client.setTcpNoDelay(true);
+				client.setTcpNoDelay(true);
 				ipThreads = new ConcurrentHashMap<InetAddress,Integer>();
 				//for (ServerThread l:threads){System.out.println(l.isWebSocket);}
 				for (int i = 0; i < threads.size(); i++) {
