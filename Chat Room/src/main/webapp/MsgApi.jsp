@@ -46,10 +46,6 @@ Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatr
 	if(session.getAttribute("username").toString().equals("null")){
 		throw new Exception();
 	}
-	
-	
-	%>
-	<%
 		
 		
 		// hdaryhdaryhdayrhdyahryda
@@ -58,12 +54,6 @@ Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatr
 		
 		// DHYARHYDHYARDHYADRYRR
 		// ye, it is true that hydar
-		%>
-		
-	
-	
-	<%
-
 	// SHOW MESSAGES
 
 	

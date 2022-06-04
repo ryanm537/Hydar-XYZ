@@ -309,6 +309,7 @@ class ServerThread extends Thread {
 									output.write(("HTTP/1.1 "+((data.length()==0)?"204 No Content":"200 OK")+"\r\nAllow: GET, POST, HEAD\r\nServer: Large_Hydar/1.1\r\nExpires: Thu, 01 Dec 2020 16:00:00 GMT\r\nContent-Length: "+data.length()+"\r\n"+encoding+"Content-Type: " + mime
 											+ "\r\nLast-Modified: " + timestamp
 											+ "\r\n\r\n"+data).getBytes(StandardCharsets.ISO_8859_1));
+									output.flush();
 								}
 							}else{
 								//jsp: execute
