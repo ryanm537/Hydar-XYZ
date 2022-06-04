@@ -716,10 +716,11 @@ class ServerThread extends Thread {
 			GZIPOutputStream out2 = new GZIPOutputStream(output);
 			out2.write(data.getBytes(StandardCharsets.ISO_8859_1));
 			out2.finish();
+			//out2.close();
 		}else{
 			output.write(data.getBytes(StandardCharsets.ISO_8859_1));
-			output.flush();
 		}
+		output.flush();
 	}
 }
 
