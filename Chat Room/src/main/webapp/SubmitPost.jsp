@@ -67,11 +67,45 @@ try{
 			perms = resultForPerms.getString("permission_level");
 		}
 		
+		//whitelist images, br, and links for everyone
 		inputText = inputText.replace("<", "&lt;");
 		if(perms.equals("great_white") || perms.equals("water_hydar")){
 			inputText=inputText.replaceAll("&lt;href", "<href").replaceAll("&lt;img", "<img").replaceAll("&lt;br", "<br");
 		}
 		
+		//whitelist br
+		inputText=inputText.replaceAll("&lt;br", "<br");
+		
+		// find replies
+		try{
+			if(Integer.parseInt(request.getParameter("replyID"))>0){
+				int idOfPost = Integer.parseInt(request.getParameter("replyID"));
+				
+				String checkreplyfornamestr = "SELECT user.username, post.contents FROM user, posts, post WHERE post.id = "+idOfPost+" AND posts.post = post.id AND posts.user = user.id";
+				ResultSet checkreplyforname = stmt.executeQuery(checkreplyfornamestr);
+				checkreplyforname.next();
+				String replyName = checkreplyforname.getString("user.username");
+				String replyContents = checkreplyforname.getString("post.contents");
+				try{
+					if(replyContents.substring(0,32).contains("<div hidden id = 'actualContents")){
+						replyContents = replyContents.substring(replyContents.indexOf(">")+1, replyContents.indexOf("</div>"));
+					}
+				}catch(Exception e){
+					
+				}
+				
+				String actualContents = inputText.substring(14+replyName.length()+replyContents.length());
+
+				String replyHeader = "<div hidden id = 'actualContents" + newID + "'>" + actualContents + "</div><a href = '#reply_button"+idOfPost+"'><b>"+inputText.substring(0,12+replyName.length())+
+						"</b><i>"+inputText.substring(12+replyName.length(), 14+replyName.length()+replyContents.length())+"</i></a><br>";
+						
+				inputText = replyHeader + actualContents;
+				
+				
+			}
+		}catch(Exception e){
+			
+		}
 		
 		// BOT COMMANDS
 		if(inputText.substring(0,1).equals("/")){
