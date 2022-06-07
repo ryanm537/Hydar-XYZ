@@ -16,11 +16,13 @@
 <body style = "background-color:rgb(51, 57, 63);"> 
 <center>
 <style type="text/css">
+html {
+  scroll-behavior: smooth;
+}
 form{ display: inline-block; }
 </style>
 <div id="show">
 </div>
-
 
 
 
@@ -523,7 +525,16 @@ try{
 	out.print("<form onsubmit=\"post()\" action=\"NoContent.jsp\" target=\"dummyframe\">");
 
 	%>
-	<input id="input_text" type="text" name="input_text" size="80" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px;" placeholder = "Enter text to post..." autofocus="autofocus" onfocus="this.select()"/>
+	<style>
+	.replyingToText{
+		position:absolute;
+		top:-22px;
+		font-size:15px;
+		text-align:left;
+	}
+	</style>
+	<div id = "replyingToText" class = "replyingToText">Posting in <%out.print(b); %>:</div>
+	<input id="input_text" type="text" name="input_text" size="80" value = "hydar" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px;" placeholder = "Enter text to post..." autofocus="autofocus" onfocus="this.select()"/>
 	
 	<%
 	
@@ -575,7 +586,30 @@ try{
 	<%
 
 	// SHOW MESSAGES
-
+	
+	%>
+	<style>
+		.reply_button{
+			opacity:0.2;
+			position:relative;
+			float:right;
+			text-align:right;
+			left:-20px;
+			top:38px;
+		}
+		.reply_button:hover{
+			opacity:1;
+			scale:1.3;
+			cursor:pointer;
+		}
+		</style>
+		
+		
+		<script>
+		var replyID = -1;
+		</script>
+	<%
+	
 	
 	Statement stmt = conn.createStatement();
 	String checkPostsStr="SELECT post.id, user.id, user.username, user.pfp, post.board, post.contents, post.created_date"
@@ -600,6 +634,36 @@ try{
 		out.print("<img src=\"" + result.getString("user.pfp") +"\" alt=\"hydar\" width = \"40px\" style=\"border-radius:40px\" height = \"40px\" align = \"left\" hspace = \"10\" vspace = \"15\">");
 		//other contents
 		out.print("<style> body{color:LightGrey; font-family:calibri; text-align:left; font-size:15px; display:block}</style>");
+
+		//replies?
+		%>
+		<style>
+		#reply_button<%out.print(result.getString("post.id"));%>
+		{
+			scroll-margin-top:135px;
+		}
+		</style>
+		<img id = "reply_button<%out.print(result.getString("post.id"));%>" class = "reply_button" src = "images/reply-arrow.png" width = 15px height=15px>
+		<script>
+		replyID = -1;
+		const reply_button<%out.print(result.getString("post.id"));%> = document.getElementById(<%out.print("\"reply_button"+result.getString("post.id")+"\"");%>);
+		reply_button<%out.print(result.getString("post.id"));%>.addEventListener("click", () =>{
+			var isReply = document.getElementById(<%out.print("\"actualContents"+result.getString("post.id")+"\"");%>);
+			if(isReply!=null){
+				document.getElementById("input_text").value = "Replying to "+<%out.print("\""+result.getString("user.username")+" \"");%>+document.getElementById(<%out.print("\"actualContents"+result.getString("post.id")+"\"");%>).innerHTML + ":"
+				+ document.getElementById("input_text").value;
+				replyID = <%out.print(result.getString("post.id"));%>;
+			}else{
+				document.getElementById("input_text").value = "Replying to "+<%out.print("\""+result.getString("user.username")+" "+ result.getString("post.contents").replace("\"","\\\"")+":\"");%> 
+				+ document.getElementById("input_text").value;
+				replyID = <%out.print(result.getString("post.id"));%>;
+			}
+		});
+		
+		
+		</script>
+		<%
+		
 		out.print("<br><b><div id=\"msgUser\" style=\"display:inline\">"+ result.getString("user.username") + "</div></b> <div id=\"three\" style=\"display:inline\">");
 		out.print("<style> #three{color:Grey; font-family:calibri; text-align:left; font-size:15px; display:inline}</style>");
 		if((int)(timePassed * 60)==1){
@@ -622,7 +686,7 @@ try{
 		//html = html.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 		//String fixedString = result.getString("post.contents").replaceAll("<", "&lt;");
 		//fixedString=fixedString.replaceAll("&lt;href", "<href").replaceAll("&lt;img", "<img").replaceAll("&lt;br", "<br");
-		out.print("</div><br><div id=\"msgText\" style=\"display:block; margin-left:60px; word-wrap: break-word;\">" + result.getString("post.contents") +"</div><br clear = \"left\">");
+		out.print("</div><br><div id=\"msgText\"  style=\"display:block; margin-left:60px; word-wrap: break-word;\">" + result.getString("post.contents") +"</div><br clear = \"left\">");
 	
 		count-=1;
 	}
@@ -702,6 +766,32 @@ try{
 						toPrepend+="<img src = '"+lines[i+2]+"' alt='hydar' style='border-radius:40px' width='40px' vspace='15' hspace='10' height='40px' align='left'>"
 						toPrepend+="<style> body{color:LightGrey; font-family:calibri; text-align:left; font-size:15px; display:block}</style><br><b><div id='msgUser' style='display:inline'>"+lines[i+1]+"</div></b>";
 						toPrepend+="<div id='three' style='display:inline'><style> #three{color:Grey; font-family:calibri; text-align:left; font-size:15px; display:inline}</style>&nbsp;(just now): </div><br><div id='msgText' style='display:block; margin-left:60px; word-wrap: break-word;'>"+lines[i+5]+"</div><br clear='left'>";
+						
+						//the hyauctions.
+						toPrepend+="<style>";
+						toPrepend+="#reply_button"+<%out.print(result.getString("post.id"));%>;
+						toPrepend+="{";
+						toPrepend+="	scroll-margin-top:135px;";
+						toPrepend+="}";
+						toPrepend+="</style>";
+						toPrepend+="<img id = 'reply_button"+<%out.print(result.getString("post.id"));%>+"' class = 'reply_button' src = 'images/reply-arrow.png' width = 15px height=15px>";
+						toPrepend+="<script>";
+						toPrepend+="replyID = -1;";
+						toPrepend+="const reply_button"+<%out.print(result.getString("post.id"));%>+" = document.getElementById("+<%out.print("'reply_button"+result.getString("post.id")+"'");%>+");";
+						toPrepend+="reply_button"+<%out.print(result.getString("post.id"));%>+".addEventListener('click', () =>{";
+						toPrepend+="	var isReply = document.getElementById("+<%out.print("'actualContents"+result.getString("post.id")+"'");%>+");";
+						toPrepend+="	if(isReply!=null){";
+						toPrepend+="		document.getElementById('input_text').value = 'Replying to '+"+<%out.print("'"+result.getString("user.username")+" '");%>+"+document.getElementById("+<%out.print("'actualContents"+result.getString("post.id")+"'");%>+").innerHTML + ':'";
+						toPrepend+="		+ document.getElementById('input_text').value;";
+						toPrepend+="		replyID = "+<%out.print(result.getString("post.id"));%>+";";
+						toPrepend+="	}else{";
+						toPrepend+="		document.getElementById('input_text').value = 'Replying to '+"+<%out.print("'"+result.getString("user.username")+" "+ result.getString("post.contents").replace("\"","\\\"")+":'");%>+" ";
+						toPrepend+="		+ document.getElementById('input_text').value;";
+						toPrepend+="		replyID = "+<%out.print(result.getString("post.id"));%>+";";
+						toPrepend+="	}";
+						toPrepend+="});";
+						toPrepend+="<"+"/script>";
+						
 						timestamps = [lines[i+3]].concat(timestamps);
 						while(timestamps.length>25){
 							timestamps.splice(25);
@@ -809,7 +899,7 @@ try{
 			if(x.indexOf('?')<0)n=x.replace("Homepage.jsp","SubmitPost.jsp");
 			var q=<%out.print(board);%>;
 			if(x.indexOf("board=")<0)q=1;
-			$.get(n+"?autoOn=autoOff&input_text="+encodeURIComponent(document.forms[3].input_text.value)+"&board_num="+q).then(apiRefresh).fail(function(){document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
+			$.get(n+"?autoOn=autoOff&replyID="+replyID+"&input_text="+encodeURIComponent(document.forms[3].input_text.value)+"&board_num="+q).then(apiRefresh).fail(function(){document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
 			document.forms[3].input_text.value="";
 		}
 		document.querySelectorAll("[id='two']")[1].addEventListener('click',fullRefresh);
