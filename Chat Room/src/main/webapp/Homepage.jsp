@@ -646,7 +646,7 @@ try{
 		<img id = "reply_button<%out.print(result.getString("post.id"));%>" class = "reply_button" src = "images/reply-arrow.png" width = 15px height=15px>
 		<script>
 		replyID = -1;
-		const reply_button<%out.print(result.getString("post.id"));%> = document.getElementById(<%out.print("\"reply_button"+result.getString("post.id")+"\"");%>);
+		var reply_button<%out.print(result.getString("post.id"));%> = document.getElementById(<%out.print("\"reply_button"+result.getString("post.id")+"\"");%>);
 		reply_button<%out.print(result.getString("post.id"));%>.addEventListener("click", () =>{
 			var isReply = document.getElementById(<%out.print("\"actualContents"+result.getString("post.id")+"\"");%>);
 			if(isReply!=null){
@@ -659,8 +659,6 @@ try{
 				replyID = <%out.print(result.getString("post.id"));%>;
 			}
 		});
-		
-		
 		</script>
 		<%
 		
@@ -765,32 +763,36 @@ try{
 						lastID=eval(lines[0]);
 						toPrepend+="<img src = '"+lines[i+2]+"' alt='hydar' style='border-radius:40px' width='40px' vspace='15' hspace='10' height='40px' align='left'>"
 						toPrepend+="<style> body{color:LightGrey; font-family:calibri; text-align:left; font-size:15px; display:block}</style><br><b><div id='msgUser' style='display:inline'>"+lines[i+1]+"</div></b>";
-						toPrepend+="<div id='three' style='display:inline'><style> #three{color:Grey; font-family:calibri; text-align:left; font-size:15px; display:inline}</style>&nbsp;(just now): </div><br><div id='msgText' style='display:block; margin-left:60px; word-wrap: break-word;'>"+lines[i+5]+"</div><br clear='left'>";
 						
 						//the hyauctions.
 						toPrepend+="<style>";
-						toPrepend+="#reply_button"+<%out.print(result.getString("post.id"));%>;
+						toPrepend+="#reply_button"+lines[i];
 						toPrepend+="{";
 						toPrepend+="	scroll-margin-top:135px;";
 						toPrepend+="}";
 						toPrepend+="</style>";
-						toPrepend+="<img id = 'reply_button"+<%out.print(result.getString("post.id"));%>+"' class = 'reply_button' src = 'images/reply-arrow.png' width = 15px height=15px>";
+						toPrepend+="<img id = 'reply_button"+lines[i]+"' class = 'reply_button' src = 'images/reply-arrow.png' width = 15px height=15px>";
 						toPrepend+="<script>";
 						toPrepend+="replyID = -1;";
-						toPrepend+="const reply_button"+<%out.print(result.getString("post.id"));%>+" = document.getElementById("+<%out.print("'reply_button"+result.getString("post.id")+"'");%>+");";
-						toPrepend+="reply_button"+<%out.print(result.getString("post.id"));%>+".addEventListener('click', () =>{";
-						toPrepend+="	var isReply = document.getElementById("+<%out.print("'actualContents"+result.getString("post.id")+"'");%>+");";
-						toPrepend+="	if(isReply!=null){";
-						toPrepend+="		document.getElementById('input_text').value = 'Replying to '+"+<%out.print("'"+result.getString("user.username")+" '");%>+"+document.getElementById("+<%out.print("'actualContents"+result.getString("post.id")+"'");%>+").innerHTML + ':'";
+						toPrepend+="var reply_button"+lines[i]+" = document.getElementById('reply_button"+lines[i]+"');";
+						toPrepend+="reply_button"+lines[i]+".addEventListener('click', () =>{";
+						toPrepend+="	var isReply = '"+ lines[i+5]+"'.substring(0,32).includes(\\"<div hidden id = 'actualContents\\");";
+						toPrepend+="	if(isReply){";
+						toPrepend+="		document.getElementById('input_text').value = 'Replying to '+"+"'"+lines[i+1]+"' "+"+document.getElementById('actualContents"+lines[i]+"'"+").innerHTML + ':'";
 						toPrepend+="		+ document.getElementById('input_text').value;";
-						toPrepend+="		replyID = "+<%out.print(result.getString("post.id"));%>+";";
+						toPrepend+="		replyID = "+lines[i]+";";
 						toPrepend+="	}else{";
-						toPrepend+="		document.getElementById('input_text').value = 'Replying to '+"+<%out.print("'"+result.getString("user.username")+" "+ result.getString("post.contents").replace("\"","\\\"")+":'");%>+" ";
+						toPrepend+="		document.getElementById('input_text').value = 'Replying to '+'"+lines[i+1]+" "+ lines[i+5]+"".replace("\\"","\\\\\\"")+":'"+" ";
 						toPrepend+="		+ document.getElementById('input_text').value;";
-						toPrepend+="		replyID = "+<%out.print(result.getString("post.id"));%>+";";
+						toPrepend+="		replyID = "+lines[i]+";";
 						toPrepend+="	}";
 						toPrepend+="});";
 						toPrepend+="<"+"/script>";
+						
+						
+						toPrepend+="<div id='three' style='display:inline'><style> "
+							+"#three{color:Grey; font-family:calibri; text-align:left; font-size:15px; display:inline}</style>&nbsp;(just now): "
+							+"</div><br><div id='msgText' style='display:block; margin-left:60px; word-wrap: break-word;'>"+lines[i+5]+"</div><br clear='left'>";
 						
 						timestamps = [lines[i+3]].concat(timestamps);
 						while(timestamps.length>25){
