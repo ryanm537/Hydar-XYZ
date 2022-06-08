@@ -805,7 +805,7 @@ try{
 						return;
 				document.getElementById("msgs").removeChild(document.getElementById("lastID"));
 				toPrepend="<div style='display:none' id='lastID' hidden=''>"+eval(lines[0])+"</div>"+toPrepend;
-				document.getElementById("msgs").innerHTML.insertAdjacentHTML("afterbegin",toPrepend);
+				document.getElementById("msgs").insertAdjacentHTML("afterbegin",toPrepend);
 				while(document.getElementById("msgs").children.length>(201+(lines.length-lineEnd))){
 					document.getElementById("msgs").removeChild(document.getElementById("msgs").children[201+(lines.length-lineEnd)]);
 					
