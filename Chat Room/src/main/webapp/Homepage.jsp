@@ -815,14 +815,15 @@ try{
 					try{
 						var toReply="";
 						var repliedName=lines[i+1];
+						var repliedID=parseInt(lines[i]);
 						if(texts[i/6].children.length>0&&texts[i/6].children[0].id.startsWith("actualContents")){
 							toReply = document.getElementById("actualContents"+lines[i]).innerHTML;
 						}else{
 							toReply = texts[i].innerHTML;
 						}
 						document.getElementById("reply_button"+(eval(lines[0])-i/6)).addEventListener('click',()=>{
-							document.getElementById("input_text").value = "Replying to "+lines[i+1]+" "+toReply+":"+document.getElementById("input_text").value;
-							replyID=parseInt(lines[i]);
+							document.getElementById("input_text").value = "Replying to "+repliedName+" "+toReply+":"+document.getElementById("input_text").value;
+							replyID=repliedID;
 						});
 						
 						/**document.getElementById("input_text").value = "Replying to "+<%out.print("\""+result.getString("user.username")+" "+ result.getString("post.contents").replace("\"","\\\"")+":\"");%> 
