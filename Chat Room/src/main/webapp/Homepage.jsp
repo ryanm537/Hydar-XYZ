@@ -780,10 +780,7 @@ try{
 						while(timestamps.length>25){
 							timestamps.splice(25);
 						}
-						if((!document.hasFocus()||idle>14)&&document.getElementById("profileName").innerHTML!=lines[i+1]){
-							document.querySelector("link[rel*='icon']").href = "favicon2.ico";
-							document.getElementById("bar").removeAttribute("hidden");
-						}
+						
 					}
 					catch(ee2){
 						console.log(ee2);
@@ -813,18 +810,23 @@ try{
 							replyID=repliedID;
 						});
 						
-						try{
-							h=new Notification(repliedName,{body:toReply,icon:lines[i+2]});
-							var pingSound = new Audio("audio/ping.mp3");
-							pingSound.volume = <%out.print(volume * 0.2 * pingvolume);%>;
-							<%
-							if(pings == 1){
-								%>pingSound.play();	<%
-							}
-							%>
-						}catch(e){
+						if((!document.hasFocus()||idle>14)&&document.getElementById("profileName").innerHTML!=lines[i+1]){
+							try{
+								h=new Notification(repliedName,{body:toReply,icon:lines[i+2]});
+								var pingSound = new Audio("audio/ping.mp3");
+								pingSound.volume = <%out.print(volume * 0.2 * pingvolume);%>;
+								<%
+								if(pings == 1){
+									%>pingSound.play();	<%
+								}
+								%>
+							}catch(e){
 
+							}
+							document.querySelector("link[rel*='icon']").href = "favicon2.ico";
+							document.getElementById("bar").removeAttribute("hidden");
 						}
+						
 						
 					}catch(hacke){
 						
