@@ -772,11 +772,10 @@ try{
 						toPrepend+="}";
 						toPrepend+="</style>";
 						toPrepend+="<img id = 'reply_button"+lines[i]+"' class = 'reply_button' src = 'images/reply-arrow.png' width = 15px height=15px>";
-						
+						toPrepend+="<div style='display:none' id='large_hydar' hidden=''>hydar</div>";
 						toPrepend+="<style> body{color:LightGrey; font-family:calibri; text-align:left; font-size:15px; display:block}</style><br><b><div id='msgUser' style='display:inline'>"+lines[i+1]+"</div></b>";
-						
 						toPrepend+="<div id='three' style='display:inline'><style> #three{color:Grey; font-family:calibri; text-align:left; font-size:15px; display:inline}</style>&nbsp;(just now): </div><br><div id='msgText' style='display:block; margin-left:60px; word-wrap: break-word;'>"+lines[i+5]+"</div><br clear='left'>";
-						
+						toPrepend+="<div id='large_hydar' style='display:none' hidden=''></div>";
 						timestamps = [lines[i+3]].concat(timestamps);
 						while(timestamps.length>25){
 							timestamps.splice(25);
@@ -806,8 +805,8 @@ try{
 				document.getElementById("msgs").removeChild(document.getElementById("lastID"));
 				toPrepend="<div style='display:none' id='lastID' hidden=''>"+eval(lines[0])+"</div>"+toPrepend;
 				document.getElementById("msgs").insertAdjacentHTML("afterbegin",toPrepend);
-				while(document.getElementById("msgs").children.length>(201+(lines.length-lineEnd))){
-					document.getElementById("msgs").removeChild(document.getElementById("msgs").children[201+(lines.length-lineEnd)]);
+				while(document.getElementById("msgs").children.length>(276+(lines.length-lineEnd))){
+					document.getElementById("msgs").removeChild(document.getElementById("msgs").children[276+(lines.length-lineEnd)]);
 					
 				}
 				var texts = document.querySelectorAll("[id='msgText']")
@@ -825,10 +824,6 @@ try{
 							document.getElementById("input_text").value = "Replying to "+repliedName+" "+toReply+":"+document.getElementById("input_text").value;
 							replyID=repliedID;
 						});
-						
-						/**document.getElementById("input_text").value = "Replying to "+<%out.print("\""+result.getString("user.username")+" "+ result.getString("post.contents").replace("\"","\\\"")+":\"");%> 
-				+ document.getElementById("input_text").value;
-				replyID = <%out.print(result.getString("post.id"));%>;*/
 					}catch(hacke){
 						
 					}

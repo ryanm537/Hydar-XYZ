@@ -585,17 +585,7 @@ class ServerThread extends Thread {
 									Hydar.vc.put(b,new ArrayList<Integer>());
 									Hydar.vcList.put(b,new ArrayList<String>());
 							}
-							if(this.alive&&type.equals("hydar")){
-								if(Hydar.vc.get(b)==null){
-									Hydar.vc.put(b,new ArrayList<Integer>());
-									Hydar.vcList.put(b,new ArrayList<String>());
-								}
-								ArrayList<String> friendlyList=new ArrayList<String>();
-								for(String f:Hydar.vcList.get(b))
-									friendlyList.add("\""+f+"\"");
-								toWrite = "user-list\n"+user+"\n"+b+"\n"+Hydar.vc.get(b).toString()+"\n"+friendlyList.toString();
-							}
-							else if(type.equals("user-list")){
+							if(this.alive&&(type.equals("hydar")||type.equals("user-list"))){
 								ArrayList<String> friendlyList=new ArrayList<String>();
 								for(String f:Hydar.vcList.get(b))
 									friendlyList.add("\""+f+"\"");
@@ -960,7 +950,7 @@ public class Hydar {
 			for(String x:javas){
 				//System.out.println(path);
 				if(htmls.get(n)!=null){
-					x__+="\nthis.jsp_OP(\""+htmls.get(n).get(index).replace("\"","\\\"").replace("\r","").replace("\\r","\\\\r").replace("\\n","\\\\n").replace("\n","\\n\"+\n\"")+"\");\n";
+					x__+="\nthis.jsp_OP(\""+htmls.get(n).get(index).replace("\\","\\\\").replace("\"","\\\"").replace("\r","").replace("\n","\\n\"+\n\"")+"\");\n";
 				}
 				x=x.replace("session.getAttribute","this.jsp_GA");
 				x=x.replace("session.setAttribute","this.jsp_SA");
@@ -971,7 +961,7 @@ public class Hydar {
 				x__+=x;
 				index++;
 			}if(htmls.get(n)!=null){
-				x__+="\nthis.jsp_OP(\""+htmls.get(n).get(index).replace("\"","\\\"").replace("\r","").replace("\\r","\\\\r").replace("\\n","\\\\n").replace("\n","\\n\"+\n\"")+"\");\n";
+					x__+="\nthis.jsp_OP(\""+htmls.get(n).get(index).replace("\\","\\\\").replace("\"","\\\"").replace("\r","").replace("\n","\\n\"+\n\"")+"\");\n";
 			}
 			x__+="}catch(Exception jsp_e){\njsp_e.printStackTrace();return new Object[]{};}\nreturn new Object[]{this.jsp_attr_set,this.jsp_attr_values,this.jsp_html,this.jsp_redirect};\n\n}\n}";
 			JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
