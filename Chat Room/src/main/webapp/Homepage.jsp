@@ -820,7 +820,7 @@ try{
 						}else{
 							toReply = texts[i].innerHTML;
 						}
-						document.getElementById("reply_button"+(eval(lines[0])-i/6)).addEventListener(()=>{
+						document.getElementById("reply_button"+(eval(lines[0])-i/6)).addEventListener('click',()=>{
 							document.getElementById("input_text").value = "Replying to "+lines[i+1]+" "+toReply+":"+document.getElementById("input_text").value;
 							replyID=parseInt(lines[i]);
 						});
