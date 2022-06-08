@@ -738,6 +738,7 @@ try{
 			if(x.indexOf("board=")<0)q=1; 
 			if(x.includes("input_text"))return;
 			var toPrepend="";
+			document.querySelectorAll("[id='two']")[1].innerHTML="Instant update</a>";
 			$.get(n+"?board="+q+"&last_id="+lastID).then(function (data) {
 				var lines=[]
 				try{
@@ -772,27 +773,6 @@ try{
 						toPrepend+="}";
 						toPrepend+="</style>";
 						toPrepend+="<img id = 'reply_button"+lines[i]+"' class = 'reply_button' src = 'images/reply-arrow.png' width = 15px height=15px>";
-						toPrepend+="<script>";
-						toPrepend+="replyID = -1;";
-						toPrepend+="var reply_button"+lines[i]+" = document.getElementById('reply_button"+lines[i]+"');";
-						toPrepend+="reply_button"+lines[i]+".addEventListener('click', () =>{";
-						toPrepend+="	var isReply = '"+ lines[i+5]+"'.substring(0,32).includes(\\"<div hidden id = 'actualContents\\");";
-						toPrepend+="	if(isReply){";
-						toPrepend+="		document.getElementById('input_text').value = 'Replying to '+"+"'"+lines[i+1]+"' "+"+document.getElementById('actualContents"+lines[i]+"'"+").innerHTML + ':'";
-						toPrepend+="		+ document.getElementById('input_text').value;";
-						toPrepend+="		replyID = "+lines[i]+";";
-						toPrepend+="	}else{";
-						toPrepend+="		document.getElementById('input_text').value = 'Replying to '+'"+lines[i+1]+" "+ lines[i+5]+"".replace("\\"","\\\\\\"")+":'"+" ";
-						toPrepend+="		+ document.getElementById('input_text').value;";
-						toPrepend+="		replyID = "+lines[i]+";";
-						toPrepend+="	}";
-						toPrepend+="});";
-						toPrepend+="<"+"/script>";
-						
-						
-						toPrepend+="<div id='three' style='display:inline'><style> "
-							+"#three{color:Grey; font-family:calibri; text-align:left; font-size:15px; display:inline}</style>&nbsp;(just now): "
-							+"</div><br><div id='msgText' style='display:block; margin-left:60px; word-wrap: break-word;'>"+lines[i+5]+"</div><br clear='left'>";
 						
 						timestamps = [lines[i+3]].concat(timestamps);
 						while(timestamps.length>25){
@@ -827,8 +807,29 @@ try{
 					document.getElementById("msgs").removeChild(document.getElementById("msgs").children[201+(lines.length-lineEnd)]);
 					
 				}
-				
-			}).fail(function () {document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
+				var texts = document.querySelectorAll("[id='msgText']")
+				for(var i=0;i<lineEnd;i+=6){
+					try{
+						var toReply="";
+						var repliedName=lines[i+1];
+						if(texts[i/6].children.length>0&&texts[i/6].children[0].id.startsWith("actualContents")){
+							toReply = document.getElementById("actualContents"+lines[i]).innerHTML;
+						}else{
+							toReply = texts[i].innerHTML;
+						}
+						document.getElementById("reply_button"+(eval(lines[0])-i/6)).addEventListener(()=>{
+							document.getElementById("input_text").value = "Replying to "+lines[i+1]+" "+toReply+":"+document.getElementById("input_text").value;
+							replyID=parseInt(lines[i]);
+						});
+						
+						/**document.getElementById("input_text").value = "Replying to "+<%out.print("\""+result.getString("user.username")+" "+ result.getString("post.contents").replace("\"","\\\"")+":\"");%> 
+				+ document.getElementById("input_text").value;
+				replyID = <%out.print(result.getString("post.id"));%>;*/
+					}catch(hacke){
+						
+					}
+				}
+			}).fail(fullRefresh);
 		}
 		function refresh(a,b){
 			idle+=1;
@@ -886,7 +887,7 @@ try{
 					}
 				}
 			}	
-			}).fail(fullRefresh);
+			}).fail(function () {document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
 		}function fullRefresh(){
 			refresh(true,true);	
 		}function halfRefresh(){
