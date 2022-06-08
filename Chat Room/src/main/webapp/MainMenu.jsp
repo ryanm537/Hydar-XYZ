@@ -100,7 +100,7 @@ try{
 			height:100%;
 			width:240px;
 			position:fixed;
-			z-index:1;
+			z-index:2;
 			left:-20px;
 			top:calc(100% - 45px);
 			background-color: rgb(41, 47, 53);
