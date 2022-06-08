@@ -805,8 +805,8 @@ try{
 				document.getElementById("msgs").removeChild(document.getElementById("lastID"));
 				toPrepend="<div style='display:none' id='lastID' hidden=''>"+eval(lines[0])+"</div>"+toPrepend;
 				document.getElementById("msgs").insertAdjacentHTML("afterbegin",toPrepend);
-				while(document.getElementById("msgs").children.length>(276+(lines.length-lineEnd))){
-					document.getElementById("msgs").removeChild(document.getElementById("msgs").children[276+(lines.length-lineEnd)]);
+				while(document.getElementById("msgs").children.length>(277+(lines.length-lineEnd))){
+					document.getElementById("msgs").removeChild(document.getElementById("msgs").children[277+(lines.length-lineEnd)]);
 					
 				}
 				var texts = document.querySelectorAll("[id='msgText']")
