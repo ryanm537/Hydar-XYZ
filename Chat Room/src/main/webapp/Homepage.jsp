@@ -783,18 +783,6 @@ try{
 						if((!document.hasFocus()||idle>14)&&document.getElementById("profileName").innerHTML!=lines[i+1]){
 							document.querySelector("link[rel*='icon']").href = "favicon2.ico";
 							document.getElementById("bar").removeAttribute("hidden");
-							try{
-								h=new Notification(lines[i+1],{body:lines[i+5],icon:"images/notifhydar.png"});
-								var pingSound = new Audio("audio/ping.mp3");
-								pingSound.volume = <%out.print(volume * 0.2 * pingvolume);%>;
-								<%
-								if(pings == 1){
-									%>pingSound.play();	<%
-								}
-								%>
-							}catch(e){
-
-							}
 						}
 					}
 					catch(ee2){
@@ -824,6 +812,20 @@ try{
 							document.getElementById("input_text").value = "Replying to "+repliedName+" "+toReply+":"+document.getElementById("input_text").value;
 							replyID=repliedID;
 						});
+						
+						try{
+							h=new Notification(repliedName,{body:toReply,icon:lines[i+2]});
+							var pingSound = new Audio("audio/ping.mp3");
+							pingSound.volume = <%out.print(volume * 0.2 * pingvolume);%>;
+							<%
+							if(pings == 1){
+								%>pingSound.play();	<%
+							}
+							%>
+						}catch(e){
+
+						}
+						
 					}catch(hacke){
 						
 					}
