@@ -776,7 +776,7 @@ try{
 						toPrepend+="<style> body{color:LightGrey; font-family:calibri; text-align:left; font-size:15px; display:block}</style><br><b><div id='msgUser' style='display:inline'>"+lines[i+1]+"</div></b>";
 						toPrepend+="<div id='three' style='display:inline'><style> #three{color:Grey; font-family:calibri; text-align:left; font-size:15px; display:inline}</style>&nbsp;(just now): </div><br><div id='msgText' style='display:block; margin-left:60px; word-wrap: break-word;'>"+lines[i+5]+"</div><br clear='left'>";
 						toPrepend+="<div id='large_hydar' style='display:none' hidden=''></div>";
-						timestamps = [lines[i+3]].concat(timestamps);
+						timestamps = [eval(lines[i+3])].concat(timestamps);
 						while(timestamps.length>25){
 							timestamps.splice(25);
 						}
