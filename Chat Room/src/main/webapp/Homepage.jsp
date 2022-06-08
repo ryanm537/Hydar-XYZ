@@ -908,6 +908,7 @@ try{
 			if(x.indexOf("board=")<0)q=1;
 			$.get(n+"?autoOn=autoOff&replyID="+replyID+"&input_text="+encodeURIComponent(document.forms[3].input_text.value)+"&board_num="+q).then(apiRefresh).fail(function(){document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
 			document.forms[3].input_text.value="";
+			replyID=-1;
 		}
 		document.querySelectorAll("[id='two']")[1].addEventListener('click',fullRefresh);
 	</script>
