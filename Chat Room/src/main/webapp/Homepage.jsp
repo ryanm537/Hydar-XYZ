@@ -650,11 +650,21 @@ try{
 		reply_button<%out.print(result.getString("post.id"));%>.addEventListener("click", () =>{
 			var isReply = document.getElementById(<%out.print("\"actualContents"+result.getString("post.id")+"\"");%>);
 			if(isReply!=null){
-				document.getElementById("input_text").value = "Replying to "+<%out.print("\""+result.getString("user.username")+" \"");%>+document.getElementById(<%out.print("\"actualContents"+result.getString("post.id")+"\"");%>).innerHTML + ":"
+				var postContentsForRep = document.getElementById(<%out.print("\"actualContents"+result.getString("post.id")+"\"");%>).innerHTML;
+				if(postContentsForRep.includes("https://www.youtube.com/embed/")){
+					postContentsForRep=" ";
+				}
+				document.getElementById("input_text").value = "Replying to "+<%out.print("\""+result.getString("user.username")+" \"");%>+postContentsForRep + ":"
 				+ document.getElementById("input_text").value;
 				replyID = <%out.print(result.getString("post.id"));%>;
 			}else{
-				document.getElementById("input_text").value = "Replying to "+<%out.print("\""+result.getString("user.username")+" "+ result.getString("post.contents").replace("\"","\\\"")+":\"");%> 
+				<%
+				String postContentsForRep = result.getString("post.contents");
+				if(postContentsForRep.contains("https://www.youtube.com/embed/")){
+					postContentsForRep=" ";
+				}
+				%>
+				document.getElementById("input_text").value = "Replying to "+<%out.print("\""+result.getString("user.username")+" "+ postContentsForRep.replace("\"","\\\"")+":\"");%> 
 				+ document.getElementById("input_text").value;
 				replyID = <%out.print(result.getString("post.id"));%>;
 			}
@@ -801,9 +811,18 @@ try{
 						var repliedName=lines[i+1];
 						var repliedID=parseInt(lines[i]);
 						if(texts[i/6].children.length>0&&texts[i/6].children[0].id.startsWith("actualContents")){
-							toReply = document.getElementById("actualContents"+lines[i]).innerHTML;
+							if(!document.getElementById("actualContents"+lines[i]).innerHTML.includes("https://www.youtube.com/embed/")){
+								toReply = document.getElementById("actualContents"+lines[i]).innerHTML;
+							}else{
+								toReply = " ";
+							}
+							
 						}else{
-							toReply = texts[i].innerHTML;
+							if(!texts[i].innerHTML.includes("https://www.youtube.com/embed/")){
+								toReply = texts[i].innerHTML;
+							}else{
+								toReply = " ";
+							}
 						}
 						document.getElementById("reply_button"+(eval(lines[0])-i/6)).addEventListener('click',()=>{
 							document.getElementById("input_text").value = "Replying to "+repliedName+" "+toReply+":"+document.getElementById("input_text").value;
