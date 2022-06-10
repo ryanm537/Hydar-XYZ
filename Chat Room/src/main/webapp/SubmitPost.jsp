@@ -76,10 +76,25 @@ try{
 		//whitelist br
 		inputText=inputText.replaceAll("&lt;br", "<br");
 		
+
+		//youtube embeds
+		if(inputText.contains("https://www.youtube.com/watch?v=")){
+			inputText = inputText.replace("https://www.youtube.com/watch?v=", "https://www.youtube.com/embed/");
+			if(inputText.substring(inputText.indexOf("https://www.youtube.com/embed/")).indexOf(" ")>0){
+				inputText = inputText.substring(0,inputText.indexOf("https://www.youtube.com/embed/")) 
+						+ "<iframe width=853 height=505 src='" + inputText.substring(inputText.indexOf("https://www.youtube.com/embed/"), inputText.substring(inputText.indexOf("https://www.youtube.com/embed/")).indexOf(" "))+ "'></iframe>";
+			}else{
+				inputText = inputText.substring(0,inputText.indexOf("https://www.youtube.com/embed/")) 
+						+ "<iframe width=853 height=505 src='" + inputText.substring(inputText.indexOf("https://www.youtube.com/embed/"))  + "'></iframe>";
+
+			}
+		} 
+		
 		// find replies
 		try{
 			if(Integer.parseInt(request.getParameter("replyID"))>0){
 				int idOfPost = Integer.parseInt(request.getParameter("replyID"));
+				
 				
 				String checkreplyfornamestr = "SELECT user.username, post.contents FROM user, posts, post WHERE post.id = "+idOfPost+" AND posts.post = post.id AND posts.user = user.id";
 				ResultSet checkreplyforname = stmt.executeQuery(checkreplyfornamestr);
@@ -93,19 +108,27 @@ try{
 				}catch(Exception e){
 					
 				}
-				
-				String actualContents = inputText.substring(14+replyName.length()+replyContents.length());
 
+				if(replyContents.contains("https://www.youtube.com/embed/")){
+					replyContents = " ";
+				}
+				String actualContents = inputText.substring(14+replyName.length()+replyContents.length());
+				
+				
 				String replyHeader = "<div hidden id = 'actualContents" + newID + "'>" + actualContents + "</div><a href = '#reply_button"+idOfPost+"'><b>"+inputText.substring(0,12+replyName.length())+
 						"</b><i>"+inputText.substring(12+replyName.length(), 14+replyName.length()+replyContents.length())+"</i></a><br>";
-						
+				
 				inputText = replyHeader + actualContents;
+				
 				
 				
 			}
 		}catch(Exception e){
 			
 		}
+		
+		
+		
 		
 		// BOT COMMANDS
 		if(inputText.substring(0,1).equals("/")){
