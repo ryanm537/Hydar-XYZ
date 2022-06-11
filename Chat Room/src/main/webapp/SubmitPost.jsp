@@ -90,6 +90,46 @@ try{
 			}
 		} 
 		
+		//detect and create links
+		if(inputText.contains(".") && (perms.equals("great_white") || perms.equals("water_hydar"))){
+			boolean containsLink = false;
+			int indexOfDot = 0;
+			String link = "";
+			for(int i = 0; i < inputText.length()-2; i++){
+				if(inputText.charAt(i)!=' ' &&inputText.charAt(i+1)=='.'&&inputText.charAt(i+2)!=' '){
+					containsLink = true;
+					indexOfDot = i+1;
+				}
+			}
+			if(containsLink){
+				//find link
+				String firstPart = "";
+				String secondPart = "";
+				for(int i = indexOfDot; i >=0; i--){
+					if(i == 0){
+						firstPart = inputText.substring(i, indexOfDot);
+						break;
+					}else if(inputText.charAt(i)==' '){
+						firstPart = inputText.substring(i+1, indexOfDot);
+						break;
+					}
+				}
+				for(int i = indexOfDot; i <inputText.length(); i++){
+					if(i == inputText.length()-1){
+						secondPart = inputText.substring(indexOfDot);
+						break;
+					}else if(inputText.charAt(i) == ' '){
+						secondPart = inputText.substring(indexOfDot, i);
+						break;
+					}
+				}
+				link = firstPart + ""+ secondPart;
+				System.out.println(link);
+				inputText = inputText.substring(0, inputText.indexOf(link)) + "<a href='" + link + "' target='_blank'>" + link +"</a>" + inputText.substring(inputText.indexOf(link) + link.length());
+				System.out.println(inputText);
+			}
+		}
+		
 		// find replies
 		try{
 			if(Integer.parseInt(request.getParameter("replyID"))>0){
@@ -109,7 +149,7 @@ try{
 					
 				}
 
-				if(replyContents.contains("https://www.youtube.com/embed/")){
+				if(replyContents.contains("https://www.youtube.com/embed/") || replyContents.contains("<a href")){
 					replyContents = " ";
 				}
 				String actualContents = inputText.substring(14+replyName.length()+replyContents.length());
