@@ -91,7 +91,9 @@ try{
 		} 
 		
 		//detect and create links
-		if(inputText.contains(".") && (perms.equals("great_white") || perms.equals("water_hydar"))){
+		
+		else if(inputText.contains(".") && (perms.equals("great_white") || perms.equals("water_hydar"))){
+			
 			boolean containsLink = false;
 			int indexOfDot = 0;
 			String link = "";
