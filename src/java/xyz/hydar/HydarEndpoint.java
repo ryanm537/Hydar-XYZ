@@ -65,7 +65,9 @@ public class HydarEndpoint extends HydarWS.Endpoint{
 		board = HydarEndpoint.boards.computeIfAbsent(boardNum,Board::new);
 		board.addUser(this);
 	}
-
+	public boolean isGuest(){
+		return id==3;
+	}
 	@Override
 	public void onClose() {
 		if(board!=null) {
@@ -93,16 +95,28 @@ public class HydarEndpoint extends HydarWS.Endpoint{
 				board.processInput(message,id,session);
 				break;
 			case "+":
+				if(isGuest()) {
+					close();//TODO: custom msg
+					return;
+				}
 				this.vc=true;
 				board.addVc(id);
 				break;
 			case "-":
+				if(isGuest()) {
+					close();//TODO: custom msg
+					return;
+				}
 				this.vc=false;
 				board.dropVc(id);
 				break;
 			case "O":
 			case "I":
 			case "A":
+				if(isGuest()) {
+					close();//TODO: custom msg
+					return;
+				}
 				split=message.split(",",2);
 				if(split.length==2)
 					message=split[1];

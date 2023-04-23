@@ -93,8 +93,8 @@ byte[] addr=InetAddress.getByName(ip).getAddress();
 Class.forName("com.mysql.jdbc.Driver");
 DataSource dataSource = (DataSource) new InitialContext().lookup("java:comp/env/jdbc/hydar");
 try(Connection conn=dataSource.getConnection()){
-	
-	if(session.getAttribute("userid") == null){
+	Integer uid=(Integer)session.getAttribute("userid");
+	if(uid == null || uid==3){
 		String un = "Anonymous";
 		int newID=-1;
 		try(var ps=conn.prepareStatement("SELECT 1 FROM ban WHERE addr=?")){

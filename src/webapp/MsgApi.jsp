@@ -6,6 +6,7 @@
 <%@page import="java.util.stream.Collectors"%>
 <%@page import="java.util.Base64,java.nio.charset.StandardCharsets	"%>
 <%@include file="Util.jsp" %>
+<%@ include file="SkeleAdd.jsp" %>
 <%!
 static final String DEFAULT_USERNAME="Anonymous";
 static final String DEFAULT_PFP="images/hydar2.png";

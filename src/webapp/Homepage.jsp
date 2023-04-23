@@ -4,6 +4,7 @@
     pageEncoding="ISO-8859-1"%>
 <%@ page import="java.io.*,java.util.*, java.time.*, java.text.*, java.util.Date, java.sql.*"%>
 <%@ page import="javax.servlet.http.*,javax.servlet.*"%>
+<%@ include file="SkeleAdd.jsp" %>
 <!DOCTYPE html>
 <html>
 <head>
@@ -324,7 +325,9 @@ try(Connection conn=dataSource.getConnection()){
 	out.print("<style type=\"text/css\"> a{color:LightGrey; font-family:calibri; text-align:right; font-size:15px}</style>");
 	out.print("<a href="+PROFILE+"> Profile</a>&nbsp;| ");
 	out.print("<a href="+MAIN_MENU+"> Home</a>&nbsp;| ");
-	out.print("<a href="+LOGOUT+"> Log out</a> &nbsp;&nbsp;");
+	%><a <%=uid==3?"hidden=''":""%>id='logout_link' href=<%=LOGOUT%> > Log out</a><%
+	%><a <%=uid!=3?"hidden=''":""%> id='login_link' href=<%=response.encodeURL("Login.jsp") %>>Log in</a> &nbsp;&nbsp;<%
+	
 	
 	out.print("<style type=\"text/css\"> h1{color:rgb(255,255,255); text-align:left; font-size:15px}</style>");
 	out.print("<img src=\"images/hydar.png\" alt=\"hydar\" width = \"25px\" height = \"40px\" align = \"center\" style =\"margin-right:10px\">");

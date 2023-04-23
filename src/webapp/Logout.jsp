@@ -11,13 +11,13 @@
 </head>
 <body>
 <%
-if(session.getAttribute("username")!=null&&!session.getAttribute("username").toString().equals("Anonymous")){
+if(session.getAttribute("username")!=null&&((Integer)session.getAttribute("userid")!=3)){
 	session.setAttribute("userid", null);
 	session.setAttribute("username", null);
 }
 
 out.print("<form action=\"targetServlet\">");
-response.sendRedirect(response.encodeURL("About.jsp"));
+response.sendRedirect(response.encodeURL("MainMenu.jsp"));
 %>
 </body>
 </html>

@@ -1,6 +1,7 @@
 <%@page import="javax.naming.InitialContext"%>
 <%@page import="javax.sql.DataSource"%>
 <%@page import="java.util.Base64,java.sql.*	"%>
+<%@ include file="SkeleAdd.jsp" %>
 
 <%
 
@@ -11,7 +12,12 @@ try(Connection conn=dataSource.getConnection()){
 	Statement stmt = conn.createStatement();
 	int uid=(int)session.getAttribute("userid");
 	// CHECK PERM
-	
+	if(uid==3){
+		if(board>3){
+			response.sendRedirect(response.encodeURL("Login.jsp"));
+		}
+		return;
+	}
 	try(var q = conn.prepareStatement("SELECT board FROM isin WHERE board = ? AND user = ?")){
 		q.setInt(1,board);
 		q.setInt(2,uid);

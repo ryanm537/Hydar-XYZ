@@ -113,7 +113,7 @@
 	</div>
 
 	<div class = "button">
-		<form method="get" action="Login.jsp" >
+		<form method="get" action="MainMenu.jsp" >
 			<input type="submit" name="submit" value = "Try it out!" class= "button3" autofocus></input>
 		</form>
 	</div>

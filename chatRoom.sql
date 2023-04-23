@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS `user` (
   `password` varbinary(32) not null,
   `addr` varbinary(16) not null DEFAULT x'7f000001',
   `pfp` varchar(100) not null,
-  `permission_level` enum("water_hydar","great_white","yeti","reserved1","reserved2") not null,
+  `permission_level` enum("water_hydar","great_white","yeti","skeleton","reserved2") not null,
   `pings` tinyint not null,
   `volume` tinyint not null,
   `pingvolume` tinyint not null,
@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS `ban`(
 );
 /*!40101 SET character_set_client = @saved_cs_client */;
 INSERT INTO user(`username`, `id`,  `password`, `pfp`, `permission_level`, `pings`, `volume`, `pingvolume`, `vcvolume`) VALUES("Raye",2,"raye", "images/r.png", "water_hydar", 0, 50, 50, 50);
+INSERT INTO user(`username`, `id`,  `password`, `pfp`, `permission_level`, `pings`, `volume`, `pingvolume`, `vcvolume`) VALUES("Guest",3,"skeleton", "images/emp.png", "skeleton", 0, 50, 50, 50);
 SELECT * FROM user;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -105,7 +106,9 @@ INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (2, 1, 0);
 INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (2, 2, 0);
 INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (2, 3, 0);
 INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (2, 4, 0);
-
+INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (3, 1, 0);
+INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (3, 2, 0);
+INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (3, 3, 0);
 DROP TABLE IF EXISTS `invitedto`;
 CREATE TABLE IF NOT EXISTS `invitedto` (
 	`user` int not null,

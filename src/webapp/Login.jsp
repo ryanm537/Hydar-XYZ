@@ -2,7 +2,9 @@
     pageEncoding="ISO-8859-1"%>
 <%@ page import="java.io.*,java.nio.file.*,java.util.*, java.time.*, java.text.*, java.util.Date, java.sql.*"%>
 <%@ page import="javax.servlet.http.*,javax.servlet.*"%>
-<%if(session.getAttribute("userid")!=null && !("Anonymous").equals(session.getAttribute("username"))){
+<%@ include file="SkeleAdd.jsp" %>
+<%if((Integer)session.getAttribute("userid")!=3 && 
+!("Anonymous").equals(session.getAttribute("username"))){
 	response.sendRedirect(response.encodeURL("MainMenu.jsp"));
 	return;
 }%><!DOCTYPE html>
@@ -104,7 +106,7 @@ Returning users login
 <input type="submit" name="submit" value = "Go" class= "button3"><br><br>
 </form>
 <p style = "color:rgb(255,255,255); font-family:calibri;  z-index:1; position:fixed; position:absolute; text-align:left; left:50%; display:block; top:calc(50% + 120px);">
-Don't have an account? rip!<br><a href = '#' onclick='document.location.replace("<%=response.encodeURL("VerifyAnonymous.jsp")%>");' style ="color:rgb(170,220,255);"> Continue as Anonymous</a>
+Don't have an account? rip!<br><a href = '#' onclick='document.location.replace("<%=response.encodeURL("VerifyAnonymous.jsp")%>");' style ="color:rgb(170,220,255);">Create/use Anonymous account</a>
 </p>
 </body>
 </html>

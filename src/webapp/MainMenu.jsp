@@ -3,6 +3,7 @@
 <%@ page import="java.io.*,java.util.*, java.time.*, java.text.*, java.util.Date, java.sql.*"%>
 <%@ page import="javax.servlet.http.*,javax.servlet.*"%>
 <%@ include file="Util.jsp" %>
+<%@ include file="SkeleAdd.jsp" %>
 <!DOCTYPE html>
 <html>
 <head>
@@ -174,6 +175,7 @@ String CREATE=response.encodeURL("CreateBoard.jsp");
 String JOIN=response.encodeURL("JoinBoard.jsp");
 String PROFILE=response.encodeURL("Profile.jsp");
 String LOGOUT=response.encodeURL("Logout.jsp");
+String LOGIN=response.encodeURL("Login.jsp");
 String HOMEPAGE=response.encodeURL("Homepage.jsp");
 
 
@@ -297,9 +299,14 @@ try(Connection conn=dataSource.getConnection()){
 					out.print("<h1 style = \"color:rgb(255,255,255); font-size:15px; font-family:calibri; text-align:right;position:relative;\"></style>");
 					out.print("Hello <div id=\"profileName\" style=\"display:inline\">" + session.getAttribute("username").toString() + "</div>! | ");
 					out.print("<style type=\"text/css\"> a{color:LightGrey; font-family:calibri; text-align:right; font-size:15px}</style>");
-					%><a href=<%=PROFILE %>> Profile</a>&nbsp;|<%
-					%><a href=<%=LOGOUT %>> Log out</a> &nbsp;&nbsp;<%
-					
+					%><a href=<%=PROFILE %>> Profile</a>&nbsp;|
+					<%
+					if(uid!=3){
+						%><a href=<%=LOGOUT%> > Log out</a><%
+					}else{
+						%><a href=<%=LOGIN %> > Log in</a><%
+					}
+					out.print("&nbsp;&nbsp;");
 					out.print("<style type=\"text/css\"> h1{color:rgb(255,255,255); text-align:left; font-size:15px}</style>");
 					out.print("<img src=\"images/hydar.png\" alt=\"hydar\" width = \"25px\" height = \"40px\" align = \"center\">");
 					out.print("&nbsp;&nbsp;&nbsp;Pick a board: ");

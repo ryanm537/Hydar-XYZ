@@ -261,7 +261,7 @@ function insertMessage(m){//given message object, add a new element
 		document.getElementById("input_text").value = "Replying to "+repliedName+" "+toReply+": "+document.getElementById("input_text").value;
 		replyID=repliedID;
 	});
-	var rectangle = false;
+	let rectangle = false;
 	if(!rectangle){
 		document.getElementById("msgUser"+m.id).addEventListener('click',()=>{
 			document.getElementById("rectangle"+m.id).removeAttribute("hidden");
@@ -341,6 +341,16 @@ function updateInfo(){//update general board info(things other than msgs p much)
 	test=document.getElementById("profileName");
 	if(me && test.innerHTML!=me.username)
 		test.innerHTML=me.username;
+	let inlink=document.getElementById("login_link");
+	let outlink=document.getElementById("logout_link");
+	if(me && me.id!=3){
+		inlink.setAttribute("hidden","");
+		outlink.removeAttribute("hidden");
+	}else{
+		outlink.setAttribute("hidden","");
+		inlink.removeAttribute("hidden");
+	}
+	
 	var chStr=wrapChannels();
 	var paStr=wrapPostArea();
 	var posting=wrapPosting();
