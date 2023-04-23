@@ -1,9 +1,8 @@
 package xyz.hydar;
-import static java.lang.System.currentTimeMillis;
-
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -104,7 +103,7 @@ class Config{
 	public static boolean LAZY_COMPILE=false;
 	public static boolean LAZY_FILES=false;
 	public static boolean TRY_UNSAFE_WATCH_SERVICE=true;
-	public static Map<String,Response> errorPages=new HashMap<>();
+	public static Map<String,String> errorPages=new HashMap<>();
 	private static String[] multi(String input){
 		List<String> ret = new ArrayList<>();
 		for(String e:input.split(",")){
@@ -229,24 +228,19 @@ class Config{
 				else if(state==4) {
 					if(v.startsWith("\"")&&v.length()>1) {
 						v=v.toLowerCase().substring(1,v.lastIndexOf("\""));
-						Config.errorPages.put(k,Response.builder()
-								.header("Content-Type","text/html")
-								.data(v.getBytes())
-								.buildDeepCopy());
+						Config.errorPages.put(k,v);
 					}else {
 						var dir = Path.of(config.getOrDefault("Hydar.WEB_ROOT","."));
 						Path resolved=!v.startsWith("/") ? 
 								dir.resolve("./"+v)
 								:dir.resolve("."+v);
-						Config.errorPages.put(k,Response.builder()
-								.data(new Resource(resolved.normalize(),currentTimeMillis(),currentTimeMillis()))
-								.buildDeepCopy());
+						Config.errorPages.put(k,Files.readString(resolved));
 					}
 				}
 				else if(state<=1)
 					(state==1?macros:config).put(k,v);
 			}
-			Config.errorPages.putIfAbsent("default",Response.builder().data("A known error has occurred.".getBytes()).build());
+			Config.errorPages.putIfAbsent("default","A known error has occurred.");
 			
 			Config.set(config);
 			if(!rsrc.isEmpty())

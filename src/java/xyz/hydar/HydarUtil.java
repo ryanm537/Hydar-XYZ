@@ -747,36 +747,48 @@ class Average{
 		return avg;
 	}
 }
-
-class ExtraMap<K,V> extends HashMap<K,V>{
-	private static final long serialVersionUID = -7986053648732274805L;
+/**
+class ExtraMap<K,V> extends AbstractMap<K,V>{
 	private final Map<? extends K,? extends V> source;
+	private final List<Object> values = new ArrayList<>();
 	public ExtraMap(Map<? extends K,? extends V> source) {
-		super();
 		this.source=source;
 	}
 	@Override 
 	public V put(K key, V value) {
 		if(!source.containsKey(key)) {
-			return super.put(key,value);
+			values.add(key);
+			values.add(value);
 		}
 		return null;
 	}
-	@Override 
-	public V putIfAbsent(K key, V value) {
-		if(!source.containsKey(key)) {
-			return super.putIfAbsent(key,value);
+	private record Entry_<K,V>(Object k, Object v) implements Entry<K,V>{
+		@Override
+		@SuppressWarnings("unchecked")
+		public K getKey() {
+			return (K)k;
 		}
-		return null;
+		@Override
+		@SuppressWarnings("unchecked")
+		public V getValue() {
+			return (V)v;
+		}
+		@Override
+		public V setValue(Object value) {
+			throw new UnsupportedOperationException("it immutable lol");
+		}
+		
 	}
-	@Override public void putAll(Map<? extends K,? extends V> map) {
-		map.forEach(this::put);
-	}
-	@Override public Object clone() {
-		throw new UnsupportedOperationException("Can't clone ExtraMap");
+	@Override
+	public Set<Entry<K, V>> entrySet() {
+		// TODO Auto-generated method stub
+		return IntStream.range(0,values.size()/2)
+				.mapToObj(x->new Entry_<K,V>(values.get(x*2),values.get(x*2+1)))
+				.collect(Collectors.toUnmodifiableSet());
+		
 	}
 }
-
+*/
 interface QueueTable<E>{
 	public int size();
 	public int get(E e);

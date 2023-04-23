@@ -318,12 +318,7 @@ class Response{
 			return header("::version",version);
 		}
 		public Response build() {
-			headers=Collections.unmodifiableMap(headers);
-			pheaders=Collections.unmodifiableMap(pheaders);
-			return new Response(false,this);
-		}
-		public Response buildDeepCopy() {
-			return new Response(true,this);
+			return new Response(this);
 		}
 		public Builder output(OutputStream o) {
 			this.os=o;
@@ -337,9 +332,9 @@ class Response{
 			build().write();
 		}
 	}
-	private Response(boolean deepCopy,Builder builder) {
-		this.pheaders = deepCopy?Map.copyOf(builder.pheaders):builder.pheaders;
-		this.headers = deepCopy?Map.copyOf(builder.headers):builder.headers;
+	private Response(Builder builder) {
+		this.pheaders = builder.pheaders;
+		this.headers = builder.headers;
 		this.data = builder.data;
 		this.resource = builder.resource;
 		this.length = builder.length;
@@ -357,40 +352,23 @@ class Response{
 	//zip here maybe.
 	
 	
-	public String getStatus() {
-		String status=pheaders.get(":status");
-		return status;
-	}
-	public int getStatusCode() {
-		return Integer.parseInt(getStatus());
-	}
-	
-	public String getVersion() {
-		return pheaders.get("::version");
-	}
-	public Map<String,String> pdefaults(){
-		Map<String,String> pdefaults=new ExtraMap<>(pheaders);
-		return pdefaults;
-	}
-	public Map<String,String> defaults(){
-		Map<String,String> defaults=new ExtraMap<>(headers);
+	public void defaults(){
 		if(this.sendLength && !this.chunked)
-			defaults.put("Content-Length",""+length);
+			headers.putIfAbsent("Content-Length",""+length);
 		if(Config.SERVER_HEADER.length()>0)
-			defaults.put("Server",Config.SERVER_HEADER);
-		defaults.put("Expires","Thu, 01 Dec 1999 16:00:00 GMT");
-		defaults.put("Referrer-Policy","origin");
+			headers.putIfAbsent("Server",Config.SERVER_HEADER);
+		headers.putIfAbsent("Expires","Thu, 01 Dec 1999 16:00:00 GMT");
+		headers.putIfAbsent("Referrer-Policy","origin");
 		if(Config.SSL_ENABLED&&Config.SSL_HSTS){
-			defaults.put("Strict-Transport-Security","max-age=63072000; includeSubDomains; preload");
+			headers.putIfAbsent("Strict-Transport-Security","max-age=63072000; includeSubDomains; preload");
 		}
 		if(chunked && getVersion().equals("HTTP/1.1"))
-			defaults.put("Transfer-Encoding","chunked");
+			headers.putIfAbsent("Transfer-Encoding","chunked");
 		if(Config.SEND_DATE)
-			defaults.put("Date",HydarUtil.SDF.format(ZonedDateTime.now(ZoneId.of("GMT"))));
+			headers.putIfAbsent("Date",HydarUtil.SDF.format(ZonedDateTime.now(ZoneId.of("GMT"))));
 		if(getVersion().equals("HTTP/1.1")&&Config.H2_ENABLED&&!Config.SSL_ENABLED){
-			defaults.put("Alt-Svc","h2c=\":"+Config.PORT+"\"; ma=2592000; persist=1");
+			headers.putIfAbsent("Alt-Svc","h2c=\":"+Config.PORT+"\"; ma=2592000; persist=1");
 		}
-		return defaults;
 	}
 	static int writeArr(OutputStream os, Limiter limiter, byte[] buffer, int offset, int length,int max, boolean chunk) throws IOException {
 		int len = Math.min(max-offset,length);
@@ -418,35 +396,21 @@ class Response{
 		}
 		return l;
 	}
-	public void write() throws IOException{
-		writeWithExtra(this.limiter,Collections.emptyMap(),true);
-	}
-	public void writeWithExtra(Map<String,String> extra) throws IOException{
-		writeWithExtra(this.limiter,extra,true);
-	}
 	//(http/1.1 write) otherwise use stream.write or something
-	public void writeWithExtra(Limiter limiter, Map<String,String> extra, boolean sendData) throws IOException{
-		writeWithExtra(output, hs, limiter, extra, sendData);
-	}
-	void writeHeaders(OutputStream o, Optional<HStream> hs,Limiter limiter, Map<String,String> extra) throws IOException{
+	void writeHeaders(OutputStream o, Optional<HStream> hs,Limiter limiter) throws IOException{
 		//System.out.println(hs.map(x->x.number).orElse(0)+" "+chunked+" "+firstChunk+" "+lastChunk);
 		if(chunked && !firstChunk)
 			return;
 		
-		var pdefaults=pdefaults();
-		var defaults=defaults();
-		extra.forEach((k,v)->
-			(k.startsWith(":")?pdefaults:defaults).put(k,v)
-		);
 		if(hs.isEmpty()) {
-			String status=getStatus(pdefaults);
-			String version=getVersion(pdefaults);
-			System.out.write(("............< "+toString(pdefaults)).getBytes());
+			String status=getStatus();
+			String version=getVersion();
+			System.out.write(("............< "+toString()).getBytes());
 			String fl = version+" "+status+" "+HydarUtil.httpInfo(status);
 			BAOS baos = new BAOS(256);
 			baos.write(fl.getBytes(ISO_8859_1));
 			baos.write(CRLF);
-			for(var e:HydarUtil.lazyConcat(defaults.entrySet(),headers.entrySet())){
+			for(var e:headers.entrySet()){
 				String k=e.getKey();
 				if(k.isEmpty()||k.startsWith(":"))
 					continue;
@@ -482,8 +446,6 @@ class Response{
 			lock.lock();
 			try {
 				compressor.writeFields(j, pheaders, huffman);
-				compressor.writeFields(j, pdefaults, huffman);
-				compressor.writeFields(j, defaults, huffman);
 				compressor.writeFields(j, headers, huffman);
 				hf.withBuffer(h.h2.output(j.size()+9));
 				//System.out.println(this+"---->"+HexFormat.of().formatHex(j.buf(),0,j.size()));
@@ -493,15 +455,13 @@ class Response{
 			}
 		}
 	}
-	void writeWithExtra(OutputStream o, Optional<HStream> hs,Limiter limiter, Map<String,String> extra, boolean sendData) throws IOException{
-
+	public void write() throws IOException{
 		//System.out.println("gz "+enc+" chunked "+chunked+"last "+lastChunk+"first "+firstChunk+" sd"+sendData+" l"+length);
-		var output=o==null?this.output:o;
-		writeHeaders(output,hs,limiter,extra);
+		var output=this.output;
+		defaults();
+		writeHeaders(output,this.hs,limiter);
 		final InputStream stream;  
-		sendData=sendData&&this.sendData;
-		if(limiter==null)
-			limiter=hs.map(h->h.h2.thread.limiter).orElse(Limiter.UNLIMITER);
+		var limiter=hs.map(h->h.h2.thread.limiter).orElse(Limiter.UNLIMITER);
 		if(sendData&&data==null&&resource!=null) {
 			stream = resource.asStream(enc);
 			stream.skip(offset);
@@ -564,31 +524,15 @@ class Response{
 				//h.thread.alive=false;
 	}
 	//TODO:429 is literally never sent
-	public static Response getErrorPage(String code) {
+	public static String getErrorPage(String code) {
 		return Config.errorPages.getOrDefault(code,Config.errorPages.get("default"));
 	}
-	public static void writeError(String code,OutputStream output, Optional<HStream> hs, Limiter limiter, boolean sendData) throws IOException{
-		Response error=getErrorPage(code);
-		error.writeWithExtra(output,hs,limiter,Map.of(":status",code),sendData);
+	private String getStatus() {
+		return pheaders.getOrDefault(":status","200");
+	}
+	private String getVersion() {
+		return pheaders.getOrDefault("::version","HTTP/1.1");
 		
-	}
-	private String getStatus(Map<String,String> defaults) {
-		String status=getStatus();
-		if(status!=null)
-			return status;
-		if((status=defaults.get(":status"))!=null)
-			return status;
-		return "200";
-	}
-	private String getVersion(Map<String,String> defaults) {
-		String ver=getVersion();
-		if(ver!=null)
-			return ver;
-		return defaults.getOrDefault("::version","HTTP/1.1");
-		
-	}
-	private String getInfo(Map<String,String> defaults) {
-		return HydarUtil.httpInfo(getStatus(defaults));
 	}
 	public String getInfo() {
 		return HydarUtil.httpInfo(getStatus());
@@ -596,9 +540,6 @@ class Response{
 	@Override
 	public String toString() {
 		return getVersion()+" "+getStatus()+"("+getInfo()+")"+((length!=0&&sendData)?(": "+length+(sendLength?"":"*")+" bytes\n"):"\n");
-	}
-	public String toString(Map<String,String> defaults) {
-		return getVersion(defaults)+" "+getStatus(defaults)+"("+getInfo(defaults)+")"+((length!=0&&sendData)?(": "+length+(sendLength?"":"*")+" bytes\n"):"\n");
 	}
 
 }
@@ -995,7 +936,9 @@ class ServerThread implements Runnable {
 				
 				String range=headers.get("range");
 				if(range!=null&&Config.RANGE_NO_JSP&&!resp.parseRange(range)) {
-					sendErrorExtra("416", Map.of("Content-Range","*"+"/"+length),hstream);
+					getError("416",hstream)
+						.header("Content-Range","*"+"/"+length)
+						.write();
 					return;
 				}
 				
@@ -1044,8 +987,8 @@ class ServerThread implements Runnable {
 					return;
 				}
 				Response resp = ret.toHTTP();
-				if(resp.length==0 && resp.getStatusCode()>=400){
-					sendError(""+resp.getStatusCode(),hstream);
+				if(resp.length==0 && ret.getStatus()>=400){
+					sendError(""+ret.getStatus(),hstream);
 					return;
 				}
 				resp.write();
@@ -1061,7 +1004,9 @@ class ServerThread implements Runnable {
 							
 		}//at some point the HEAD request was here
 		else if (method.equals("LINK")|| method.equals("UNLINK") || method.equals("TRACE")||method.equals("CONNECT") ) {
-			sendErrorExtra("501",Map.of("Allow","GET, POST, HEAD, PUT, DELETE, OPTIONS"),hstream);
+			getError("501",hstream)
+			.header("Allow","GET, POST, HEAD, PUT, DELETE, OPTIONS")
+			.write();
 		} else {
 			
 			System.out.println("400 by invalid method");
@@ -1080,13 +1025,13 @@ class ServerThread implements Runnable {
 		if(isHead)build.disableLength().disableData();
 		return build;
 	}
-	private void sendError(String code, Optional<HStream> hs) throws IOException{
-		Response.writeError(code,output,hs,limiter,!isHead);
+	private Response.Builder getError(String code, Optional<HStream> hs) {
+		String error=Response.getErrorPage(code);
+		var builder = !isHead?newResponse(code,hs).data(error.getBytes()):newResponse(code,hs);
+		return builder;
 	}
-	private void sendErrorExtra(String code, Map<String,String> extra, Optional<HStream> hs) throws IOException{
-		Map<String,String> extra_ = new HashMap<>(extra);
-		extra_.put(":status",code);
-		Response.getErrorPage(code).writeWithExtra(output,hs,limiter, extra_,!isHead);
+	private void sendError(String code, Optional<HStream> hs) throws IOException{
+		getError(code,hs).write();
 	}
 	private final Response.Builder UPGRADE(String protocol) {
 		//TODO: replace all the empty with override
@@ -1384,7 +1329,7 @@ public class Hydar {
 		if(limiter.acquireNow(Token.FAST_API,Config.TC_FAST_HTTP_REQUEST))
 			HydarUtil.TFAC.newThread(()->{
 				try(client;OutputStream output = client.getOutputStream()){
-					Response.writeError("429",output,null,Limiter.UNLIMITER,true);
+					Response.builder(code).output(output).write();
 				}catch(IOException e) {
 					return;
 				}
