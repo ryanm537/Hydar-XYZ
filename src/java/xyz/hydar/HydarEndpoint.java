@@ -76,7 +76,8 @@ public class HydarEndpoint extends HydarWS.Endpoint{
 
 	@Override
 	public void onMessage(String message) throws IOException{
-		System.out.write(("WS: uid="+this.id+",length="+message.length()+">>"+message.substring(0,Math.min(message.length(),50))+"\n").getBytes(UTF_8));
+		if(!message.startsWith("]"))
+			System.out.write(("WS: uid="+this.id+",length="+message.length()+">>"+message.substring(0,Math.min(message.length(),50))+"\n").getBytes(UTF_8));
 		Integer tmp=(Integer)session.getAttribute("userid");
 		if(tmp==null || (this.id!=tmp)) {
 			close();
@@ -266,8 +267,8 @@ class Board{
 			if(users.stream().map(x->x.id).distinct().count()==1 || !members.containsKey(user.id)) {
 				apiRefresh(user);
 			}
-			update(user);
 			members.get(user.id).online=true;
+			update(user);
 		}finally {
 			lock.unlock();
 		}

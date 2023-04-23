@@ -2,7 +2,7 @@
     pageEncoding="ISO-8859-1"%>
 <%@ page import="java.io.*,java.nio.file.*,java.util.*, java.time.*, java.text.*, java.util.Date, java.sql.*"%>
 <%@ page import="javax.servlet.http.*,javax.servlet.*"%>
-<%if(session.getAttribute("userid")!=null){
+<%if(session.getAttribute("userid")!=null && !("Anonymous").equals(session.getAttribute("username"))){
 	response.sendRedirect(response.encodeURL("MainMenu.jsp"));
 	return;
 }%><!DOCTYPE html>

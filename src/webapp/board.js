@@ -49,13 +49,12 @@ function replaceID(e, newID){//replace ID of a message element, used before tras
 	ts.setAttribute("id","three_"+newID);
 	rep.setAttribute("id","reply_button"+newID);
 	e.setAttribute("id","msg_"+newID);
-	messages.some(m=>{//"some" is just foreach but ends after the function gives true
+	for(m of messages){
 		if(m.id==tmpId){
 			m.id=newID;
-			return true;
+			break;
 		}
-		return false;
-	});
+	}
 }
 function trash(e){//trash a message element
 	console.log(e);

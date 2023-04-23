@@ -74,7 +74,7 @@ enum Encoding{
 	static Encoding compute(String accept) {
 		if(accept==null)return identity;
 		List<String> encs = Arrays.stream(accept.split(","))
-			.map(x->x.contains(";")?x.split(";")[0]:x)
+			.map(x->x.contains(";")?x.split(";",2)[0]:x)
 			.map(String::trim)
 			.filter(Config.ZIP_ALGS::contains)
 			.toList();
@@ -1333,6 +1333,54 @@ public class Hydar {
 				}
 			}).start();
 	}
+	static ServerSocket makeSocket() throws IOException {
+		ServerSocket server=null;
+		try {//ssl initialization
+			if(Config.SSL_ENABLED){
+				KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+				InputStream tstore = Files.newInputStream(Path.of(Config.SSL_TRUST_STORE_PATH));
+				trustStore.load(tstore, Config.SSL_TRUST_STORE_PASSPHRASE.toCharArray());
+				tstore.close();
+				TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+				tmf.init(trustStore);
+				
+				KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+				InputStream kstore = Files.newInputStream(Path.of(Config.SSL_KEY_STORE_PATH));
+				keyStore.load(kstore, Config.SSL_KEY_STORE_PASSPHRASE.toCharArray());
+				kstore.close();
+				KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+				kmf.init(keyStore, Config.SSL_KEY_STORE_PASSPHRASE.toCharArray());
+				SSLContext ctx = SSLContext.getInstance(Config.SSL_CONTEXT_NAME);
+				try{
+					ctx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), SecureRandom.getInstance("NativePRNGNonBlocking"));
+				}catch(NoSuchAlgorithmException e){
+					ctx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), SecureRandom.getInstanceStrong());
+				}
+				SSLServerSocketFactory factory = ctx.getServerSocketFactory();
+				server = (Config.HOST==null)
+					? factory.createServerSocket(Config.PORT,256,InetAddress.getLoopbackAddress())
+					: factory.createServerSocket(Config.PORT,256);
+				//server.setNeedClientAuth(true);
+				((SSLServerSocket)server).setEnabledProtocols(Config.SSL_ENABLED_PROTOCOLS);
+				if(Config.H2_ENABLED){
+					SSLParameters j=((SSLServerSocket)server).getSSLParameters();
+					j.setApplicationProtocols(new String[]{"h2","http/1.1"});
+					System.out.println("TLS ALPN Enabled Protocols: "+Arrays.asList(j.getApplicationProtocols()));
+					((SSLServerSocket)server).setSSLParameters(j);
+				}
+			}else{
+				server = (Config.HOST==null)
+					? new ServerSocket(Config.PORT,256,InetAddress.getLoopbackAddress())
+					: new ServerSocket(Config.PORT,256);
+			}
+			server.setSoTimeout(1000);
+		} catch (Exception f) {
+			f.printStackTrace();
+			System.out.println("Cannot open port " + Config.PORT);
+			if(server!=null)server.close();
+		}
+		return server;
+	}
 	public static void main(String[] args) throws IOException, NamingException{
 		//System.setProperty("java.class.path")
 		String configPath=args.length>0?String.join(" ",args):"./hydar.properties";
@@ -1414,52 +1462,8 @@ public class Hydar {
 			return;	
 		}
 		
-		ServerSocket server = null;
-		try {//ssl initialization
-			if(Config.SSL_ENABLED){
-				KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
-				InputStream tstore = Files.newInputStream(Path.of(Config.SSL_TRUST_STORE_PATH));
-				trustStore.load(tstore, Config.SSL_TRUST_STORE_PASSPHRASE.toCharArray());
-				tstore.close();
-				TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-				tmf.init(trustStore);
-				
-				KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
-				InputStream kstore = Files.newInputStream(Path.of(Config.SSL_KEY_STORE_PATH));
-				keyStore.load(kstore, Config.SSL_KEY_STORE_PASSPHRASE.toCharArray());
-				kstore.close();
-				KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-				kmf.init(keyStore, Config.SSL_KEY_STORE_PASSPHRASE.toCharArray());
-				SSLContext ctx = SSLContext.getInstance(Config.SSL_CONTEXT_NAME);
-				try{
-					ctx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), SecureRandom.getInstance("NativePRNGNonBlocking"));
-				}catch(NoSuchAlgorithmException e){
-					ctx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), SecureRandom.getInstanceStrong());
-				}
-				SSLServerSocketFactory factory = ctx.getServerSocketFactory();
-				server = (Config.HOST==null)
-					? factory.createServerSocket(Config.PORT,256,InetAddress.getLoopbackAddress())
-					: factory.createServerSocket(Config.PORT,256);
-				//server.setNeedClientAuth(true);
-				((SSLServerSocket)server).setEnabledProtocols(Config.SSL_ENABLED_PROTOCOLS);
-				if(Config.H2_ENABLED){
-					SSLParameters j=((SSLServerSocket)server).getSSLParameters();
-					j.setApplicationProtocols(new String[]{"h2","http/1.1"});
-					System.out.println("TLS ALPN Enabled Protocols: "+Arrays.asList(j.getApplicationProtocols()));
-					((SSLServerSocket)server).setSSLParameters(j);
-				}
-			}else{
-				server = (Config.HOST==null)
-					? new ServerSocket(Config.PORT,256,InetAddress.getLoopbackAddress())
-					: new ServerSocket(Config.PORT,256);
-			}
-			server.setSoTimeout(1000);
-		} catch (Exception f) {
-			f.printStackTrace();
-			System.out.println("Cannot open port " + Config.PORT);
-			if(server!=null)server.close();
-			return;
-		}
+		ServerSocket server = makeSocket();
+		
 		if(Config.TURN_ENABLED){
 			try {
 				Class.forName("xyz.hydar.HydarTURN");
@@ -1528,8 +1532,13 @@ public class Hydar {
 				ServerThread connection = new ServerThread(client);
 				threadCount.incrementAndGet();
 				HydarUtil.TFAC.newThread(connection).start();
-			} catch (Exception e) {
-				
+			} catch(SocketTimeoutException ste) {}
+			catch(Exception e) {
+				e.printStackTrace();
+				if(server.isClosed()) {
+					try {server.close();}catch(Exception e_) {}
+					server = makeSocket();
+				}
 			}
 			
 
