@@ -35,7 +35,6 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -103,10 +102,11 @@ class Response{
 	private final boolean firstChunk;
 	private final boolean lastChunk;
 	private final boolean chunked;
+	private final String version;
 	
 	
 	public static Builder builder() {
-		return new Builder();
+		return new Builder("200");
 	}
 	public static Builder builder(int status) {
 		return new Builder(status);
@@ -130,16 +130,12 @@ class Response{
 		private int offset;
 		private Limiter limiter;
 		private OutputStream os;
+		private String version="HTTP/1.1";
 		private Optional<HStream> hs=Optional.empty();
-		public Builder(){ 
-			version("HTTP/1.1");
-			
-		}
 		public Builder(int status){
 			this(Integer.toString(status));
 		}
 		public Builder(String status){
-			this();
 			status(status);
 		}
 		public Builder limiter(Limiter limiter) {
@@ -315,7 +311,8 @@ class Response{
 			return this;
 		}
 		public Builder version(String version) {
-			return header("::version",version);
+			this.version=version;
+			return this;
 		}
 		public Response build() {
 			return new Response(this);
@@ -336,6 +333,7 @@ class Response{
 		this.pheaders = builder.pheaders;
 		this.headers = builder.headers;
 		this.data = builder.data;
+		this.version=builder.version;
 		this.resource = builder.resource;
 		this.length = builder.length;
 		this.sendLength = builder.sendLength;
@@ -531,7 +529,7 @@ class Response{
 		return pheaders.getOrDefault(":status","200");
 	}
 	private String getVersion() {
-		return pheaders.getOrDefault("::version","HTTP/1.1");
+		return version;
 		
 	}
 	public String getInfo() {

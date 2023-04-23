@@ -441,7 +441,6 @@ public class HydarHP {
 	}
 	public void writeField(OutputStream dos, Entry e, boolean huffman) throws IOException{
 		String k = e.name();
-		if(k.startsWith("::"))return;
 		String v = e.value();
 		int d=table.get(e);
 		if(d>=0) {
