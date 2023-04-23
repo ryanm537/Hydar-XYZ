@@ -167,7 +167,7 @@ try(Connection conn=dataSource.getConnection()){
 	//out.print("</form>");
 	
 }catch (Exception e){
-	response.sendError(500);
+	response.setStatus(500);
 	out.print("<style> body{color:rgb(255,255,255); font-family:arial; text-align:center; font-size:20px;}</style>");
 	out.print("A known error has occurred\n");
 	out.print("<br><br>");

@@ -75,7 +75,7 @@ try(Connection conn=dataSource.getConnection()){
 	response.sendRedirect(response.encodeURL("Homepage.jsp?board="+board));
 	
 }catch(Exception e){
-	response.sendError(500);
+	response.setStatus(500);
 	return;
 }
 %>
