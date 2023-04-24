@@ -26,6 +26,7 @@ form{ display: inline-block; }
 <div id="show">
 </div>
 <%!
+//These are different from the mainmenu ones to allow indexing of name/image
 static final List<Integer> DEFAULT_BOARDS=List.of(1,2,3);
 static final List<String> DEFAULT_BOARDNAMES=List.of("","Everything Else","SAS4","Skyblock");
 static final List<String> DEFAULT_BOARDIMAGES=List.of("","everythingelse.png","sas4.png","skyblock.png");

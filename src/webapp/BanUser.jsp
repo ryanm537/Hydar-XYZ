@@ -5,8 +5,7 @@
     pageEncoding="ISO-8859-1"%>
 <%@ page import="java.io.*,java.util.*, java.time.*, java.text.*, java.util.Date, java.sql.*"%>
 <%@ page import="javax.servlet.http.*,javax.servlet.*"%>
-<%@ include file='SkeleCheck.jsp' %>
-<% if(response.getStatus()==302)return; %> 
+<%@ include file='SkeleCheck.jsp' %> 
 <!DOCTYPE html>
 <html>
 <head>

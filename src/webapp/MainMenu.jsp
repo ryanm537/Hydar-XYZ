@@ -9,7 +9,7 @@
 static final List<Integer> DEFAULT_BOARDS=List.of(1,2,3);
 static final List<String> DEFAULT_BOARDNAMES=List.of("Everything Else","SAS4","Skyblock");
 static final List<String> DEFAULT_BOARDIMAGES=List.of("everythingelse.png","sas4.png","skyblock.png");
-static final List<Integer> DEFAULT_BOARDDM=List.of(0,0,0);
+static final List<Integer> DEFAULT_BOARDDM=Collections.nCopies(3,0);//[0,0,0]
 %>
 <!DOCTYPE html>
 <html>
