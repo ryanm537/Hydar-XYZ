@@ -329,7 +329,7 @@ try(Connection conn=dataSource.getConnection()){
 					out.print("<style type=\"text/css\"> h1{color:rgb(255,255,255); text-align:left; font-size:15px}</style>");
 					out.print("<img src=\"images/hydar.png\" alt=\"hydar\" width = \"25px\" height = \"40px\" align = \"center\">");
 					out.print("&nbsp;&nbsp;&nbsp;Pick a board: ");
-					%><form method="get" action=<%=HOMEPAGE %>></form><%
+					%><form method="get" action=<%=HOMEPAGE %>><%
 					out.print("<select name=\"board\">" );
 					out.print("<option value = \"" + -1 + "\"> ---");
 					
@@ -346,7 +346,7 @@ try(Connection conn=dataSource.getConnection()){
 						out.print("<option value = \""+ boardArray.get(i) +"\"> " + boardNames.get(i));
 					}
 					out.print("<input value=\"Go\"  type=\"submit\"></select></form>");
-					
+					%></form><%
 					out.print("</h1>");
 			%>
 	</div><div class = "margin">
