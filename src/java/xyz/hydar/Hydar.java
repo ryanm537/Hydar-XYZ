@@ -492,15 +492,15 @@ class Response{
 				}finally {
 					thread.lock.unlock();
 				}
+				Frame tmp=Frame.of(Frame.DATA,h)
+					.limiter(limiter)
+					.lock(thread.lock);
 				do{
 					int flength=(int)Math.min(originalSize-offset,maxSize);
 					//if(resource!=null)
 					//System.out.println(length+" --> "+flength);
 					boolean endStream=(offset+flength==originalSize)&&(!chunked || lastChunk);
-					Frame tmp=Frame.of(Frame.DATA,h)
-						.limiter(limiter)
-						.lock(thread.lock)
-						.endStream(endStream);
+					tmp.endStream(endStream);
 					if(data==null) {
 						//System.out.println("streamed write");
 						tmp.withData(stream,flength,streamBuffer);
