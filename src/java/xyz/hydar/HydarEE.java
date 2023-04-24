@@ -481,7 +481,7 @@ public class HydarEE{
 				meth=(JspServlet)HydarEE.servlets.get(name);
 			}
 		}
-		meth._jspService(request, resp);
+		meth._jspService(request, resp); 
 		estLength.computeIfAbsent(name,x->new Average()).update(resp.baos.size());
 	}
 	public static class EmptyServlet extends JspServlet{

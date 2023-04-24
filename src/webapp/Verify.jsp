@@ -111,6 +111,7 @@ try(Connection conn=dataSource.getConnection();
 		
 		if(result.getString("username").equals(inputtedU) && Arrays.equals(result.getBytes("password"),encodedhash)){
 			success = true;
+			session.removeAttribute("ip");
 			break;
 		}
 	}

@@ -52,10 +52,11 @@ CREATE TABLE IF NOT EXISTS `user` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 DROP TABLE IF EXISTS `ban`;
 CREATE TABLE IF NOT EXISTS `ban`(
-	`user` int not null,
+	`id` int,
+	`type` enum("user","message","addr"),
 	`addr` varbinary(16) not null,
 	PRIMARY KEY(`addr`),
-    KEY(`user`)
+    KEY(`id`)
 );
 /*!40101 SET character_set_client = @saved_cs_client */;
 INSERT INTO user(`username`, `id`,  `password`, `pfp`, `permission_level`, `pings`, `volume`, `pingvolume`, `vcvolume`) VALUES("Raye",2,"raye", "images/r.png", "water_hydar", 0, 50, 50, 50);
@@ -69,6 +70,7 @@ CREATE TABLE IF NOT EXISTS `post` (
   `id` int NOT NULL AUTO_INCREMENT not null,
   `board` int not null,
   `created_date` bigint not null,
+  `addr` varbinary(16),/*nullable*/
   CONSTRAINT `board_posts_post` FOREIGN KEY (`board`) REFERENCES `board` (`number`) ON DELETE CASCADE,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;

@@ -1,3 +1,4 @@
+<%@page import="java.util.concurrent.TimeUnit"%>
 <%@page import="java.net.InetAddress"%>
 <%@page import="javax.sql.DataSource"%>
 <%@page import="javax.naming.InitialContext"%>
@@ -6,6 +7,7 @@
 <%@ page import="java.io.*,java.util.*, java.time.*, java.text.*, java.util.Date, java.sql.*"%>
 <%@ page import="javax.servlet.http.*,javax.servlet.*"%>
 <%@ include file='SkeleCheck.jsp' %> 
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -31,7 +33,7 @@ Class.forName("com.mysql.jdbc.Driver");
 DataSource dataSource = (DataSource) new InitialContext().lookup("java:comp/env/jdbc/hydar");
 try(Connection conn=dataSource.getConnection()){
 	int kicked = Integer.parseInt(request.getParameter("kickID"));
-	boolean ipBan = Boolean.parseBoolean(request.getParameter("ip"));
+	String ipBan = request.getParameter("ip");
 	boolean unBan = Boolean.parseBoolean(request.getParameter("unban"));
 	int uid=(int)session.getAttribute("userid");
 	// CHECK PERMS
@@ -46,35 +48,70 @@ try(Connection conn=dataSource.getConnection()){
 	}
 	// ADMIN PERM
 	String ban="DELETE FROM user WHERE id = ?";
-	String addr="SELECT addr FROM user WHERE id = ?";
+	String addrU="SELECT addr FROM user WHERE id = ?";
+	String addrP="SELECT addr FROM post WHERE id = ?";
 	String ban2="DELETE FROM user WHERE user.addr = ?";
-	String ban3="INSERT INTO ban(user,addr) VALUES(?,?)";
-	String unban="DELETE FROM ban WHERE user=?";
-	if(!ipBan){
-		ps=conn.prepareStatement(ban);
-		ps.setInt(1,kicked);
-		ps.executeUpdate();
-	}else if(unBan){
-		ps=conn.prepareStatement(unban);
-		ps.setInt(1,kicked);
-		ps.executeUpdate();
-	}else{
-
-		ps=conn.prepareStatement(addr);
-		ps.setInt(1,kicked);
-		var rs=ps.executeQuery();
-		if(rs.next()){
-			byte[] ip = rs.getBytes(1);
-			if(!InetAddress.getByAddress(ip).isLoopbackAddress()){
+	String ban3="INSERT INTO ban(id,type,addr) VALUES(?,?,?)";
+	
+	String unbanIp="SELECT addr FROM ban WHERE id=? AND type=?";
+	String unbanA="DELETE FROM ban WHERE addr=?";
+	if(ipBan==null||ipBan.equals("no")){
+		if(!unBan && kicked!=3){
+			ps=conn.prepareStatement(ban);
+			ps.setInt(1,kicked);
+			ps.executeUpdate();
+		}
+	}else if(ipBan.equals("user")||ipBan.equals("message")){//Ban a user and their IP
+		if(!unBan){
+			ps=conn.prepareStatement(ipBan.equals("user")?addrU:addrP);
+			ps.setInt(1,kicked);
+			var rs=ps.executeQuery();
+			if(rs.next()){
+				byte[] ip = rs.getBytes(1);
+				InetAddress addr=InetAddress.getByAddress(ip);
+				if(!addr.isLoopbackAddress()){
+					ps=conn.prepareStatement(ban2);
+					ps.setBytes(1,ip);
+					ps.executeUpdate();
+					
+					ps=conn.prepareStatement(ban3);
+					ps.setInt(1,kicked);
+					ps.setString(2,ipBan);
+					ps.setBytes(3,ip);
+					ps.executeUpdate();
+					
+					return;
+				}
+			}else throw new RuntimeException("IP not found");
+		}else{
+			ps=conn.prepareStatement(unbanIp);
+			ps.setInt(1,kicked);
+			ps.setString(2,ipBan);
+			var rs =ps.executeQuery();
+			if(rs.next()){
+				ps=conn.prepareStatement(unbanA);
+				ps.setBytes(1,rs.getBytes("addr"));
+				ps.executeUpdate();
+			}else throw new RuntimeException("IP not found");
+		}
+	}else{//Ban a string address
+		InetAddress addr = InetAddress.getByName(request.getParameter("ip"));
+		if(!addr.isLoopbackAddress()){
+			if(!unBan){
 				ps=conn.prepareStatement(ban2);
-				ps.setBytes(1,ip);
+				ps.setBytes(1,addr.getAddress());
+				ps.executeUpdate();
+			
+				ps=conn.prepareStatement(ban3);
+				ps.setNull(1, Types.TINYINT);
+				ps.setString(2,"addr");
+				ps.setBytes(3,addr.getAddress());
 				ps.executeUpdate();
 				
-				ps=conn.prepareStatement(ban3);
-				ps.setInt(1,kicked);
-				ps.setBytes(2,ip);
+			}else{
+				ps=conn.prepareStatement(unbanA);
+				ps.setBytes(1,addr.getAddress());
 				ps.executeUpdate();
-				return;
 			}
 		}
 	}

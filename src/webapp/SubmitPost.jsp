@@ -1,3 +1,4 @@
+<%@page import="java.net.InetAddress"%>
 <%@page import="javax.sql.DataSource"%>
 <%@page import="javax.naming.InitialContext"%>
 <%@ page language="java" contentType="text/html; charset=ISO-8859-1"
@@ -53,11 +54,15 @@ try(Connection conn=dataSource.getConnection()){
 		//TODO: actualContents limits the length of output a lot
 		//TODO: is html inject even prevented
 		
-		try(PreparedStatement addPost=conn.prepareStatement("INSERT INTO post(`contents`, `board`, `created_date`)"
-		+ " VALUES (?,?,?)",Statement.RETURN_GENERATED_KEYS)){
+		try(PreparedStatement addPost=conn.prepareStatement("INSERT INTO post(`contents`, `board`, `created_date`,`addr`)"
+		+ " VALUES (?,?,?,?)",Statement.RETURN_GENERATED_KEYS)){
 			addPost.setString(1,inputText);
 			addPost.setInt(2,board);
 			addPost.setLong(3,time);
+			if(uid==3){
+				byte[] addr=((InetAddress)session.getAttribute("ip")).getAddress();
+				addPost.setBytes(4,addr);
+			}else addPost.setNull(4,Types.VARBINARY);
 			addPost.executeUpdate();
 			ResultSet keys = addPost.getGeneratedKeys();
 			if(keys.next())

@@ -121,6 +121,7 @@ try(Connection conn=dataSource.getConnection()){
 		}
 		session.setAttribute("userid", newID);
 		session.setAttribute("username", un);
+		session.removeAttribute("ip");
 		session.setMaxInactiveInterval(2600000);
 	}
 	//redirect to homepage

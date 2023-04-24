@@ -1,10 +1,12 @@
 package xyz.hydar;
 import static java.lang.Integer.parseInt;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.joining;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -27,7 +29,9 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import xyz.hydar.HydarEE.HttpServletRequest;
 import xyz.hydar.HydarEE.HttpServletResponse;
+import xyz.hydar.HydarEE.HttpSession;
 
 public class HydarEndpoint extends HydarWS.Endpoint{
 	int id;
@@ -52,7 +56,16 @@ public class HydarEndpoint extends HydarWS.Endpoint{
 			String refr=session.getServletContext().getInitParameter("BOARD_REFRESH_DELAY");
 			Board.REFRESH_TIMER=refr==null?45000:Long.parseLong(refr);
 		}
-		HydarEE.HttpServletResponse ret = HydarEE.jsp_invoke("PermCheck",this.session,search+"&last_id=0");
+		//TODO: better way to do this
+		HttpServletRequest req = new HttpServletRequest("PermCheck", search+"&last_id=0")
+				.withAddr(new InetSocketAddress(websocket.thread.client_addr,0))
+				.withSession(this.session,true);
+		HydarEE.HttpServletResponse ret = HydarEE.jsp_invoke(req);
+		//only guests have ip attr
+		if(tmp==3) {
+			session.setAttribute("ip",websocket.thread.client_addr);
+		}else
+			session.removeAttribute("ip");
 		if(ret.getStatus()>=300){
 			print(">,0");
 			close();
@@ -550,7 +563,7 @@ class Board{
 			}
 		}
 			
-		int newID=newMessage(inputText,u,toReply,transaction);
+		int newID=newMessage(inputText,u,toReply,transaction,session,false);
 		if(this.hasRaye && inputText.length()>5 && inputText.startsWith("raye ")){
 			//newMessage(inputText,u,toReply,transaction, true);
 			TasqueManager.add(new PythonBot(this,new String[]{"python","./bots/raye.py", inputText.substring(5)},null,""+newID,0,true));
@@ -720,19 +733,53 @@ class Board{
 				}
 			}else done=1;
 			if(u.perms.equals("water_hydar")){
-				String[] cmd=inputText.split(" ",2);
-				if(cmd[0].equals("/ban")||cmd[0].equals("/ipban")) {
-					int kickedUser = parseInt(cmd[1]);
-					HydarEE.jsp_invoke("BanUser",session,"kickID="+kickedUser+"&ip="+cmd[0].equals("/ipban"));
+				String[] cmd=inputText.split(" ",3);
+				/**
+				 * /ban [uid] = /ban user [uid]
+				 * /ban addr [addr]
+				 *  /ban message [mid]
+				 *  /ban message
+				 *  -->(implicit replyTo id)
+				 *  same for /unban
+				 * */
+				if(cmd[0].equals("/ban")) {
+					if(cmd.length==1) {
+						return "Requires 2 args: /... [uid]";
+					}
+					int kickedUser=parseInt(cmd[1]);
+					HydarEE.jsp_invoke("BanUser",session,"kickID="+kickedUser+"&ip=no");
 					
 					dropAll(kickedUser);
 					
-					inputText = "Banned user #" + kickedUser;
-					done = 1;
-				}else if(cmd[0].equals("/unban")) {
-					int kickedUser = parseInt(cmd[1]);
-					HydarEE.jsp_invoke("BanUser",session,"kickID="+kickedUser+"&ip=true&unban=true");
-					inputText = "Unbanned user #" + kickedUser;
+				}else if(cmd[0].equals("/ipban")||cmd[0].equals("/unban")) {
+					String bantype="user";
+					boolean unban=cmd[0].equals("/unban");
+					int kickedUser=-1;
+					if(cmd.length==2) {
+						if(cmd[1].equals("message")) {
+							cmd[1]=toReply;
+							bantype="message";
+						}else {
+							done=1;
+							return "Requires 2-3 args: /... message(if in a reply), /... message [mid], /... user [uid], /... addr [addr]";
+						}
+						kickedUser = parseInt(cmd[1]);
+					}else{
+						if(cmd.length<3) {
+							done=1;
+							return "Requires 2-3 args: /... message(if in a reply), /... message [mid], /... user [uid], /... addr [addr]";
+							
+						}
+						bantype=cmd[1];
+						if(!("addr".equals(bantype))) {
+							kickedUser = parseInt(cmd[2]);
+						}else bantype=cmd[2];
+					}
+					HydarEE.jsp_invoke("BanUser",session,"kickID="+kickedUser+"&ip="+URLEncoder.encode(bantype,ISO_8859_1)+"&unban="+unban);
+					if(bantype.equals("user"))
+						dropAll(kickedUser);
+					else dropAll(3);
+					inputText = (unban?"Unbanned":"Banned")+" "+(bantype)+" #" + kickedUser;
 					done = 1;
 				}
 			}
@@ -754,9 +801,15 @@ class Board{
 		RAYE.setAttribute("userid",2);
 	}
 	public int newMessage(String inputText, Member u, String toReply, int transaction){
-		return newMessage(inputText, u, toReply, transaction, false);
+		return newMessage(inputText, u, toReply, transaction,null, false);
 	}
-	public int newMessage(String inputText, Member u, String toReply, int transaction, boolean raye){
+	public int newMessage(String inputText, Member u, String toReply,HttpSession session, int transaction){
+		return newMessage(inputText, u, toReply, transaction,session, false);
+	}
+	public int newRayeMessage(String inputText, Member u, String toReply, int transaction){
+		return newMessage(inputText, u, toReply, transaction,null, true);
+	}
+	public int newMessage(String inputText, Member u, String toReply, int transaction, HttpSession session, boolean raye){
 		//add reply header
 		if(!members.containsKey(u.id))
 			return -1;
@@ -781,21 +834,32 @@ class Board{
 				replyLength=1;
 			}
 			String actualContents = inputText.substring(14+replyName.length()+replyContents.length());
-			int lessThan=actualContents.indexOf("<");
-			int quotableEnd = Math.min(64,lessThan>0?lessThan:actualContents.length());
-			inputText = new StringBuilder(64+actualContents.length())
-					.append("<div hidden id = 'actualContents<MESSAGE_ID>'>")
-					.append(actualContents,0,quotableEnd)
-					.append(actualContents.length()>64?"...":"")
-					.append("</div><a href = '#reply_button")
-					.append(idOfPost)
-					.append("'><b>")
-					.append(inputText,0,12+replyName.length())
-					.append("</b><i>")
-					.append(inputText,12+replyName.length(), 14+replyName.length()+Math.min(replyLength,67))
-					.append("</i></a><br>")
-					.append(actualContents)
-					.toString();
+			System.out.println(actualContents);
+			String trimmed=actualContents.trim();
+			if(u.perms.equals("water_hydar")
+					&&(trimmed.startsWith("/ipban")
+					||trimmed.startsWith("/ban")
+					||trimmed.startsWith("/unban")
+					)
+				) {
+				inputText=processCommand(trimmed,u,toReply,session,transaction);
+			}else {
+				int lessThan=actualContents.indexOf("<");
+				int quotableEnd = Math.min(64,lessThan>0?lessThan:actualContents.length());
+				inputText = new StringBuilder(64+actualContents.length())
+						.append("<div hidden id = 'actualContents<MESSAGE_ID>'>")
+						.append(actualContents,0,quotableEnd)
+						.append(actualContents.length()>64?"...":"")
+						.append("</div><a href = '#reply_button")
+						.append(idOfPost)
+						.append("'><b>")
+						.append(inputText,0,12+replyName.length())
+						.append("</b><i>")
+						.append(inputText,12+replyName.length(), 14+replyName.length()+Math.min(replyLength,67))
+						.append("</i></a><br>")
+						.append(actualContents)
+						.toString();
+			}
 				
 		}
 		if(inputText==null)
@@ -979,13 +1043,13 @@ class PythonBot implements Tasque{
 			this.output=replyHeader+output;
 			System.out.println(output);
 		}
-		board.newMessage(this.output,u,toReply,transaction,raye);
+		board.newMessage(this.output,u,toReply,transaction,null,raye);
 	}
 	@Override
 	public void fail(){
 		if(raye)
-			board.newMessage("hydar??????",u,"-1",transaction,true);
-		else board.newMessage("Interaction failed.",u,"-1",transaction,false);
+			board.newRayeMessage("hydar??????",u,"-1",transaction);
+		else board.newMessage("Interaction failed.",u,"-1",transaction);
 	}
 }
 
