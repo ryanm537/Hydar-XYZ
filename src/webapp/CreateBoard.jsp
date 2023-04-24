@@ -62,26 +62,31 @@ try(Connection conn=dataSource.getConnection()){
 	int dm = 0;
 	int dmID = -1;
 	String dmName = "";
-	try{
-		String tmp_id = request.getParameter("input_dm");
-		if(tmp_id!=null&&(dmID=Integer.parseInt(tmp_id))!=3){
-			//user to dm is found, get his name
-			str = "SELECT user.username FROM user WHERE user.id = ?";
-	
-			var ps=conn.prepareStatement(str);
-			ps.setInt(1,dmID);
-			result = ps.executeQuery();
-			
-			if(result.next()){
-				dmName = result.getString("user.username") + " and " + session.getAttribute("username");
-			}
-			
-			dm = 1;
+	String tmp_id = request.getParameter("input_dm");
+	if(tmp_id!=null){
+		dmID=Integer.parseInt(tmp_id);
+		if(dmID==3){
+			response.sendRedirect(response.encodeURL("MainMenu.jsp"));
+			return;
 		}
-	}catch(Exception e){
-		dm = 0;
+		//user to dm is found, get his name
+		
+		str = "SELECT user.username FROM user WHERE user.id = ?";
+		try{
+				var ps=conn.prepareStatement(str);
+				ps.setInt(1,dmID);
+				result = ps.executeQuery();
+				
+				if(result.next()){
+					dmName = result.getString("user.username") + " and " + session.getAttribute("username");
+				}
+				
+				dm = 1;
+			
+		}catch(Exception e){
+			dm = 0;
+		}
 	}
-	
 	// if dm is 1, check if the board already exists
 	int exists = 0;
 	int boardID = 1;

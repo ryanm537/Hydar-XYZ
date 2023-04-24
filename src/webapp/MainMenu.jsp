@@ -318,10 +318,10 @@ try(Connection conn=dataSource.getConnection()){
 					out.print("<h1 style = \"color:rgb(255,255,255); font-size:15px; font-family:calibri; text-align:right;position:relative;\"></style>");
 					out.print("Hello <div id=\"profileName\" style=\"display:inline\">" + session.getAttribute("username").toString() + "</div>! | ");
 					out.print("<style type=\"text/css\"> a{color:LightGrey; font-family:calibri; text-align:right; font-size:15px}</style>");
-					%><a href=<%=PROFILE %>> Profile</a>&nbsp;|
-					<%
+					
 					if(uid!=3){
-						%><a href=<%=LOGOUT%> > Log out</a><%
+					%><a href= <%=PROFILE %> > Profile</a>&nbsp;|
+					<a href=<%=LOGOUT%> > Log out</a><%
 					}else{
 						%><a href=<%=LOGIN %> > Log in</a><%
 					}
@@ -362,17 +362,6 @@ try(Connection conn=dataSource.getConnection()){
 			
 
 			
-			/**
-			alternative(might be faster since ids are probably sorted better)
-			
-			SELECT board FROM isin 
-			WHERE user = 1 AND lastVisited>0 AND 
-			lastVisited+1000>(
-				SELECT CREATED_DATE FROM post 
-				WHERE board = isin.board 
-				ORDER BY id DESC LIMIT 1
-			);
-			*/
 			int imageCounter = 0;
 
 			Set<Integer> unread;

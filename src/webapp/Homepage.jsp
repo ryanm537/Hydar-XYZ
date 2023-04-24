@@ -25,59 +25,75 @@ form{ display: inline-block; }
 </style>
 <div id="show">
 </div>
+<%!
+static final List<Integer> DEFAULT_BOARDS=List.of(1,2,3);
+static final List<String> DEFAULT_BOARDNAMES=List.of("","Everything Else","SAS4","Skyblock");
+static final List<String> DEFAULT_BOARDIMAGES=List.of("","everythingelse.png","sas4.png","skyblock.png");
+
+%>
 <%
+
 //add session id to urls(if needed)
 String PROFILE=response.encodeURL("Profile.jsp");
 String MAIN_MENU=response.encodeURL("MainMenu.jsp");
 String LOGOUT=response.encodeURL("Logout.jsp");
 String HOMEPAGE=response.encodeURL("Homepage.jsp");
 
+int uid=(int)session.getAttribute("userid");
+String getBoard = request.getParameter("board");
+int board = 1;
+if(getBoard != null){
+	board = Integer.parseInt(getBoard);
+}
+boolean isDefault = DEFAULT_BOARDS.contains(board);
+
 Class.forName("com.mysql.jdbc.Driver");
 DataSource dataSource = (DataSource) new InitialContext().lookup("java:comp/env/jdbc/hydar");
 try(Connection conn=dataSource.getConnection()){
 	//CHECK IF BOARD IS SPECIFIED, and redirect if the user does not have perms.
 	
-	int uid=(int)session.getAttribute("userid");
-	String getBoard = request.getParameter("board");
-	int board = 1;
-	if(getBoard != null){
-		board = Integer.parseInt(getBoard);
-	}
 	
-
-	String checkBoardsStr="SELECT * FROM isin WHERE isin.user = ? AND isin.board = ?";
-	var ps = conn.prepareStatement(checkBoardsStr);
-	ps.setInt(1,uid);
-	ps.setInt(2,board);
-	var result1 = ps.executeQuery();
+	
 	int check = 0;
-	if(result1.next()){
-		//boardArray[n] = Integer.parseInt(result1.getString("isin.board"));
-		//n++;
-		//if(board == result1.getInt("isin.board")){
-		check += 1;
-		//}
-	}
+	if(!isDefault&& uid!=3){
+		String checkBoardsStr="SELECT * FROM isin WHERE isin.user = ? AND isin.board = ?";
+		var ps = conn.prepareStatement(checkBoardsStr);
+		ps.setInt(1,uid);
+		ps.setInt(2,board);
+		var result1 = ps.executeQuery();
+		if(result1.next()){
+			//boardArray[n] = Integer.parseInt(result1.getString("isin.board"));
+			//n++;
+			//if(board == result1.getInt("isin.board")){
+			check += 1;
+			//}
+		}
+	}else if(isDefault)
+		check=1;
 	if(check == 0){
-		%><meta http-equiv="refresh" content="0; url='<%=MAIN_MENU %>'" /><%
-		board = 1;
+		response.sendRedirect(MAIN_MENU);
+		return;
 	}
 	//GET BOARD IMAGE
-	
+	int isPublic = 0;
+	int boardDM = 0;
+	String boardImage = "";
+	if(!isDefault){
 		String getBoardAttributes="SELECT board.image, board.public, board.dm FROM board WHERE board.number = ?";
-		ps = conn.prepareStatement(getBoardAttributes);
+		var ps = conn.prepareStatement(getBoardAttributes);
 		ps.setInt(1,board);
-		result1 = ps.executeQuery();
+		var result1 = ps.executeQuery();
 		
-		int isPublic = 0;
-		String boardImage = "";
-		int boardDM = 0;
-		while(result1.next()){
+		if(result1.next()){
 			isPublic = result1.getInt("board.public");
 			boardImage = result1.getString("board.image");
 			boardDM = result1.getInt("board.dm");
 		}
-	
+	}else{
+		boardImage=DEFAULT_BOARDIMAGES.get(board);
+		isPublic=1;
+		boardDM=0;
+	}
 	//CHECK IF AUTO REFRESH IS ON
 	
 	String autoRefresh = request.getParameter("autoOn");
@@ -86,11 +102,11 @@ try(Connection conn=dataSource.getConnection()){
 	}
 	
 	//CHECK IF USER IS LOGGED IN
-	
+	/**
 	if(session.getAttribute("username")==null){
 		throw new Exception();
 	}
-	
+	*/
 	
 	
 	out.print("</center>");
@@ -215,18 +231,19 @@ try(Connection conn=dataSource.getConnection()){
 		
 		<%
 		
-		
-		String findOwner = "SELECT board.creator, user.id, user.username FROM board, user WHERE board.number = ? AND user.id = board.creator";
-		ps = conn.prepareStatement(findOwner);
-		ps.setInt(1,board);
-		ResultSet result = ps.executeQuery();
+
 		String creator = "";
 		int creatorID = -1;
-		if(result.next()){
-			creator = result.getString("user.username");
-			creatorID = result.getInt("user.id");
+		if(!isDefault){
+			String findOwner = "SELECT board.creator, user.id, user.username FROM board, user WHERE board.number = ? AND user.id = board.creator";
+			var ps = conn.prepareStatement(findOwner);
+			ps.setInt(1,board);
+			ResultSet result = ps.executeQuery();
+			if(result.next()){
+				creator = result.getString("user.username");
+				creatorID = result.getInt("user.id");
+			}
 		}
-		
 	%>
 	
 	<div class = "ssButton" id = "ssButton"><b>Share Screen</b></div>

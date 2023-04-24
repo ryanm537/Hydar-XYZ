@@ -199,15 +199,10 @@ class Response{
 			return headers.get(k);
 		}
 		public Builder header(String k, int v){
-			return headerImpl(k,Integer.toString(v),false);
+			return header(k,Integer.toString(v));
 		}
-		public Builder header(String k, String v){
-			return headerImpl(k,v,false);
-		}//ifabsent was here
-		private Builder headerImpl(String k, String v, boolean replace) {
+		public Builder header(String k, String v) {
 			var target = (k.startsWith(":"))?pheaders:headers;
-			if(replace&&!target.containsKey(k))
-				return this;
 			String cval;
 			if(k.equals("Set-Cookie")&&(cval=headers.get("Set-Cookie"))!=null){
 				target.put("Set-Cookie",cval+","+v);
