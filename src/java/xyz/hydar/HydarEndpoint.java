@@ -735,21 +735,27 @@ class Board{
 			if(u.perms.equals("water_hydar")){
 				String[] cmd=inputText.split(" ",3);
 				/**
-				 * /ban [uid] = /ban user [uid]
-				 * /ban addr [addr]
-				 *  /ban message [mid]
-				 *  /ban message
+				 * /ipban user [uid]
+				 * /ipban addr [addr]
+				 *  /ipban message [mid]
+				 *  /ipban message
 				 *  -->(implicit replyTo id)
 				 *  same for /unban
+				 *  
+				 *  /ban [uid]
+				 *  -->deletes an acc
 				 * */
 				if(cmd[0].equals("/ban")) {
 					if(cmd.length==1) {
 						return "Requires 2 args: /... [uid]";
+					}try {
+						int kickedUser=parseInt(cmd[1]);
+						HydarEE.jsp_invoke("BanUser",session,"kickID="+kickedUser+"&ip=no");
+						
+						dropAll(kickedUser);
+					}catch(NumberFormatException nfe) {
+						return "ID must be a number";
 					}
-					int kickedUser=parseInt(cmd[1]);
-					HydarEE.jsp_invoke("BanUser",session,"kickID="+kickedUser+"&ip=no");
-					
-					dropAll(kickedUser);
 					
 				}else if(cmd[0].equals("/ipban")||cmd[0].equals("/unban")) {
 					String bantype="user";
@@ -779,7 +785,7 @@ class Board{
 					if(bantype.equals("user"))
 						dropAll(kickedUser);
 					else dropAll(3);
-					inputText = (unban?"Unbanned":"Banned")+" "+(bantype)+" #" + kickedUser;
+					inputText = (unban?"Unbanned":"Banned")+" "+(kickedUser>=0?bantype:"IP")+" #" + kickedUser;
 					done = 1;
 				}
 			}

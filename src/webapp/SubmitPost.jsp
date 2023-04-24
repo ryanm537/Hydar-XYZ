@@ -61,6 +61,13 @@ try(Connection conn=dataSource.getConnection()){
 			addPost.setLong(3,time);
 			if(uid==3){
 				byte[] addr=((InetAddress)session.getAttribute("ip")).getAddress();
+				Objects.requireNonNull(addr);
+				try(var ps2=conn.prepareStatement("SELECT 1 FROM ban WHERE addr=?")){
+					ps2.setBytes(1,addr);
+					try(var rs=ps.executeQuery()){
+						if(rs.next())throw new Exception();	
+					}
+				}
 				addPost.setBytes(4,addr);
 			}else addPost.setNull(4,Types.VARBINARY);
 			addPost.executeUpdate();
