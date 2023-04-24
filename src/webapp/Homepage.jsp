@@ -87,7 +87,7 @@ try(Connection conn=dataSource.getConnection()){
 	
 	//CHECK IF USER IS LOGGED IN
 	
-	if(session.getAttribute("username").toString().equals("null")){
+	if(session.getAttribute("username")==null){
 		throw new Exception();
 	}
 	
@@ -222,7 +222,7 @@ try(Connection conn=dataSource.getConnection()){
 		ResultSet result = ps.executeQuery();
 		String creator = "";
 		int creatorID = -1;
-		while(result.next()){
+		if(result.next()){
 			creator = result.getString("user.username");
 			creatorID = result.getInt("user.id");
 		}

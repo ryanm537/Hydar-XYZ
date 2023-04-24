@@ -4,6 +4,13 @@
 <%@ page import="javax.servlet.http.*,javax.servlet.*"%>
 <%@ include file="Util.jsp" %>
 <%@ include file="SkeleAdd.jsp" %>
+<%!
+
+static final List<Integer> DEFAULT_BOARDS=List.of(1,2,3);
+static final List<String> DEFAULT_BOARDNAMES=List.of("Everything Else","SAS4","Skyblock");
+static final List<String> DEFAULT_BOARDIMAGES=List.of("everythingelse.png","sas4.png","skyblock.png");
+static final List<Integer> DEFAULT_BOARDDM=List.of(0,0,0);
+%>
 <!DOCTYPE html>
 <html>
 <head>
@@ -186,7 +193,7 @@ try(Connection conn=dataSource.getConnection()){
 	//check parameters if a board needs to be cleared
 	int uid = (int)session.getAttribute("userid");
 	String removeInvite = request.getParameter("cleared_invite");
-	if(removeInvite!= null){
+	if(uid!=3 && removeInvite!= null){
 		
 		new SQL(conn,"DELETE FROM invitedto WHERE invitedto.user = ? AND board = ?")
 			.setInt(uid)
@@ -195,7 +202,7 @@ try(Connection conn=dataSource.getConnection()){
 	}
 	
 	String removeDM = request.getParameter("cleared_dm");
-	if(removeDM!= null){
+	if(uid!=3 && removeDM!= null){
 		new SQL(conn,"DELETE FROM isin WHERE board = ?").setInt(removeDM).update();
 	}
 	
@@ -205,18 +212,30 @@ try(Connection conn=dataSource.getConnection()){
 	
 	
 	
-	var result1 = new SQL(conn,"SELECT isin.board, board.name, board.image, board.dm FROM isin, board WHERE isin.user = ? AND board.number = isin.board AND board.channelof = -1 ORDER BY board.number")
-			.setInt(uid).query();
 	
-	List<Integer> boardArray =new ArrayList<>();
-	List<String> boardNames = new ArrayList<>();
-	List<String> boardImages = new ArrayList<>();
-	List<Integer> boardDm = new ArrayList<>();
-	while(result1.next()){
-		boardArray.add(result1.getInt("isin.board"));
-		boardNames.add(result1.getString("board.name"));
-		boardImages.add(result1.getString("board.image"));
-		boardDm.add(result1.getInt("board.dm"));
+	List<Integer> boardArray ;
+	List<String>  boardNames ;
+	List<String>  boardImages;
+	List<Integer> boardDm    ;
+	if(uid!=3){
+	    boardArray = new ArrayList<>();
+	    boardNames =  new ArrayList<>();
+	    boardImages = new ArrayList<>();
+	    boardDm    =    new ArrayList<>();
+	    
+		var result1 = new SQL(conn,"SELECT isin.board, board.name, board.image, board.dm FROM isin, board WHERE isin.user = ? AND board.number = isin.board AND board.channelof = -1 ORDER BY board.number")
+				.setInt(uid).query();
+		while(result1.next()){
+			boardArray.add(result1.getInt("isin.board"));
+			boardNames.add(result1.getString("board.name"));
+			boardImages.add(result1.getString("board.image"));
+			boardDm.add(result1.getInt("board.dm"));
+		}
+	}else{
+		boardArray=DEFAULT_BOARDS;
+		boardNames=DEFAULT_BOARDNAMES;
+		boardImages=DEFAULT_BOARDIMAGES;
+		boardDm=DEFAULT_BOARDDM;
 	}
 	//ban
 	if(boardArray.isEmpty()){
@@ -334,7 +353,7 @@ try(Connection conn=dataSource.getConnection()){
 	
 	<%
 		// LIST OF BOARDS
-			String[] menuImages = {"menuImages/everythingelse.png", "menuImages/sas4.png", "menuImages/skyblock.png"};
+			//String[] menuImages = {"menuImages/everythingelse.png", "menuImages/sas4.png", "menuImages/skyblock.png"};
 			
 			out.print("<style>p2{color:rgb(255,255,255); font-size:25px; font-family:calibri;display:block; text-align:left;position:absolute;margin-top:30px; margin-left: 20px; overflow-x:hidden;}</style>");
 			out.print("<p2><b>Your Boards</b></p2>");
@@ -342,8 +361,6 @@ try(Connection conn=dataSource.getConnection()){
 			out.print("<div class = \"pfps\"><div class = \"row\">");
 			
 
-			ResultSet result =new SQL(conn,"SELECT board.name, board.number, board.image FROM isin, board WHERE isin.user = ? AND isin.board = board.number AND board.channelof = -1  AND board.dm = 0 ORDER BY board.number")
-					.setInt(uid).query();
 			
 			/**
 			alternative(might be faster since ids are probably sorted better)
@@ -357,25 +374,28 @@ try(Connection conn=dataSource.getConnection()){
 			);
 			*/
 			int imageCounter = 0;
-			ResultSet lastModif = 
-					/**new SQL(conn,"SELECT isin.board, isin.lastVisited FROM post, isin "+
-					"WHERE isin.board = post.board AND isin.user=? "+
-					"GROUP BY isin.board "+
-					"HAVING isin.lastVisited > 0 AND isin.lastVisited + 1000 < MAX(post.CREATED_DATE)")*/
-					new SQL(conn,"SELECT board FROM isin "+
-							"WHERE user = ? AND lastVisited>0 AND "+
-							"lastVisited<("+
-								"SELECT CREATED_DATE-1000 FROM post "+
-								"WHERE board = isin.board "+
-								"ORDER BY id DESC LIMIT 1"+
-							")")
-					.setInt(uid)
-					.query();
-			Set<Integer> unread = new HashSet<>();
-			
-			while(lastModif.next()){
-				unread.add(lastModif.getInt("isin.board"));
-			}
+
+			Set<Integer> unread;
+			if(uid!=3){
+				ResultSet lastModif = 
+						/**new SQL(conn,"SELECT isin.board, isin.lastVisited FROM post, isin "+
+						"WHERE isin.board = post.board AND isin.user=? "+
+						"GROUP BY isin.board "+
+						"HAVING isin.lastVisited > 0 AND isin.lastVisited + 1000 < MAX(post.CREATED_DATE)")*/
+						new SQL(conn,"SELECT board FROM isin "+
+								"WHERE user = ? AND lastVisited>0 AND "+
+								"lastVisited<("+
+									"SELECT CREATED_DATE-1000 FROM post "+
+									"WHERE board = isin.board "+
+									"ORDER BY id DESC LIMIT 1"+
+								")")
+						.setInt(uid)
+						.query();
+				unread = new HashSet<>();
+				while(lastModif.next()){
+					unread.add(lastModif.getInt("isin.board"));
+				}
+			} else unread=Set.of();//empty set
 			for(int i=0;i<boardNames.size();i++){
 				if(boardDm.get(i)>0)
 					continue;
@@ -390,13 +410,13 @@ try(Connection conn=dataSource.getConnection()){
 				imageCounter++;
 			}
 			out.print("</div></div><br><br>");
-			
+
 			// LIST OF DIRECT MESSAGE CHANNELS
 			
 			out.print("<style>p3{color:rgb(255,255,255); font-size:25px; font-family:calibri;display:block; text-align:left;position:relative;top:40px; margin-left: 20px;overflow-x:hidden;}</style>");
 			out.print("<style>p4{color:LightSlateGray; font-size:18px; font-family:calibri;display:block; text-align:center;position:relative;top:40px; margin-left: 20px;overflow-x:hidden;}</style>");
 			out.print("<p3><br><b>Your Direct Message Boards</b></p3>");
-		%>
+		if(uid!=3){%>
 	<div id = "bottom_bar2" class="bottom_bar2" style="margin-left:auto;margin-right:auto;">
 		
 		<form method = "get" action = <%=CREATE %>>
@@ -406,8 +426,8 @@ try(Connection conn=dataSource.getConnection()){
 		</div>
 	</div>
 	
-	<%
-	
+	<%}
+
 			int x = 0;
 			out.print("<div class = \"pfps\"><div class = \"row\">");
 			for(int i=0;i<boardNames.size();i++){
@@ -423,7 +443,9 @@ try(Connection conn=dataSource.getConnection()){
 				out.print("<a href="+homepage+"><img src=\"menuImages/" + boardImages.get(i)+"\" alt=\"hydar"+ x +"\" width = \"50px\" height = \"50px\"></a></li> </ul> </div>");
 			}
 			out.print("</div></div><br>");
-			if(x == 0){
+			if(uid==3){
+				out.print("<p4>You need to be logged in to use DNs.</p4>");
+			}else if(x == 0){
 				out.print("<p4>No Direct Message Boards</p4>");
 			}
 			out.print("<br><br> &nbsp");
@@ -438,41 +460,44 @@ try(Connection conn=dataSource.getConnection()){
 			out.print("<style>p4{color:LightSlateGray; font-size:18px; font-family:calibri;display:block; text-align:center;position:relative;top:40px; margin-left: 20px;overflow-x:hidden;}</style>");
 			out.print("<p3><br><b>Your Invites</b> (Click to accept)</p3>");
 
+			if(uid!=3){	
 			
-			
-			String checkInvites = "SELECT board.name, board.number, board.image FROM invitedto, board WHERE invitedto.user = ? AND board.number = invitedto.board";
-			result = new SQL(conn,checkInvites).setInt(uid).query();
-			
-			
-			
-			x = 0;
-			out.print("<div class = \"pfps\"><div class = \"row\">");
-			while(result.next()){
-				x++;
-				out.print("<div class = \"column\">");
-				out.print("<div class = \"centeredText2\"><b>"+ result.getString("board.name") + "</b></div>");
-				out.print("<a href=\""+response.encodeURL("MainMenu.jsp?cleared_invite=" + result.getInt("board.number")) +"\">");
-				String join="JoinBoard.jsp?input_join="+result.getString("board.number");
-				out.print("<ul><li><input type = \"submit\" value = \"X\" class=\"xbutton\"></a><a href=\""+join+"\"><img src=\"menuImages/" + result.getString("board.image")+"\" alt=\"hydar"+ x +"\" width = \"50px\" height = \"50px\"></a></li> </ul> </div>");
-			}
-			out.print("</div></div><br>");
-			if(x == 0){
-				out.print("<p4>No pending invites</p4>"); 
-			}
-			out.print("<br><br> &nbsp");
-			
-			conn.close();
-				} catch (Exception e) {
-					out.print("<style> body{color:rgb(255,255,255); font-family:calibri; text-align:center; font-size:20px;}</style>");
-					out.print("<center>");
-					out.print("A known error has occurred.\n");
-					out.print("<br><br>");
-					out.print("<form method=\"post\" action=\""+response.encodeURL("Logout.jsp")+"\">");
-					out.print("<td><input type=\"submit\" value=\"Back to login\"></td>");
-					out.print("</form>");
-					e.printStackTrace();
+				String checkInvites = "SELECT board.name, board.number, board.image FROM invitedto, board WHERE invitedto.user = ? AND board.number = invitedto.board";
+				ResultSet result = new SQL(conn,checkInvites).setInt(uid).query();
+				
+				
+				
+				x = 0;
+				out.print("<div class = \"pfps\"><div class = \"row\">");
+				while(result.next()){
+					x++;
+					out.print("<div class = \"column\">");
+					out.print("<div class = \"centeredText2\"><b>"+ result.getString("board.name") + "</b></div>");
+					out.print("<a href=\""+response.encodeURL("MainMenu.jsp?cleared_invite=" + result.getInt("board.number")) +"\">");
+					String join="JoinBoard.jsp?input_join="+result.getString("board.number");
+					out.print("<ul><li><input type = \"submit\" value = \"X\" class=\"xbutton\"></a><a href=\""+join+"\"><img src=\"menuImages/" + result.getString("board.image")+"\" alt=\"hydar"+ x +"\" width = \"50px\" height = \"50px\"></a></li> </ul> </div>");
 				}
-		%>
-
+				out.print("</div></div><br>");
+				if(x == 0){
+					out.print("<p4>No pending invites</p4>"); 
+				}
+				out.print("<br><br> &nbsp");
+			}else{
+				out.print("<div class = \"pfps\"><div class = \"row\">");
+				out.print("</div></div><br>");
+				out.print("<p4>You need to be logged in to view invites.</p4>"); 
+				out.print("<br><br> &nbsp");
+			}
+		
+} catch (Exception e) {
+	out.print("<style> body{color:rgb(255,255,255); font-family:calibri; text-align:center; font-size:20px;}</style>");
+	out.print("<center>");
+	out.print("A known error has occurred.\n");
+	out.print("<br><br>");
+	out.print("<form method=\"post\" action=\""+response.encodeURL("Logout.jsp")+"\">");
+	out.print("<td><input type=\"submit\" value=\"Back to login\"></td>");
+	out.print("</form>");
+	e.printStackTrace();
+}%>
 </body>
 </html>

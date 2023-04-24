@@ -35,7 +35,7 @@ try(Connection conn=dataSource.getConnection()){
 	int uid=(int)session.getAttribute("userid");
 	
 	// CHECK PERMS
-	
+	if(invited==3)throw new IllegalArgumentException("can't invite guest");
 	String str = "SELECT user.permission_level FROM user WHERE user.id = ?" ;
 	var ps = conn.prepareStatement(str);
 	ps.setInt(1,uid);

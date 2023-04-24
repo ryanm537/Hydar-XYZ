@@ -63,19 +63,21 @@ try(Connection conn=dataSource.getConnection()){
 	int dmID = -1;
 	String dmName = "";
 	try{
-		dmID = Integer.parseInt(request.getParameter("input_dm"));
-		//user to dm is found, get his name
-		str = "SELECT user.username FROM user WHERE user.id = ?";
-
-		var ps=conn.prepareStatement(str);
-		ps.setInt(1,dmID);
-		result = ps.executeQuery();
-		
-		if(result.next()){
-			dmName = result.getString("user.username") + " and " + session.getAttribute("username");
+		String tmp_id = request.getParameter("input_dm");
+		if(tmp_id!=null&&(dmID=Integer.parseInt(tmp_id))!=3){
+			//user to dm is found, get his name
+			str = "SELECT user.username FROM user WHERE user.id = ?";
+	
+			var ps=conn.prepareStatement(str);
+			ps.setInt(1,dmID);
+			result = ps.executeQuery();
+			
+			if(result.next()){
+				dmName = result.getString("user.username") + " and " + session.getAttribute("username");
+			}
+			
+			dm = 1;
 		}
-		
-		dm = 1;
 	}catch(Exception e){
 		dm = 0;
 	}
