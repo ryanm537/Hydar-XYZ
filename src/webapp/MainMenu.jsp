@@ -433,7 +433,7 @@ try(Connection conn=dataSource.getConnection()){
 			}
 			out.print("</div></div><br>");
 			if(uid==3){
-				out.print("<p4>You need to be logged in to use DNs.</p4>");
+				out.print("<p4>You need to <a style='font-size:18px;' href='"+LOGIN+"'>log in</a> to use DNs.</p4>");
 			}else if(x == 0){
 				out.print("<p4>No Direct Message Boards</p4>");
 			}
@@ -474,7 +474,7 @@ try(Connection conn=dataSource.getConnection()){
 			}else{
 				out.print("<div class = \"pfps\"><div class = \"row\">");
 				out.print("</div></div><br>");
-				out.print("<p4>You need to be logged in to view invites.</p4>"); 
+				out.print("<p4>You need to <a style='font-size:18px;' href='"+LOGIN+"'>log in</a> to view invites.</p4>");
 				out.print("<br><br> &nbsp");
 			}
 		

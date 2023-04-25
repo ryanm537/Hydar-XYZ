@@ -106,7 +106,7 @@ Returning users login
 <input type="submit" name="submit" value = "Go" class= "button3"><br><br>
 </form>
 <p style = "color:rgb(255,255,255); font-family:calibri;  z-index:1; position:fixed; position:absolute; text-align:left; left:50%; display:block; top:calc(50% + 120px);">
-Don't have an account? rip!<br><a href = '#' onclick='document.location.replace("<%=response.encodeURL("VerifyAnonymous.jsp")%>");' style ="color:rgb(170,220,255);">Create/use Anonymous account</a>
+Don't have an account? rip!<br><a href = '#' onclick='document.location.replace("<%=response.encodeURL("VerifyAnonymous.jsp")%>");' style ="color:rgb(170,220,255);">Log in with Anonymous account</a>
 </p>
 </body>
 </html>
