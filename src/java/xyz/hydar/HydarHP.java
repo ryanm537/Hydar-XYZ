@@ -313,13 +313,14 @@ public class HydarHP {
 			@Override
 			public void unlock() {}
 		};
-		table=QueueTable.newInstance(Config.H2_HPACK_TABLE_STRATEGY);
+		table=QueueTable.doubleAccess(Config.H2_HPACK_TABLE_STRATEGY);
 		//System.arraycopy(STATIC_TABLE,0,table,0,STATIC_TABLE.length);
-	}public HydarHP(int tableSizeLimit, boolean compress) {
+	}
+	private HydarHP(int tableSizeLimit, boolean compress) {
 		this(tableSizeLimit);
 		table=compress?
-				QueueTable.eAccess()
-				:QueueTable.intAccess();
+				QueueTable.eAccess(Config.H2_HPACK_TABLE_STRATEGY)
+				:QueueTable.intAccess(Config.H2_HPACK_TABLE_STRATEGY);
 		//System.arraycopy(STATIC_TABLE,0,table,0,STATIC_TABLE.length);
 	} 
 	private Entry get(int index) {
@@ -697,5 +698,21 @@ public class HydarHP {
 		}catch(Exception e) {
 			e.printStackTrace();
 		}*/
+	}
+	public static class Decompressor extends HydarHP{
+		public Decompressor(int tableSizeLimit) {
+			super(tableSizeLimit, false);
+		}
+		public Decompressor() {
+			this(65536);
+		}
+	}
+	public static class Compressor extends HydarHP{
+		public Compressor(int tableSizeLimit) {
+			super(tableSizeLimit, true);
+		}
+		public Compressor() {
+			this(65536);
+		}
 	}	
 }

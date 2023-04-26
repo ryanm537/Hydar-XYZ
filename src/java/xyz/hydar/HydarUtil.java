@@ -748,66 +748,32 @@ class Average{
 		return avg;
 	}
 }
-/**
-class ExtraMap<K,V> extends AbstractMap<K,V>{
-	private final Map<? extends K,? extends V> source;
-	private final List<Object> values = new ArrayList<>();
-	public ExtraMap(Map<? extends K,? extends V> source) {
-		this.source=source;
-	}
-	@Override 
-	public V put(K key, V value) {
-		if(!source.containsKey(key)) {
-			values.add(key);
-			values.add(value);
-		}
-		return null;
-	}
-	private record Entry_<K,V>(Object k, Object v) implements Entry<K,V>{
-		@Override
-		@SuppressWarnings("unchecked")
-		public K getKey() {
-			return (K)k;
-		}
-		@Override
-		@SuppressWarnings("unchecked")
-		public V getValue() {
-			return (V)v;
-		}
-		@Override
-		public V setValue(Object value) {
-			throw new UnsupportedOperationException("it immutable lol");
-		}
-		
-	}
-	@Override
-	public Set<Entry<K, V>> entrySet() {
-		// TODO Auto-generated method stub
-		return IntStream.range(0,values.size()/2)
-				.mapToObj(x->new Entry_<K,V>(values.get(x*2),values.get(x*2+1)))
-				.collect(Collectors.toUnmodifiableSet());
-		
-	}
-}
-*/
 interface QueueTable<E>{
 	public int size();
 	public int indexOf(E e);
 	public E get(int e);
 	public void push(E e);
 	public E removeFirst();
-	public static <E> QueueTable<E> newInstance(String strategy){
+	public static <E> QueueTable<E> doubleAccess(String strategy){
 		return switch(strategy) {
 			case "MAP"->new DoubleMapQueueTable<>();
 			case "LINKEDLIST"->new LinkedListQueueTable<>();
 			default->null;
 		};
 	}
-	public static <E> QueueTable<E> intAccess(){
-		return new IndexOnlyQueueTable<>();
+	public static <E> QueueTable<E> intAccess(String strategy){
+		return switch(strategy) {
+			case "MAP"->new IndexOnlyQueueTable<>();
+			case "LINKEDLIST"->new LinkedListQueueTable<>();
+			default->null;
+		};
 	}
-	public static QueueTable<Entry> eAccess(){
-		return new CounterQueueTable();
+	public static <E> QueueTable<E> eAccess(String strategy){
+		return switch(strategy) {
+			case "MAP"->new CounterOnlyQueueTable<>();
+			case "LINKEDLIST"->new LinkedListQueueTable<>();
+			default->null;
+		};
 	}
 }
 class IndexOnlyQueueTable<E> extends HashMap<Integer,E> implements QueueTable<E>{
@@ -834,30 +800,30 @@ class IndexOnlyQueueTable<E> extends HashMap<Integer,E> implements QueueTable<E>
 	}
 	
 }
-class CounterQueueTable extends LinkedHashMap<Entry,Integer> implements QueueTable<Entry>{
+class CounterOnlyQueueTable<E> extends LinkedHashMap<E,Integer> implements QueueTable<E>{
 	private static final long serialVersionUID = -980613595004270736L;
 	int offset=0;
 	@Override
-	public int indexOf(xyz.hydar.Entry e) {
+	public int indexOf(E e) {
 		// TODO Auto-generated method stub
 		Integer tmp=super.get(e);
 		return tmp==null?-1:(size()-1-tmp)+offset;
 	}
 
 	@Override
-	public void push(xyz.hydar.Entry e) {
+	public void push(E e) {
 		super.put(e,super.size()+offset);
 	}
 
 	@Override
-	public xyz.hydar.Entry get(int e) {
+	public E get(int e) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public xyz.hydar.Entry removeFirst() {
+	public E removeFirst() {
 		// TODO Auto-generated method stub
-		Entry key=keySet().iterator().next();
+		E key=keySet().iterator().next();
 		if(remove(key) != null)offset++;
 		return key;
 	}
