@@ -555,12 +555,11 @@ public class HydarEE{
 		}
 		private static Map<String,String> queryParams(String query){
 			return Arrays.stream(query.split("&"))
-					.map(x->x.split("=",-1))
-					.filter(x->x.length>=2)
+					.map(x->x.split("=",2))
 					.collect(
 						toUnmodifiableMap(
 							x->URLDecoder.decode(x[0],UTF_8),
-							x->URLDecoder.decode(x[1],UTF_8),
+							x->x.length==1?"":URLDecoder.decode(x[1],UTF_8),
 							(x,y)->y
 						)
 					);
