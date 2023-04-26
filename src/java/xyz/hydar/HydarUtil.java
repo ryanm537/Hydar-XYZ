@@ -837,10 +837,6 @@ class DoubleMapQueueTable<E> extends DoubleMap<E> implements QueueTable<E>{
 }
 class LinkedListQueueTable<E> extends LinkedList<E> implements QueueTable<E>{
 	private static final long serialVersionUID = 417098369646560712L;
-	@Override
-	public void push(E e) {
-		super.push(e);
-	}
 }
 /**TODO: move to hydar(subclass)*/
 abstract class Limiter{
