@@ -84,43 +84,16 @@ enum Encoding{
 }
 class Response{
 	/**TODO:retry after(503/429)*/
-	private final Map<String,String> headers;
-	private final byte[] data;
-	private final Resource resource;
-	final long length;
-	private final boolean sendLength;
-	private final boolean sendData;
-	private final Encoding enc;
-	private final long offset;
-	private final Limiter limiter;
-	private final OutputStream output;
-	private final Optional<HStream> hs;
 	static final byte[] CRLF="\r\n".getBytes(ISO_8859_1);
 	static final byte[] COLONSPACE=": ".getBytes(ISO_8859_1);
-	private volatile ByteBuffer streamBuffer;
-	private final boolean firstChunk;
-	private final boolean lastChunk;
-	private final boolean chunked;
-	private final String version;
-	private final String responseStatus;
 	
 	
-	public static Builder builder() {
-		return new Builder("200");
-	}
-	public static Builder builder(int status) {
-		return new Builder(status);
-	}
-	public static Builder builder(String status) {
-		return new Builder(status);
-	}
 	static class Builder{
 		//TODO: consider array instead of maps since getting headers from responses is rare
 		private String responseStatus="200";
 		private Map<String,String> headers= new HashMap<>();
 		private byte[] data;
 		private Resource resource;
-		private long length;
 		private boolean sendLength=true;
 		private boolean sendData=true;
 		private boolean chunked;
@@ -129,9 +102,11 @@ class Response{
 		Encoding enc=Encoding.identity;
 		private int offset;
 		private Limiter limiter;
-		private OutputStream os;
+		private OutputStream output;
 		private String version="HTTP/1.1";
 		private Optional<HStream> hs=Optional.empty();
+		private ByteBuffer streamBuffer;
+		public long length;
 		public Builder(int status){
 			this(Integer.toString(status));
 		}
@@ -312,60 +287,180 @@ class Response{
 			this.version=version;
 			return this;
 		}
-		public Response build() {
-			return new Response(this);
-		}
 		public Builder output(OutputStream o) {
-			this.os=o;
+			this.output=o;
 			return this;
 		}
 		public Builder hstream(Optional<HStream> hs) {
 			this.hs=hs;
 			return this;
 		}
-		public void write() throws IOException {
-			build().write();
+		//(http/1.1 write) otherwise use stream.write or something
+		void writeHeaders(OutputStream o, Optional<HStream> hs,Limiter limiter) throws IOException{
+			//System.out.println(hs.map(x->x.number).orElse(0)+" "+chunked+" "+firstChunk+" "+lastChunk);
+			if(chunked && !firstChunk)
+				return;
+			
+			if(hs.isEmpty()) {
+				String status=getStatus();
+				String version=getVersion();
+				System.out.write(("............< "+toString()).getBytes());
+				String fl = version+" "+status+" "+HydarUtil.httpInfo(status);
+				BAOS baos = new BAOS(256);
+				baos.write(fl.getBytes(ISO_8859_1));
+				baos.write(CRLF);
+				for(var e:headers.entrySet()){
+					String k=e.getKey();
+					if(k.isEmpty()||k.startsWith(":"))
+						continue;
+					String v=e.getValue();
+					baos.write((k).getBytes(ISO_8859_1));
+					baos.write(COLONSPACE);
+					if(k.equals("Set-Cookie"))
+						for(String s:v.split(","))
+							baos.write((s).getBytes(ISO_8859_1));
+					else baos.write((v).getBytes(ISO_8859_1));
+					baos.write(CRLF);
+				}
+				baos.write(CRLF);
+				limiter.force(Token.OUT,baos.size());
+				baos.writeTo(o);
+			}else{
+				//WRITE TO H
+				HStream h=hs.orElseThrow();
+				if(!h.canSend()){
+					return;
+				}
+				BAOS j = new BAOS(256);
+				final var thread = h.h2.thread;
+				final var lock = thread.lock;
+				boolean huffman=Hydar.threadCount.get()>Config.MAX_THREADS/2;
+				boolean noData=length==0||!this.sendData;
+				Frame hf=Frame.of(Frame.HEADERS,h)
+						.limiter(limiter)
+						.endHeaders()
+						.endStream(noData);
+				var compressor=h.h2.compressor;
+				
+				lock.lock();
+				try {
+					compressor.writeField(j, new Entry(":status",responseStatus), huffman);
+					compressor.writeFields(j, headers, huffman);
+					hf.withBuffer(h.h2.output(j.size()+9));
+					//System.out.println(this+"---->"+HexFormat.of().formatHex(j.buf(),0,j.size()));
+					hf.withData(j).writeTo(o,noData);
+				}finally { 
+					lock.unlock();
+				}
+			}
 		}
-	}
-	private Response(Builder builder) {
-		this.headers = builder.headers;
-		this.data = builder.data;
-		this.version=builder.version;
-		this.resource = builder.resource;
-		this.length = builder.length;
-		this.sendLength = builder.sendLength;
-		this.sendData = builder.sendData;
-		this.enc = builder.enc;
-		this.offset = builder.offset;
-		this.limiter = builder.limiter;
-		this.firstChunk = builder.firstChunk;
-		this.chunked=builder.chunked;
-		this.lastChunk=builder.lastChunk;
-		this.output=builder.os;
-		this.hs=builder.hs;
-		this.responseStatus = builder.responseStatus;
+		private String getStatus() {
+			return responseStatus;
+		}
+		private String getVersion() {
+			return version;
+			
+		}
+		public String getInfo() {
+			return HydarUtil.httpInfo(getStatus());
+		}
+		@Override
+		public String toString() {
+			return getVersion()+" "+getStatus()+"("+getInfo()+")"+((length!=0&&sendData)?(": "+length+(sendLength?"":"*")+" bytes\n"):"\n");
+		}
+		//zip here maybe.
+		
+		
+		public void defaults(){
+			if(this.sendLength && !this.chunked)
+				headers.putIfAbsent("Content-Length",""+length);
+			if(Config.SERVER_HEADER.length()>0)
+				headers.putIfAbsent("Server",Config.SERVER_HEADER);
+			headers.putIfAbsent("Expires","Thu, 01 Dec 1999 16:00:00 GMT");
+			headers.putIfAbsent("Referrer-Policy","origin");
+			if(Config.SSL_ENABLED&&Config.SSL_HSTS){
+				headers.putIfAbsent("Strict-Transport-Security","max-age=63072000; includeSubDomains; preload");
+			}
+			if(chunked && getVersion().equals("HTTP/1.1"))
+				headers.putIfAbsent("Transfer-Encoding","chunked");
+			if(Config.SEND_DATE)
+				headers.putIfAbsent("Date",HydarUtil.SDF.format(ZonedDateTime.now(ZoneId.of("GMT"))));
+			if(getVersion().equals("HTTP/1.1")&&Config.H2_ENABLED&&!Config.SSL_ENABLED){
+				headers.putIfAbsent("Alt-Svc","h2c=\":"+Config.PORT+"\"; ma=2592000; persist=1");
+			}
+		}
+		public void write() throws IOException{
+			//System.out.println("gz "+enc+" chunked "+chunked+"last "+lastChunk+"first "+firstChunk+" sd"+sendData+" l"+length);
+			var output=this.output;
+			defaults();
+			writeHeaders(output,this.hs,limiter);
+			final InputStream stream;  
+			var limiter=hs.map(h->h.h2.thread.limiter).orElse(Limiter.UNLIMITER);
+			if(sendData&&data==null&&resource!=null) {
+				stream = resource.asStream(enc);
+				stream.skip(offset);
+			}else stream=null;
+			if(!sendData || length==0)
+				return;
+			try(stream){
+				if(output==null)
+					return;
+				if(hs.isEmpty()){
+					if(this.length>0) {
+						if(data==null) {
+							byte[] buffer=new byte[(int) Math.min(length,16384)];
+							for(long off=0;off<length;off+=writeStream(output,limiter,stream,buffer, 16384,chunked));
+						}else {
+							for(int off=0;off<(int)length;off+=writeArr(output,limiter,data,offset+off, 16384,(int)length, chunked));
+						}
+					}
+					//chunk terminator
+					if(chunked && lastChunk)
+						writeArr(output,limiter,new byte[0],0,0,0,true);
+					output.flush();
+				}
+				else{
+					//WRITE TO H
+					var h = hs.orElseThrow();
+					var thread=h.h2.thread;
+					int maxSize=h.h2.remoteSettings[Setting.SETTINGS_MAX_FRAME_SIZE];
+					long offset=this.offset;
+					long originalSize=length+this.offset;
+		
+					thread.lock.lock();
+					try {
+						streamBuffer=h.h2.output(Math.min((int)length,maxSize)+9);
+					}finally {
+						thread.lock.unlock();
+					}
+					Frame tmp=Frame.of(Frame.DATA,h)
+						.limiter(limiter)
+						.lock(thread.lock);
+					do{
+						int flength=(int)Math.min(originalSize-offset,maxSize);
+						//if(resource!=null)
+						//System.out.println(length+" --> "+flength);
+						boolean endStream=(offset+flength==originalSize)&&(!chunked || lastChunk);
+						tmp.endStream(endStream);
+						if(data==null) {
+							//System.out.println("streamed write");
+							tmp.withData(stream,flength,streamBuffer);
+						}else{
+							//System.out.println("byte[] write");
+							tmp.withData(data,(int)offset,flength)
+								.withBuffer(streamBuffer);
+						}
+						tmp.writeTo(output,endStream);
+						offset+=flength;
+					}while(thread.alive && offset<originalSize && h.canSend());
+				}
+			}
+					//h.thread.alive=false;
+		}
 	}
 	//zip here maybe.
 	
 	
-	public void defaults(){
-		if(this.sendLength && !this.chunked)
-			headers.putIfAbsent("Content-Length",""+length);
-		if(Config.SERVER_HEADER.length()>0)
-			headers.putIfAbsent("Server",Config.SERVER_HEADER);
-		headers.putIfAbsent("Expires","Thu, 01 Dec 1999 16:00:00 GMT");
-		headers.putIfAbsent("Referrer-Policy","origin");
-		if(Config.SSL_ENABLED&&Config.SSL_HSTS){
-			headers.putIfAbsent("Strict-Transport-Security","max-age=63072000; includeSubDomains; preload");
-		}
-		if(chunked && getVersion().equals("HTTP/1.1"))
-			headers.putIfAbsent("Transfer-Encoding","chunked");
-		if(Config.SEND_DATE)
-			headers.putIfAbsent("Date",HydarUtil.SDF.format(ZonedDateTime.now(ZoneId.of("GMT"))));
-		if(getVersion().equals("HTTP/1.1")&&Config.H2_ENABLED&&!Config.SSL_ENABLED){
-			headers.putIfAbsent("Alt-Svc","h2c=\":"+Config.PORT+"\"; ma=2592000; persist=1");
-		}
-	}
 	static int writeArr(OutputStream os, Limiter limiter, byte[] buffer, int offset, int length,int max, boolean chunk) throws IOException {
 		int len = Math.min(max-offset,length);
 		limiter.force(Token.OUT, 9+len);
@@ -392,150 +487,12 @@ class Response{
 		}
 		return l;
 	}
-	//(http/1.1 write) otherwise use stream.write or something
-	void writeHeaders(OutputStream o, Optional<HStream> hs,Limiter limiter) throws IOException{
-		//System.out.println(hs.map(x->x.number).orElse(0)+" "+chunked+" "+firstChunk+" "+lastChunk);
-		if(chunked && !firstChunk)
-			return;
-		
-		if(hs.isEmpty()) {
-			String status=getStatus();
-			String version=getVersion();
-			System.out.write(("............< "+toString()).getBytes());
-			String fl = version+" "+status+" "+HydarUtil.httpInfo(status);
-			BAOS baos = new BAOS(256);
-			baos.write(fl.getBytes(ISO_8859_1));
-			baos.write(CRLF);
-			for(var e:headers.entrySet()){
-				String k=e.getKey();
-				if(k.isEmpty()||k.startsWith(":"))
-					continue;
-				String v=e.getValue();
-				baos.write((k).getBytes(ISO_8859_1));
-				baos.write(COLONSPACE);
-				if(k.equals("Set-Cookie"))
-					for(String s:v.split(","))
-						baos.write((s).getBytes(ISO_8859_1));
-				else baos.write((v).getBytes(ISO_8859_1));
-				baos.write(CRLF);
-			}
-			baos.write(CRLF);
-			limiter.force(Token.OUT,baos.size());
-			baos.writeTo(o);
-		}else{
-			//WRITE TO H
-			HStream h=hs.orElseThrow();
-			if(!h.canSend()){
-				return;
-			}
-			BAOS j = new BAOS(256);
-			final var thread = h.h2.thread;
-			final var lock = thread.lock;
-			boolean huffman=Hydar.threadCount.get()>Config.MAX_THREADS/2;
-			boolean noData=length==0||!this.sendData;
-			Frame hf=Frame.of(Frame.HEADERS,h)
-					.limiter(limiter)
-					.endHeaders()
-					.endStream(noData);
-			var compressor=h.h2.compressor;
-			
-			lock.lock();
-			try {
-				compressor.writeField(j, new Entry(":status",responseStatus), huffman);
-				compressor.writeFields(j, headers, huffman);
-				hf.withBuffer(h.h2.output(j.size()+9));
-				//System.out.println(this+"---->"+HexFormat.of().formatHex(j.buf(),0,j.size()));
-				hf.withData(j).writeTo(o,noData);
-			}finally { 
-				lock.unlock();
-			}
-		}
-	}
-	public void write() throws IOException{
-		//System.out.println("gz "+enc+" chunked "+chunked+"last "+lastChunk+"first "+firstChunk+" sd"+sendData+" l"+length);
-		var output=this.output;
-		defaults();
-		writeHeaders(output,this.hs,limiter);
-		final InputStream stream;  
-		var limiter=hs.map(h->h.h2.thread.limiter).orElse(Limiter.UNLIMITER);
-		if(sendData&&data==null&&resource!=null) {
-			stream = resource.asStream(enc);
-			stream.skip(offset);
-		}else stream=null;
-		if(!sendData || length==0)
-			return;
-		try(stream){
-			if(output==null)
-				return;
-			if(hs.isEmpty()){
-				if(this.length>0) {
-					if(data==null) {
-						byte[] buffer=new byte[(int) Math.min(length,16384)];
-						for(long off=0;off<length;off+=writeStream(output,limiter,stream,buffer, 16384,chunked));
-					}else {
-						for(int off=0;off<(int)length;off+=writeArr(output,limiter,data,(int)offset+off, 16384,(int)length, chunked));
-					}
-				}
-				//chunk terminator
-				if(chunked && lastChunk)
-					writeArr(output,limiter,new byte[0],0,0,0,true);
-				output.flush();
-			}
-			else{
-				//WRITE TO H
-				var h = hs.orElseThrow();
-				var thread=h.h2.thread;
-				int maxSize=h.h2.remoteSettings[Setting.SETTINGS_MAX_FRAME_SIZE];
-				long offset=this.offset;
-				long originalSize=length+this.offset;
-
-				thread.lock.lock();
-				try {
-					streamBuffer=h.h2.output(Math.min((int)length,maxSize)+9);
-				}finally {
-					thread.lock.unlock();
-				}
-				Frame tmp=Frame.of(Frame.DATA,h)
-					.limiter(limiter)
-					.lock(thread.lock);
-				do{
-					int flength=(int)Math.min(originalSize-offset,maxSize);
-					//if(resource!=null)
-					//System.out.println(length+" --> "+flength);
-					boolean endStream=(offset+flength==originalSize)&&(!chunked || lastChunk);
-					tmp.endStream(endStream);
-					if(data==null) {
-						//System.out.println("streamed write");
-						tmp.withData(stream,flength,streamBuffer);
-					}else{
-						//System.out.println("byte[] write");
-						tmp.withData(data,(int)offset,flength)
-							.withBuffer(streamBuffer);
-					}
-					tmp.writeTo(output,endStream);
-					offset+=flength;
-				}while(thread.alive && offset<originalSize && h.canSend());
-			}
-		}
-				//h.thread.alive=false;
-	}
 	//TODO:429 is literally never sent
 	public static String getErrorPage(String code) {
 		return Config.errorPages.getOrDefault(code,Config.errorPages.get("default"));
 	}
-	private String getStatus() {
-		return responseStatus;
-	}
-	private String getVersion() {
-		return version;
-		
-	}
-	public String getInfo() {
-		return HydarUtil.httpInfo(getStatus());
-	}
-	@Override
-	public String toString() {
-		return getVersion()+" "+getStatus()+"("+getInfo()+")"+((length!=0&&sendData)?(": "+length+(sendLength?"":"*")+" bytes\n"):"\n");
+	public static Builder builder(String code) {
+		return new Builder(code);
 	}
 
 }
@@ -982,7 +939,7 @@ class ServerThread implements Runnable {
 					this.alive=false;
 					return;
 				}
-				Response resp = ret.toHTTP();
+				Response.Builder resp = ret.toHTTP();
 				if(resp.length==0 && ret.getStatus()>=400){
 					sendError(""+ret.getStatus(),hstream);
 					return;
@@ -1012,7 +969,7 @@ class ServerThread implements Runnable {
 		}
 	}
 	protected Response.Builder newResponse(int code, Optional<HStream> hs) {
-		var build= Response.builder(code).version(h2==null?"HTTP/1.1":"HTTP/2.0").hstream(hs).output(output).limiter(limiter);
+		var build= Response.builder(""+code).version(h2==null?"HTTP/1.1":"HTTP/2.0").hstream(hs).output(output).limiter(limiter);
 		if(isHead)build.disableLength().disableData();
 		return build;
 	}

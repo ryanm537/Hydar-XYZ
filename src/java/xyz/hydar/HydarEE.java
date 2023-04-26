@@ -461,7 +461,7 @@ public class HydarEE{
 			request.path.substring(0,request.path.lastIndexOf(".")):
 			request.path;
 		Average avg=estLength.computeIfAbsent(name,x->new Average());
-		var resp = new HttpServletResponse(Response.builder(), avg.avg());
+		var resp = new HttpServletResponse(new Response.Builder(200), avg.avg());
 		resp.withRequest(request);
 		jsp_dispatch(name, request, resp);
 		return resp;
@@ -760,7 +760,7 @@ public class HydarEE{
 				baos.write(baos.buf(),0,baos.size());
 			}
 		}
-		private Response commit() {
+		private Response.Builder commit() {
 			if(!committed) {
 				builder.status(sc);
 				if(!Config.ZIP_MIMES.contains(getContentType().split(";")[0].trim()))
@@ -769,7 +769,7 @@ public class HydarEE{
 			committed=true;
 			out.flush();
 			builder.data(baos.buf(),0,baos.size());
-			return builder.build();
+			return builder;
 		}
 		//called to start stream
 		//==>if not committed yet, set start flag
@@ -782,7 +782,7 @@ public class HydarEE{
 		}
 		//called to receive the actual response
 		//[or last chunk] => flush can never return a last chunk
-		public Response toHTTP() {
+		public Response.Builder toHTTP() {
 			if(committed)
 				builder.lastChunk();
 			return commit();
@@ -793,7 +793,7 @@ public class HydarEE{
 		public void reset() {
 			resetBuffer();
 			if(onReset!=null)builder=onReset.get();
-			else builder=Response.builder();
+			else builder=new Response.Builder(200);
 			sc=200;
 			setDefaults();
 		}
