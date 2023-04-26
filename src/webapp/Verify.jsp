@@ -126,33 +126,32 @@ try(Connection conn=dataSource.getConnection();
 		<div class = "hydarlogo">
 		<img src="images/hydar.png" alt="hydar" >
 		</div>
-		
-		<%
-				out.print("<p style = \"color:rgb(255,255,255); font-family:calibri; font-size:20px; z-index:1; position:absolute; text-align:right; left:50%; display:block; top:calc(50% - 130px);\">"); 
-								out.print("Username not found or <br>incorrect password<br>\n");
-								out.print("<br>");
-								out.print("<form method=\"get\" action=\"Login.jsp\" style = \"color:rgb(255,255,255); font-family:calibri; font-size:20px; z-index:1; position:absolute; text-align:right; left:calc(50% + 130px); display:block; top:calc(50% - 50px);\">");
-								out.print("<td><input value=\"Back\" type=\"submit\" class = \"button3\"></td>");
-								out.print("</form>");
-							}else{
-								//redirect to homepage
-								session.setAttribute("userid", result.getInt("id"));
-								session.setAttribute("username", inputtedU);
-								session.setMaxInactiveInterval(-1);
-								out.print("<form action=\"targetServlet\">");
-								response.sendRedirect(response.encodeURL("MainMenu.jsp"));
-								out.print("</form>");
-							}
-							conn.close();
-						} catch (Exception e){
-							out.print("<style> body{color:rgb(255,255,255); font-family:calibri; text-align:center; font-size:20px;}</style>");
-							out.print("A known error has occurred\n");
-							out.print("<br><br>");
-							out.print("<form method=\"post\" action=\""+response.encodeURL("Logout.jsp")+"\">");
-							out.print("<td><input type=\"submit\" value=\"Back to login\"></td>");
-							out.print("</form>");
-							e.printStackTrace();
-						}
-				%>
+<%
+		out.print("<p style = \"color:rgb(255,255,255); font-family:calibri; font-size:20px; z-index:1; position:absolute; text-align:right; left:50%; display:block; top:calc(50% - 130px);\">"); 
+		out.print("Username not found or <br>incorrect password<br>\n");
+		out.print("<br>");
+		out.print("<form method=\"get\" action=\"Login.jsp\" style = \"color:rgb(255,255,255); font-family:calibri; font-size:20px; z-index:1; position:absolute; text-align:right; left:calc(50% + 130px); display:block; top:calc(50% - 50px);\">");
+		out.print("<td><input value=\"Back\" type=\"submit\" class = \"button3\"></td>");
+		out.print("</form>");
+	}else{
+		//redirect to homepage
+		session.setAttribute("userid", result.getInt("id"));
+		session.setAttribute("username", inputtedU);
+		session.setMaxInactiveInterval(-1);
+		out.print("<form action=\"targetServlet\">");
+		response.sendRedirect(response.encodeURL("MainMenu.jsp"));
+		out.print("</form>");
+	}
+	conn.close();
+} catch (Exception e){
+	out.print("<style> body{color:rgb(255,255,255); font-family:calibri; text-align:center; font-size:20px;}</style>");
+	out.print("A known error has occurred\n");
+	out.print("<br><br>");
+	out.print("<form method=\"post\" action=\""+response.encodeURL("Logout.jsp")+"\">");
+	out.print("<td><input type=\"submit\" value=\"Back to login\"></td>");
+	out.print("</form>");
+	e.printStackTrace();
+}
+%>
 </body>
 </html>

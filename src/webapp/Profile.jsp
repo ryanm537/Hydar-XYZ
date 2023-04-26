@@ -141,7 +141,7 @@ try(Connection conn=dataSource.getConnection()){
 			out.print("<style> p4 .test{} .test:hover{transform:scale(1.3);} </style>");
 			
 			out.print("<br><style> body{color:rgb(255,255,255); font-family:calibri; text-align:center; font-size:30px;position:relative; top:20px}</style>");
-			//TODO: html injection
+			
 			out.print("<p4 class = \"test\"><b>" + session.getAttribute("username").toString() +"</b>&nbsp&nbsp(#" + session.getAttribute("userid").toString()+ ")</p4>");
 		%>
 

@@ -32,7 +32,7 @@ function wrapMessage(x){//generate html for a message element
 	<div class = 'rectangleText'><b>${user.username}<br>Id# - ${user.id}</b><br><a href = 'CreateBoard.jsp?input_dm=${user.id}'>Send direct message</a></div></div>
 	<div id='three_${x.id}' class='three'>&nbsp;(just now): </div><br>
 	<div class='msgText' id='msgText_${x.id}' data-tid='${x.transaction}' 
-		style='opacity:${x.verified?1:0.5}'>${decodeURIComponent(x.message)}</div>
+		style='opacity:${x.verified?1:0.5}'>${decodeURIPlus(x.message)}</div>
 	<br clear='left'>
 	</div>`;
 	
@@ -121,7 +121,7 @@ function replaceMessage(m){//given a message object, replace its element
 	if(tmp ||ms!=null){
 		var isNew=window.getComputedStyle(mt).opacity==0.5;
 		var tmpDiv=document.createElement("div");
-		tmpDiv.innerHTML=decodeURIComponent(m.message);
+		tmpDiv.innerHTML=decodeURIPlus(m.message);
 		var diff=mt.textContent!=tmpDiv.textContent;
 		if(diff){
 			//console.log("DIFF%%%");
@@ -468,8 +468,8 @@ function initUsers(list, myId=me.id, ownerID=-1){
 	var setMe=false;
 	list=list.map(u=>u.id==null?{"id":u}:u);
 	for(var u of list){
-		u.username=!u.username?DEFAULT_USERNAME:decodeURIComponent(u.username);
-		u.pfp=!u.pfp?DEFAULT_PFP:decodeURIComponent(u.pfp);
+		u.username=!u.username?DEFAULT_USERNAME:decodeURIPlus(u.username);
+		u.pfp=!u.pfp?DEFAULT_PFP:decodeURIPlus(u.pfp);
 		if(!u.vols)
 			u.vols=DEFAULT_VOLS;
 		//nullables to boolean
@@ -506,8 +506,8 @@ function initUsers(list, myId=me.id, ownerID=-1){
 	boardId=parseInt(cmd[1]);
 	
 	const ownerID=parseInt(cmd[2]);
-	boardName=decodeURIComponent(cmd[3]);
-	boardImage="menuImages/"+decodeURIComponent(cmd[4]);
+	boardName=decodeURIPlus(cmd[3]);
+	boardImage="menuImages/"+decodeURIPlus(cmd[4]);
 	channelof=parseInt(cmd[5]);
 	readonly=parseInt(cmd[6]);
 	isDm=parseInt(cmd[7]);
@@ -516,7 +516,7 @@ function initUsers(list, myId=me.id, ownerID=-1){
 	channels =cmd.split(";")
 		.filter(x=>x.length>0)
 		.map(x=>x.split(":"))	
-		.map(x=>({"id":x[0],"name":decodeURIComponent(x[1])}));
+		.map(x=>({"id":x[0],"name":decodeURIPlus(x[1])}));
 }
 function update(cmd){
 	//parse board name/icon/... from server message
@@ -608,6 +608,9 @@ function newMessage(cmd){//new message from server(different packet from update)
 		document.querySelector("link[rel*='icon']").href = "favicon2.ico";
 		document.getElementById("bar").removeAttribute("hidden");
 	}
+}
+function decodeURIPlus(x){
+	return [...new URLSearchParams(x).keys()].join()
 }
 function decode(x){
 	var a=atob(x);

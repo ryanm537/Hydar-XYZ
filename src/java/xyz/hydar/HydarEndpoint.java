@@ -168,7 +168,7 @@ class Message{
 			.append("{\"id\":").append(id)
 			.append(",\"uid\":").append(uid)
 			.append(",\"time\":").append(time)
-			.append(",\"message\":\"").append(URLEncoder.encode(message,UTF_8).replace("+","%20"));
+			.append(",\"message\":\"").append(URLEncoder.encode(message,UTF_8));
 		if(includeTID&&transaction!=1)
 			x.append("\",\"transaction\":").append(this.transaction);
 		else x.append("\"");
@@ -245,6 +245,7 @@ record Channel(int id, String name){
 		return id+":"+name;
 	}
 }
+/**TODO: DAL and separate hydar packages or something*/
 /**todo: scale or something*/
 class Board{
 	public final List<HydarEndpoint> users= new CopyOnWriteArrayList<>();
@@ -688,7 +689,7 @@ class Board{
 					else if(cmd.equals("/rename")){
 						String newname = inputText.substring(inputText.indexOf(" ") + 1);
 						inputText = "Renamed board to " + newname;
-						newname=URLEncoder.encode(newname,UTF_8).replace("+","%20");
+						newname=URLEncoder.encode(newname,UTF_8);
 						this.name=newname;
 						HydarEE.jsp_invoke("EditBoardSettings",session,"newName=" + newname + "&board_num="+this.boardId);
 						done = 1;
@@ -700,7 +701,7 @@ class Board{
 					else if(cmd.equals("/createchannel")){
 						inputText = inputText.replace("<", "&lt;");
 						String channelName = inputText.substring(inputText.indexOf(" ") + 1);
-						channelName=URLEncoder.encode(channelName,UTF_8).replace("+","%20");
+						channelName=URLEncoder.encode(channelName,UTF_8);
 						HttpServletResponse ret;
 						if(channelOf == -1){
 							ret=HydarEE.jsp_invoke("CreateBoard",session,"input_create="+ channelName +"&channelof=" + this.boardId);

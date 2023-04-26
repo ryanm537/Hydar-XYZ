@@ -18,7 +18,7 @@ static final String USER_QUERY=(
 
 
 static String urlenc(String in){
-	return URLEncoder.encode(in,StandardCharsets.UTF_8).replace("+","%20");
+	return URLEncoder.encode(in,StandardCharsets.UTF_8);
 } 
 %>
 <%
