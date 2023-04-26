@@ -122,7 +122,7 @@ function replaceMessage(m){//given a message object, replace its element
 		var isNew=window.getComputedStyle(mt).opacity==0.5;
 		var tmpDiv=document.createElement("div");
 		tmpDiv.innerHTML=decodeURIPlus(m.message);
-		var diff=mt.textContent!=tmpDiv.textContent;
+		var diff=(mt.textContent!=tmpDiv.textContent)||(tmpDiv.children.length != mt.children.length);
 		if(diff){
 			//console.log("DIFF%%%");
 			//console.log(mt.textContent);
