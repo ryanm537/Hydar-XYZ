@@ -295,7 +295,7 @@ public class HydarHP {
 	};
 	//private LinkedList<Entry> table=new LinkedList<>();
 	//TODO: separate decomp/comp -> use array for decomp, map<str,int> for comp
-	private QueueTable<Entry> table=QueueTable.newInstance(Config.H2_HPACK_TABLE_STRATEGY);
+	private QueueTable<Entry> table;
 	private volatile int tableSize;
 	private int maxTableSize;
 	private int tableSizeLimit=65536;
@@ -314,6 +314,13 @@ public class HydarHP {
 			@Override
 			public void unlock() {}
 		};
+		table=QueueTable.newInstance(Config.H2_HPACK_TABLE_STRATEGY);
+		//System.arraycopy(STATIC_TABLE,0,table,0,STATIC_TABLE.length);
+	}public HydarHP(int tableSizeLimit, boolean compress) {
+		this(tableSizeLimit);
+		table=compress?
+				QueueTable.eAccess()
+				:QueueTable.intAccess();
 		//System.arraycopy(STATIC_TABLE,0,table,0,STATIC_TABLE.length);
 	} 
 	private Entry get(int index) {
@@ -347,6 +354,7 @@ public class HydarHP {
 	}
 	public void readFields(InputStream dis, Map<String,String> block) throws IOException{
 		while(readField(dis,block));
+		//System.out.println("in: "+block);
 	}
 	public boolean readField(InputStream dis, Map<String,String> block) throws IOException{
 		int first = dis.read();
@@ -449,7 +457,7 @@ public class HydarHP {
 		}else {
 			int si=Arrays.binarySearch(STATIC_TABLE,e,Entry.NAME_AND_VALUE);
 			if(si<0) {
-				int ni=Arrays.binarySearch(STATIC_TABLE,new Entry(k,null),Entry.NAME_ONLY);
+				int ni=Arrays.binarySearch(STATIC_TABLE,e,Entry.NAME_ONLY);
 				if(ni<0) {
 					//System.out.println("INC-ADD DYNAMIC");
 					//Prefix prefix = k.equals("set-cookie")?Prefix.NEVER_INDEX:Prefix.INCREMENTAL;
@@ -484,6 +492,7 @@ public class HydarHP {
 					writeField(dos,new Entry(k2,x),huffman);
 			}else writeField(dos,new Entry(k2,v),huffman);
 		}
+		//System.out.println("Out: "+block);
 	}
 	public static void encodeInt(Prefix prefix, OutputStream dos, int i) throws IOException{
 		int n = 8-prefix.length();

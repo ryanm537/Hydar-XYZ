@@ -39,13 +39,16 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -802,8 +805,91 @@ interface QueueTable<E>{
 			default->null;
 		};
 	}
+	public static <E> QueueTable<E> intAccess(){
+		return new ArrayQueueTable<>();
+	}
+	public static QueueTable<Entry> eAccess(){
+		return new CounterQueueTable();
+	}
 }
+record Tuple<K>(K e, int count){
+	@Override
+	public boolean equals(Object o) {
+		return o!=null && o instanceof Tuple<?> t && t.count==count;
+	}
+	@Override
+	public int hashCode() {
+		return count;
+	}
+}
+class ArrayQueueTable<E> extends TreeSet<Tuple<E>> implements QueueTable<E>{
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 392809410070860989L;
+	int offset=0;
+	public ArrayQueueTable() {
+		super(Comparator.comparingInt(x->x.count()));
+	}
+	@Override
+	public int get(E e) {
+		throw new UnsupportedOperationException();
+	}
 
+	@Override
+	public E get(int e) {
+		Tuple<E> target=super.floor(new Tuple<>(null,(size()-1-e)+offset));
+		//System.out.println(target.count()+" "+(e+offset));
+		//System.out.println(this);
+		if(target.count()!=(size()-1-e)+offset)return null;
+		return target==null?null:target.e();
+	}
+
+	@Override
+	public void push(E e) {
+		if(!add(new Tuple<>(e,size()+offset)))
+			System.exit(0);
+	}
+
+	@Override
+	public E removeFirst() {
+		// TODO Auto-generated method stub
+		Tuple<E> ele=super.pollFirst();
+		if(ele!=null)
+			offset++;
+		return ele==null?null:ele.e();
+	}
+	
+}
+class CounterQueueTable extends LinkedHashMap<Entry,Integer> implements QueueTable<Entry>{
+	private static final long serialVersionUID = -980613595004270736L;
+	int offset=0;
+	@Override
+	public int get(xyz.hydar.Entry e) {
+		// TODO Auto-generated method stub
+		Integer tmp=super.get(e);
+		return tmp==null?-1:(size()-1-tmp)+offset;
+	}
+
+	@Override
+	public void push(xyz.hydar.Entry e) {
+		super.put(e,super.size()+offset);
+	}
+
+	@Override
+	public xyz.hydar.Entry get(int e) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public xyz.hydar.Entry removeFirst() {
+		// TODO Auto-generated method stub
+		Entry key=keySet().iterator().next();
+		if(remove(key) != null)offset++;
+		return key;
+	}
+	
+}
 class DoubleMapQueueTable<E> extends DoubleMap<E> implements QueueTable<E>{
 	@Override
 	public E get(int e) {

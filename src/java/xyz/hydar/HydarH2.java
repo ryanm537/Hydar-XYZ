@@ -58,8 +58,8 @@ public class HydarH2{
 	public static final Frame SETTINGS_ACK=Frame.of(Frame.SETTINGS).ackFlag();
 	public HydarH2(ServerThread thread) throws IOException {
 		this.thread=thread;
-		compressor = new HydarHP(localSettings[Setting.SETTINGS_HEADER_TABLE_SIZE]);
-		decompressor = new HydarHP(remoteSettings[Setting.SETTINGS_HEADER_TABLE_SIZE]);
+		compressor = new HydarHP(localSettings[Setting.SETTINGS_HEADER_TABLE_SIZE], true);
+		decompressor = new HydarHP(remoteSettings[Setting.SETTINGS_HEADER_TABLE_SIZE], false);
 		thread.client.setSoTimeout(Config.H2_LIFETIME);
 		incoming.limiter(thread.limiter);
 		sendSettings();
