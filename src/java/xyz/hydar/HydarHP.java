@@ -294,7 +294,6 @@ public class HydarHP {
 			new Entry("www-authenticate",null)
 	};
 	//private LinkedList<Entry> table=new LinkedList<>();
-	//TODO: separate decomp/comp -> use array for decomp, map<str,int> for comp
 	private QueueTable<Entry> table;
 	private volatile int tableSize;
 	private int maxTableSize;
