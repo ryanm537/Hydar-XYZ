@@ -84,7 +84,6 @@ enum Encoding{
 }
 class Response{
 	/**TODO:retry after(503/429)*/
-	private final Map<String,String> pheaders;
 	private final Map<String,String> headers;
 	private final byte[] data;
 	private final Resource resource;
@@ -103,6 +102,7 @@ class Response{
 	private final boolean lastChunk;
 	private final boolean chunked;
 	private final String version;
+	private final String responseStatus;
 	
 	
 	public static Builder builder() {
@@ -116,7 +116,7 @@ class Response{
 	}
 	static class Builder{
 		//TODO: consider array instead of maps since getting headers from responses is rare
-		private Map<String,String> pheaders= new HashMap<>();
+		private String responseStatus="200";
 		private Map<String,String> headers= new HashMap<>();
 		private byte[] data;
 		private Resource resource;
@@ -202,7 +202,9 @@ class Response{
 			return header(k,Integer.toString(v));
 		}
 		public Builder header(String k, String v) {
-			var target = (k.startsWith(":"))?pheaders:headers;
+			if(k.equals(":status"))
+				responseStatus=k;
+			var target = headers;
 			String cval;
 			if(k.equals("Set-Cookie")&&(cval=headers.get("Set-Cookie"))!=null){
 				target.put("Set-Cookie",cval+","+v);
@@ -283,11 +285,12 @@ class Response{
 			return true;
 			
 		}public Builder status(int sc) {
-			return header(":status",sc);
-			
+			responseStatus=""+sc;
+			return this;
 		}
 		public Builder status(String sc) {
-			return header(":status",sc);
+			responseStatus=sc;
+			return this;
 		}
 		public Builder firstChunk() {
 			lastChunk=false;
@@ -325,7 +328,6 @@ class Response{
 		}
 	}
 	private Response(Builder builder) {
-		this.pheaders = builder.pheaders;
 		this.headers = builder.headers;
 		this.data = builder.data;
 		this.version=builder.version;
@@ -341,6 +343,7 @@ class Response{
 		this.lastChunk=builder.lastChunk;
 		this.output=builder.os;
 		this.hs=builder.hs;
+		this.responseStatus = builder.responseStatus;
 	}
 	//zip here maybe.
 	
@@ -438,7 +441,7 @@ class Response{
 			
 			lock.lock();
 			try {
-				compressor.writeFields(j, pheaders, huffman);
+				compressor.writeField(j, new Entry(":status",responseStatus), huffman);
 				compressor.writeFields(j, headers, huffman);
 				hf.withBuffer(h.h2.output(j.size()+9));
 				//System.out.println(this+"---->"+HexFormat.of().formatHex(j.buf(),0,j.size()));
@@ -521,7 +524,7 @@ class Response{
 		return Config.errorPages.getOrDefault(code,Config.errorPages.get("default"));
 	}
 	private String getStatus() {
-		return pheaders.getOrDefault(":status","200");
+		return responseStatus;
 	}
 	private String getVersion() {
 		return version;
