@@ -450,7 +450,7 @@ public class HydarHP {
 	public void writeField(OutputStream dos, Entry e, boolean huffman) throws IOException{
 		String k = e.name();
 		String v = e.value();
-		int d=table.get(e);
+		int d=table.indexOf(e);
 		if(d>=0) {
 			//System.out.println("INDEXED-ADD DYNAMIC" +d);
 			encodeInt(Prefix.INDEXED_ADD,dos,STATIC_TABLE.length+d);

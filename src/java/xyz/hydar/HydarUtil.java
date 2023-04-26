@@ -39,7 +39,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -48,7 +47,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -697,7 +695,7 @@ class DoubleMap<E>{
 	protected int offset() {
 		return offset;
 	}
-	public int get(E e) {
+	public int indexOf(E e) {
 		var v=reverse.get(e);
 		if(v==null)return -1;
 		return size()-1-(v.peek()-offset());
@@ -794,7 +792,7 @@ class ExtraMap<K,V> extends AbstractMap<K,V>{
 */
 interface QueueTable<E>{
 	public int size();
-	public int get(E e);
+	public int indexOf(E e);
 	public E get(int e);
 	public void push(E e);
 	public E removeFirst();
@@ -806,58 +804,33 @@ interface QueueTable<E>{
 		};
 	}
 	public static <E> QueueTable<E> intAccess(){
-		return new ArrayQueueTable<>();
+		return new IndexOnlyQueueTable<>();
 	}
 	public static QueueTable<Entry> eAccess(){
 		return new CounterQueueTable();
 	}
 }
-record Tuple<K>(K e, int count){
-	@Override
-	public boolean equals(Object o) {
-		return o!=null && o instanceof Tuple<?> t && t.count==count;
-	}
-	@Override
-	public int hashCode() {
-		return count;
-	}
-}
-class ArrayQueueTable<E> extends TreeSet<Tuple<E>> implements QueueTable<E>{
-	/**
-	 * 
-	 */
+class IndexOnlyQueueTable<E> extends HashMap<Integer,E> implements QueueTable<E>{
 	private static final long serialVersionUID = 392809410070860989L;
 	int offset=0;
-	public ArrayQueueTable() {
-		super(Comparator.comparingInt(x->x.count()));
-	}
 	@Override
-	public int get(E e) {
+	public int indexOf(E e) {
 		throw new UnsupportedOperationException();
 	}
-
 	@Override
 	public E get(int e) {
-		Tuple<E> target=super.floor(new Tuple<>(null,(size()-1-e)+offset));
-		//System.out.println(target.count()+" "+(e+offset));
-		//System.out.println(this);
-		if(target.count()!=(size()-1-e)+offset)return null;
-		return target==null?null:target.e();
+		return super.get((size()-1-e)+offset);
 	}
 
 	@Override
 	public void push(E e) {
-		if(!add(new Tuple<>(e,size()+offset)))
-			System.exit(0);
+		if(put(size()+offset,e) != null) {
+			throw new IllegalStateException("Index overlap: "+size()+", offset="+offset);
+		}
 	}
-
 	@Override
 	public E removeFirst() {
-		// TODO Auto-generated method stub
-		Tuple<E> ele=super.pollFirst();
-		if(ele!=null)
-			offset++;
-		return ele==null?null:ele.e();
+		return super.remove(offset++);
 	}
 	
 }
@@ -865,7 +838,7 @@ class CounterQueueTable extends LinkedHashMap<Entry,Integer> implements QueueTab
 	private static final long serialVersionUID = -980613595004270736L;
 	int offset=0;
 	@Override
-	public int get(xyz.hydar.Entry e) {
+	public int indexOf(xyz.hydar.Entry e) {
 		// TODO Auto-generated method stub
 		Integer tmp=super.get(e);
 		return tmp==null?-1:(size()-1-tmp)+offset;
@@ -898,10 +871,6 @@ class DoubleMapQueueTable<E> extends DoubleMap<E> implements QueueTable<E>{
 }
 class LinkedListQueueTable<E> extends LinkedList<E> implements QueueTable<E>{
 	private static final long serialVersionUID = 417098369646560712L;
-	@Override
-	public int get(E e) {
-		return super.indexOf(e);
-	}
 	@Override
 	public void push(E e) {
 		super.push(e);
