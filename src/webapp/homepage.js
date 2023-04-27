@@ -22,20 +22,15 @@ var userVideo=null;
 /**Add mic and local screenshare(if already active) to a peer connection*/
 async function addLocalMedia(target){
 	var stream = await getUserAudio();
+	let tar=users.get(target);
 	try {
-	stream.getTracks().forEach(
-		(track)=>{
-		if(muted&&track.kind=="audio")
-			track.enabled=false;
-		users.get(target).pc.addTrack(track, stream);}
-	);
-	if(userVideo)
-		userVideo.getTracks().forEach(
-		 (track)=>{
-			if(muted&&track.kind=="audio")
-				track.enabled=false;
-		users.get(target).pc.addTrack(track,stream);}
-		);
+		[stream, userVideo].filter(x=>x)
+			.map(x=>x.getTracks())
+			.forEach((track)=>{
+				if(muted&&track.kind=="audio")
+					track.enabled=false;
+				tar.pc.addTrack(track, stream);
+			});
 	} catch(err) {
 		console.dir(err);
 	}
@@ -361,23 +356,24 @@ function handleICECandidateEvent(target, event) {
 }
 /**Closes VC when leaving it, or when disconnected(used by dcHandler).*/
 async function closeVc(target){ 
-	const tar=users.get(target);
+	let tar=users.get(target);
 	console.log("Closing the call");
 	if(!tar||!tar.vc){
 		return;
 	}
-	if (tar.pc) {
+	let thePC=tar.pc;
+	if (thePC) {
 		console.log("--> Closing the peer connection");
-			tar.active=false;
-			for(var s1 in tar.pc.getSenders())
-				tar.pc.removeTrack(tar.pc.getSenders()[s1]);
-		tar.pc.ontrack = null;
-		tar.pc.onnicecandidate = null;
-		tar.pc.oniceconnectionstatechange = null;
-		tar.pc.onsignalingstatechange = null;
-		tar.pc.onicegatheringstatechange = null;
-		tar.pc.onnotificationneeded = null;
-		await tar.pc.close();
+		tar.active=false;
+		for(var s1 of thePC.getSenders())
+			thePC.removeTrack(s1);
+		thePC.ontrack = null;
+		thePC.onnicecandidate = null;
+		thePC.oniceconnectionstatechange = null;
+		thePC.onsignalingstatechange = null;
+		thePC.onicegatheringstatechange = null;
+		thePC.onnotificationneeded = null;
+		await thePC.close();
 		tar.pc=null;
 		//transceivers.splice(targets.indexOf(target),1);
 		var remoteAudio = document.getElementById("hydar_audio"+target);
@@ -475,14 +471,16 @@ function makebig(){
 /**Connect to an existing video stream, activating a video player.*/
 function startWatching(target){
 	stopWatchingAll();
-	if(users.get(target).pc){
-		users.get(target).pc.getReceivers().filter(x=>x.track.kind=="video").forEach(x=>{
+	let thePC=users.get(target).pc;
+	if(thePC){
+		thePC.getReceivers().filter(x=>x.track.kind=="video").forEach(x=>{
 			//x.track.enabled=true;
 			x.enabled=true;
 		});
 	}
-	if(document.getElementById("hydar_video"+target)){
-		document.getElementById("hydar_video"+target).style.display="inline-block";
+	let theVideo=document.getElementById("hydar_video"+target);
+	if(theVideo){
+		theVideo.style.display="inline-block";
 	}
 	document.getElementById("susRectangle").removeAttribute("hidden");
 	setTimeout(makebig, 1);
@@ -497,15 +495,15 @@ document.getElementById("rectMaxButton").addEventListener('click',enterFullScree
 document.getElementById("rectMinButton").addEventListener('click',enterFullScreen);
 /**Stop watching a single video stream, closing the player for that target.*/
 function stopWatching(target){
-	var thePC=users.get(target).pc;
+	let thePC=users.get(target).pc;
 	if(thePC)
 		thePC.getReceivers().filter(x=>x.track.kind=="video").forEach(x=>{
 			//x.track.enabled=false;
 			x.enabled=false;
 		});
 	
-	var shouldHide=true;
-	var videoE=document.getElementById("hydar_video"+target);
+	let shouldHide=true;
+	let videoE=document.getElementById("hydar_video"+target);
 	if(videoE){
 		//document.getElementById("hydar_video"+target).setAttribute("hidden","true");
 		videoE.style.display="none";
@@ -540,29 +538,31 @@ function enterFullScreen() {
 }
 /**Add a video or audio track from a peer, depending on what is stored in 'event'. This generally implies a successful connection.*/
 function handleTrackEvent(target,event) {
-	users.get(target).active=true;
+	let tar=users.get(target);
+	tar.active=true;
+	let tracks=event.streams[0].getVideoTracks();
 	console.log("*** Track event");
 	
-	if(event.streams[0].getVideoTracks().length>0&&!event.streams[0].getVideoTracks().includes(null)){
-		var e=document.getElementById("hydar_video"+target);
+	if(tracks.length>0&&!tracks.includes(null)){
+		let e=document.getElementById("hydar_video"+target);
 		if(!e){
 			e = document.createElement("video");
 			e.setAttribute("id","hydar_video"+target);
-			e.setAttribute("ondblclick","enterFullScreen("+")");
+			e.setAttribute("ondblclick","enterFullScreen()");
 			e.setAttribute("style","width: 100%;height: 100%;object-fit: contain;display: inline-block;");
 			document.getElementById("susRectangle").append(e);
 		}e.srcObject = event.streams[0];
 		console.log(event.streams);
 		e.volume = vcvolume;
 		e.play();
-		users.get(target).streaming=true;
+		tar.streaming=true;
 		stopWatching(target);
 	}
 	//if(stream.getVideoTracks().length==0){
 	else{
 		users.get(target).streaming=false;
 		//stopWatching(target);
-		var e=document.getElementById("hydar_audio"+target);
+		let e=document.getElementById("hydar_audio"+target);
 		if(!e){
 			e = document.createElement("audio");
 			e.setAttribute("id","hydar_audio"+target);

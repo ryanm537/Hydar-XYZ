@@ -546,14 +546,11 @@ function update(cmd){
 	canJoinVc=true;
 }
 function forId(j){
-	var ret=-1;
-	messages.some(m=>{if(m.id==j){ret=m;return true;}return false;});
-	return ret;
+	return messages.find(m=>m.id==j) || -1;
 }
 function forIndex(j){
 	var ret=-1;
-	var i=0;
-	messages.some(m=>{if(m.id==j){ret=i;i++;return true;}return false;});
+	messages.some((m,i)=>{if(m.id==j){ret=i;return true;}return false;});
 	return ret;
 }
 function newMessage(cmd){//new message from server(different packet from update)
@@ -598,7 +595,8 @@ function newMessage(cmd){//new message from server(different packet from update)
 	}
 	if((!document.hasFocus()||idle>14)&&me.id!=message.uid){
 		try{//.replaceAll("\"\"","\"").replaceAll("\\\\","\\")
-			h=new Notification(users.get(message.uid).username,{body:document.getElementById("msgText_"+message.id).innerText,icon:users.get(message.uid).pfp});
+			let sender=users.get(message.uid);
+			h=new Notification(sender.username,{body:document.getElementById("msgText_"+message.id).innerText,icon:sender.pfp});
 			var pingSound = new Audio("audio/ping.mp3");
 			pingSound.volume = vol()*0.2*pingvol();
 			if(pings())pingSound.play();
@@ -638,18 +636,19 @@ function updateTimestamps(){
 		try{
 			var dt = now-message.time/1000;
 			var tString="";
+			//\u00a0 is &nbsp;
 			if(dt/3600>=2){
-				tString+="&nbsp;("+Math.floor(dt/3600)+" hours ago):";
+				tString+="\u00a0("+Math.floor(dt/3600)+" hours ago):";
 			}else if(dt/3600>=1){
-				tString+="&nbsp;("+Math.floor(dt/3600)+" hour ago):";
+				tString+="\u00a0("+Math.floor(dt/3600)+" hour ago):";
 			}else if(dt/60>=2){
-				tString+="&nbsp;("+Math.floor(dt/60)+" minutes ago):";
+				tString+="\u00a0("+Math.floor(dt/60)+" minutes ago):";
 			}else if(dt/60>=1){
-				tString+="&nbsp;("+Math.floor(dt/60)+" minute ago):";
+				tString+="\u00a0("+Math.floor(dt/60)+" minute ago):";
 			}else{
-				tString+="&nbsp;(just now):";
+				tString+="\u00a0(just now):";
 			}
-			e.getRootNode().getElementById("three_"+id).innerHTML=tString;
+			e.getRootNode().getElementById("three_"+id).textContent=tString;
 		}catch(e1893){
 			
 		}
