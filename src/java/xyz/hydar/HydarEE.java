@@ -461,7 +461,7 @@ public class HydarEE{
 			request.path.substring(0,request.path.lastIndexOf(".")):
 			request.path;
 		Average avg=estLength.computeIfAbsent(name,x->new Average());
-		var resp = new HttpServletResponse(new Response.Builder(200), avg.avg());
+		var resp = new HttpServletResponse(new Response(200), avg.avg());
 		resp.withRequest(request);
 		jsp_dispatch(name, request, resp);
 		return resp;
@@ -671,24 +671,24 @@ public class HydarEE{
 	public static class HttpServletResponse{
 		public final PrintWriter out;
 		public BAOS baos;
-		public Response.Builder builder;
+		public Response builder;
 		private String contentType="text/html";
 		private String characterEncoding="UTF-8";
 		private int sc=200;
 		public boolean committed=false;
 		public boolean scc=false;
-		Supplier<Response.Builder> onReset;
+		Supplier<Response> onReset;
 		private HttpServletRequest request;
-		public HttpServletResponse(Response.Builder builder) {
+		public HttpServletResponse(Response builder) {
 			this(builder, 1024);
 		}
-		public HttpServletResponse(Response.Builder builder, int estLength){
+		public HttpServletResponse(Response builder, int estLength){
 			baos = new BAOS(estLength);
 			out=new PrintWriter(baos,false,Charset.forName(characterEncoding));
 			this.builder=builder;
 			setDefaults();
 		}
-		public void onReset(Supplier<Response.Builder> s) {
+		public void onReset(Supplier<Response> s) {
 			onReset=s;
 		}
 		private void setDefaults() {
@@ -760,7 +760,7 @@ public class HydarEE{
 				baos.write(baos.buf(),0,baos.size());
 			}
 		}
-		private Response.Builder commit() {
+		private Response commit() {
 			if(!committed) {
 				builder.status(sc);
 				if(!Config.ZIP_MIMES.contains(getContentType().split(";")[0].trim()))
@@ -782,7 +782,7 @@ public class HydarEE{
 		}
 		//called to receive the actual response
 		//[or last chunk] => flush can never return a last chunk
-		public Response.Builder toHTTP() {
+		public Response toHTTP() {
 			if(committed)
 				builder.lastChunk();
 			return commit();
@@ -793,7 +793,7 @@ public class HydarEE{
 		public void reset() {
 			resetBuffer();
 			if(onReset!=null)builder=onReset.get();
-			else builder=new Response.Builder(200);
+			else builder=new Response(200);
 			sc=200;
 			setDefaults();
 		}
