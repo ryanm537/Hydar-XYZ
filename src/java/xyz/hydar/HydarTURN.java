@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -398,8 +399,8 @@ class Client {
 	// server addr server port
 	// transport protocol
 	
-	public static ConcurrentHashMap<Client, Nonce> nonces = new ConcurrentHashMap<Client,Nonce>();
-	public static ConcurrentHashMap<Client, Allocation> alloc = new ConcurrentHashMap<Client, Allocation>(99);
+	public static Map<Client, Nonce> nonces = new ConcurrentHashMap<>();
+	public static Map<Client, Allocation> alloc = new ConcurrentHashMap<>(99);
 	// ===========================
 	public final InetAddress client;
 	public final int clientPort;
@@ -614,21 +615,21 @@ class TURNChannel extends Expireable{
 
 class Allocation extends Expireable{
 	// 5-tuple
-	public volatile Client client;
+	public final Client client;
 	
 	// transport address
-	public volatile DatagramSocket server;
-	public volatile static int nextPort = 32400;
-	public volatile int port;
-	// first packet, stores username password realm nonce
+	public final DatagramSocket server;
+	public final int port;
+	public final Map<Short, TURNChannel> channels=new ConcurrentHashMap<>();
+	public final Map<Client, Permission> permissions=new ConcurrentHashMap<>();
 	public Packet auth;
+	public volatile static int nextPort = 32400;
+	// first packet, stores username password realm nonce
 	//username in allocation maybe hydar
 	/**@TODO 
 	 * All requests after the initial Allocate must use the same username as
 	   that used to create the allocation
 	   */
-	public volatile ConcurrentHashMap<Short, TURNChannel> channels;
-	public volatile ConcurrentHashMap<Client, Permission> permissions = null;
 	public boolean bind(short num, Client c) {
 		if(num<16384)
 			return false;
@@ -695,14 +696,11 @@ class Allocation extends Expireable{
 			this.server = new DatagramSocket(port);
 			this.server.setReceiveBufferSize(2000);
 			this.server.setSoTimeout(5000);
-			channels = new ConcurrentHashMap<Short, TURNChannel>();
-			permissions = new ConcurrentHashMap<Client, Permission>();
 			c.setAllocation(this);
 			this.client=c;
 			//this.server.connect(c.client,c.clientPort);
 		} catch (Exception e) {
-			e.printStackTrace();
-			return;
+			throw new RuntimeException(e);
 		}
 	}
 	
@@ -780,14 +778,14 @@ abstract class Expireable{
 	//public abstract void run();
 }
 class TCPHydarThread extends Thread{
-	public static volatile ConcurrentHashMap<Client,TCPHydarThread> threads = new ConcurrentHashMap<Client,TCPHydarThread>();
+	public static final Map<Client,TCPHydarThread> threads = new ConcurrentHashMap<>();
 	public volatile boolean alive;
 	public final Socket socket;
 	public volatile Client client;
 	public InetAddress client_addr;
-	private OutputStream output;
+	private volatile OutputStream output;
 	public volatile int timeouts;
-	public volatile TCPHydarStunInstance instance;
+	public final TCPHydarStunInstance instance;
 	public TCPHydarThread(TCPHydarStunInstance instance, Socket client) {
 		this.socket=client;
 		this.instance=instance;
@@ -958,7 +956,7 @@ class TCPHydarStunInstance extends HydarStunInstance{
 	
 }
 class UDPHydarStunInstance extends HydarStunInstance{
-	public DatagramSocket server;
+	public final DatagramSocket server;
 	public UDPHydarStunInstance(int port) {
 		super();
 		try {
@@ -968,8 +966,7 @@ class UDPHydarStunInstance extends HydarStunInstance{
 			this.server.setReceiveBufferSize(2000);
 			this.server.setSoTimeout(5000);
 		} catch (Exception e) {
-			e.printStackTrace();
-			return;
+			throw new RuntimeException(e);
 		}
 	}
 	@Override
@@ -1157,20 +1154,21 @@ abstract class HydarStunInstance extends Thread {
 			Client peer = fromXor(s.getAttribute(Attr.XOR_PEER_ADDRESS), s);
 			if (peer == null)
 				break;
-			if (Client.alloc.get(c) == null || !Client.alloc.get(c).permissions.containsKey(peer)) {
+			Allocation alloc=Client.alloc.get(c);
+			if (alloc== null || !alloc.permissions.containsKey(peer)) {
 				// no allocation OR no permission
 				System.out.println(
 						"no perm - send " +peer+ "<-" + c);
 				break;
 			}
-			AtomicInteger sent = new AtomicInteger();
-			Client.alloc.get(peer).channels.values().forEach((v) -> {
+			boolean sent = false;
+			for(TURNChannel v:Client.alloc.get(peer).channels.values()){
 				if (v.peer.equals(c)) {
-					sent.incrementAndGet();
 					v.read(s.getAttribute(Attr.DATA));
+					sent=true;
 				}
-			});
-			if (sent.get() == 0) {
+			}
+			if (!sent) {
 				// Client.alloc.get(peer)
 				response = new Packet(Packet.INDICATION, Packet.DATA, s.transaction);
 				response.copy(s, Attr.DATA);
@@ -1260,14 +1258,17 @@ abstract class HydarStunInstance extends Thread {
 				break;
 			}
 			// create permission
-			if (Client.alloc.get(c) != null) {
+			Allocation myAlloc=Client.alloc.get(c);
+			if (myAlloc != null) {
 				boolean failed=false;
 				for(var xorPeer:s.xorPeers){
-					if (!Client.alloc.get(c).createPerm(fromXor(xorPeer, s))) {
+					Client xor=fromXor(xorPeer, s);
+					if (!myAlloc.createPerm(xor)) {
 						failed=true;
 						break;
-					}else if (Client.alloc.get(fromXor(xorPeer, s)) == null
-							|| !Client.alloc.get(fromXor(xorPeer, s)).createPerm(c)) {
+					}
+					Allocation peerAlloc=Client.alloc.get(xor);
+					if (peerAlloc == null || !peerAlloc.createPerm(c)) {
 						failed=true;
 						break;
 					}

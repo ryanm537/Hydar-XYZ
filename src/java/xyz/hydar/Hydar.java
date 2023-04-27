@@ -10,7 +10,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -1069,7 +1068,7 @@ class Resource{
 		}long size = Files.size(p);
 		long p1 = (""+p.toString()+":"+size).hashCode();
 		long p2 = modif;
-		byte[] ebytes = BigInteger.valueOf(31*p1+p2).toByteArray();
+		byte[] ebytes = ByteBuffer.allocate(8).putLong(31*p1+p2).array();
 		
 		String et1 = Base64.getUrlEncoder().encodeToString(ebytes);
 		this.etag = et1.substring(0,et1.length()-1);
