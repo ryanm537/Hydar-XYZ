@@ -92,18 +92,18 @@ public abstract class HydarDataSource implements DataSource, AutoCloseable{
 		this.username = builder.username;
 		this.password = builder.password;
 		this.minIdle = builder.minIdle;
-		this.maxIdle = builder.maxIdle;
+		this.maxIdle = Math.max(minIdle,builder.maxIdle);
 		this.maxWaitMillis = builder.maxWaitMillis;
 		this.maxOpenPreparedStatements = (builder.poolPreparedStatements?builder.maxOpenPreparedStatements:0);
 		this.clearStatementPoolOnReturn = builder.clearStatementPoolOnReturn;
 		this.defaultTransactionIsolation = builder.defaultTransactionIsolation;
 		this.initialSize = builder.initialSize;
-		this.maxTotal = builder.maxTotal;
+		this.maxTotal = Math.max(builder.maxTotal,maxIdle);
 		this.defaultAutoCommit=builder.defaultAutoCommit;
 		this.defaultReadOnly=builder.defaultReadOnly;
 		this.schema=builder.defaultSchema;
 		
-		this.pool = new ArrayBlockingQueue<>(maxIdle, true);
+		this.pool = new ArrayBlockingQueue<>(maxTotal, true);
 		this.h= ses.scheduleWithFixedDelay(this::clean,60000,60000,TimeUnit.MILLISECONDS);
 	}
 	public void start() throws SQLException {
@@ -197,9 +197,9 @@ public abstract class HydarDataSource implements DataSource, AutoCloseable{
 		return conn;
 	}
 	private Connection getConn(boolean login, String username, String password) throws SQLException{
-		try {
-			System.out.write(("Hydar JDBC pool: size "+pool.size()+" active "+actives.size()+"\n").getBytes());
-		} catch (IOException e1) {}
+		//try {
+			//System.out.write(("Hydar JDBC pool: size "+pool.size()+" active "+actives.size()+"\n").getBytes());
+		//} catch (IOException e1) {}
 		lock.lock();
 		try {
 			while(pool.size()>0) {
