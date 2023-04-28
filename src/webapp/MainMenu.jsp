@@ -23,13 +23,13 @@ static final List<Integer> DEFAULT_BOARDDM=Collections.nCopies(3,0);//[0,0,0]
 form{ display: inline-block; } 
 </style>
 <style>
-		.centeredText {position:relative;top:290px;color:white; font-family:calibri; font-size:20px;-webkit-touch-callout: none;}
+		.centeredText {position:relative;top:290px;color:white; font-family:calibri, arial; font-size:20px;-webkit-touch-callout: none;}
 		.newMessagesText {
 			top:105px;
 			margin-top:-25px;
 			position:relative;
 			color:rgb(241, 128, 128); 
-			font-family:calibri; 
+			font-family:calibri, arial; 
 			font-size:20px;
 			-webkit-touch-callout: none;  
 		}
@@ -95,7 +95,7 @@ form{ display: inline-block; }
 			position:relative;
 			top:320px;
 			color:white; 
-			font-family:calibri; 
+			font-family:calibri, arial; 
 			font-size:20px;
 			-webkit-touch-callout: none;
 		}
@@ -103,7 +103,7 @@ form{ display: inline-block; }
 			position:relative;
 			top:340px;
 			color:white; 
-			font-family:calibri; 
+			font-family:calibri, arial; 
 			font-size:20px;
 			-webkit-touch-callout: none;
 		}
@@ -111,7 +111,7 @@ form{ display: inline-block; }
 			position:relative;
 			top:-3px;
 			left:-3px;
-			font-family:calibri;
+			font-family:calibri, arial;
 			display:block;
 			font-size:20px;
 			z-index:1;	
@@ -315,9 +315,9 @@ try(Connection conn=dataSource.getConnection()){
 	
 	<%
 			//TOP BAR
-					out.print("<h1 style = \"color:rgb(255,255,255); font-size:15px; font-family:calibri; text-align:right;position:relative;\"></style>");
+					out.print("<h1 style = \"color:rgb(255,255,255); font-size:15px; font-family:calibri, arial; text-align:right;position:relative;\"></style>");
 					out.print("Hello <div id=\"profileName\" style=\"display:inline\">" + session.getAttribute("username").toString() + "</div>! | ");
-					out.print("<style type=\"text/css\"> a{color:LightGrey; font-family:calibri; text-align:right; font-size:15px}</style>");
+					out.print("<style type=\"text/css\"> a{color:LightGrey; font-family:calibri, arial; text-align:right; font-size:15px}</style>");
 					
 					if(uid!=3){
 					%><a href= <%=PROFILE %> > Profile</a>&nbsp;|
@@ -355,7 +355,7 @@ try(Connection conn=dataSource.getConnection()){
 		// LIST OF BOARDS
 			//String[] menuImages = {"menuImages/everythingelse.png", "menuImages/sas4.png", "menuImages/skyblock.png"};
 			
-			out.print("<style>p2{color:rgb(255,255,255); font-size:25px; font-family:calibri;display:block; text-align:left;position:absolute;margin-top:30px; margin-left: 20px; overflow-x:hidden;}</style>");
+			out.print("<style>p2{color:rgb(255,255,255); font-size:25px; font-family:calibri, arial;display:block; text-align:left;position:absolute;margin-top:30px; margin-left: 20px; overflow-x:hidden;}</style>");
 			out.print("<p2><b>Your Boards</b></p2>");
 			
 			out.print("<div class = \"pfps\"><div class = \"row\">");
@@ -402,8 +402,8 @@ try(Connection conn=dataSource.getConnection()){
 
 			// LIST OF DIRECT MESSAGE CHANNELS
 			
-			out.print("<style>p3{color:rgb(255,255,255); font-size:25px; font-family:calibri;display:block; text-align:left;position:relative;top:40px; margin-left: 20px;overflow-x:hidden;}</style>");
-			out.print("<style>p4{color:LightSlateGray; font-size:18px; font-family:calibri;display:block; text-align:center;position:relative;top:40px; margin-left: 20px;overflow-x:hidden;}</style>");
+			out.print("<style>p3{color:rgb(255,255,255); font-size:25px; font-family:calibri, arial;display:block; text-align:left;position:relative;top:40px; margin-left: 20px;overflow-x:hidden;}</style>");
+			out.print("<style>p4{color:LightSlateGray; font-size:18px; font-family:calibri, arial;display:block; text-align:center;position:relative;top:40px; margin-left: 20px;overflow-x:hidden;}</style>");
 			out.print("<p3><br><b>Your Direct Message Boards</b></p3>");
 		if(uid!=3){%>
 	<div id = "bottom_bar2" class="bottom_bar2" style="margin-left:auto;margin-right:auto;">
@@ -445,8 +445,8 @@ try(Connection conn=dataSource.getConnection()){
 			
 			// LIST OF INVITES TO BOARDS
 			
-			out.print("<style>p3{color:rgb(255,255,255); font-size:25px; font-family:calibri;display:block; text-align:left;position:relative;top:40px; margin-left: 20px;overflow-x:hidden;}</style>");
-			out.print("<style>p4{color:LightSlateGray; font-size:18px; font-family:calibri;display:block; text-align:center;position:relative;top:40px; margin-left: 20px;overflow-x:hidden;}</style>");
+			out.print("<style>p3{color:rgb(255,255,255); font-size:25px; font-family:calibri, arial;display:block; text-align:left;position:relative;top:40px; margin-left: 20px;overflow-x:hidden;}</style>");
+			out.print("<style>p4{color:LightSlateGray; font-size:18px; font-family:calibri, arial;display:block; text-align:center;position:relative;top:40px; margin-left: 20px;overflow-x:hidden;}</style>");
 			out.print("<p3><br><b>Your Invites</b> (Click to accept)</p3>");
 
 			if(uid!=3){	
@@ -479,7 +479,7 @@ try(Connection conn=dataSource.getConnection()){
 			}
 		
 } catch (Exception e) {
-	out.print("<style> body{color:rgb(255,255,255); font-family:calibri; text-align:center; font-size:20px;}</style>");
+	out.print("<style> body{color:rgb(255,255,255); font-family:calibri, arial; text-align:center; font-size:20px;}</style>");
 	out.print("<center>");
 	out.print("A known error has occurred.\n");
 	out.print("<br><br>");

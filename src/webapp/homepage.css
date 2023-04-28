@@ -107,12 +107,12 @@
 .three{
 	display:inline;
 	color:Grey;
-	font-family:calibri;
+	font-family:calibri, arial;
 	text-align:left;
 	font-size:15px;
 }
 #input_text{
-	font-family:calibri; 
+	font-family:calibri, arial; 
 	scrollbar-width: none;
 	resize:none;
 	overflow-x:scroll; 
@@ -185,7 +185,7 @@
 }
 .msgUser,.msgText{
 	color:LightGrey;
-	font-family:calibri;
+	font-family:calibri, arial;
 	text-align:left;
 	font-size:15px;
 	display:block;

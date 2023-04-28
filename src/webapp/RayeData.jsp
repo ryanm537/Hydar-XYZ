@@ -71,7 +71,7 @@ try(Connection conn=dataSource.getConnection()){
 	
 	conn.close();
 } catch (Exception e){
-	out.print("<style> body{color:rgb(255,255,255); font-family:calibri; text-align:center; font-size:20px;}</style>");
+	out.print("<style> body{color:rgb(255,255,255); font-family:calibri, arial; text-align:center; font-size:20px;}</style>");
 	out.print("A known error has occurred\n");
 	out.print("<br><br>");
 	out.print("<form method=\"post\" action=\""+response.encodeURL("Logout.jsp")+"\">");

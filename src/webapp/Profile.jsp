@@ -125,9 +125,9 @@ try(Connection conn=dataSource.getConnection()){
 			
 			//TOP BAR
 			
-			out.print("<h1 style = \"color:rgb(255,255,255); font-size:15px; font-family:calibri; text-align:right;position:relative;\"></style>");
+			out.print("<h1 style = \"color:rgb(255,255,255); font-size:15px; font-family:calibri, arial; text-align:right;position:relative;\"></style>");
 			out.print("Hello <div id=\"profileName\" style=\"display:inline\">" + session.getAttribute("username").toString() + "</div>! | ");
-			out.print("<style type=\"text/css\"> a{color:LightGrey; font-family:calibri; text-align:right; font-size:15px; display:inline-block;padding-top:15px;}</style>");
+			out.print("<style type=\"text/css\"> a{color:LightGrey; font-family:calibri, arial; text-align:right; font-size:15px; display:inline-block;padding-top:15px;}</style>");
 			out.print("<a href=\""+response.encodeURL("MainMenu.jsp")+"\"> Home</a>&nbsp;| ");
 			out.print("<a href=\""+response.encodeURL("Logout.jsp")+"\"> Log out</a> &nbsp;&nbsp;");
 			
@@ -140,7 +140,7 @@ try(Connection conn=dataSource.getConnection()){
 			
 			out.print("<style> p4 .test{} .test:hover{transform:scale(1.3);} </style>");
 			
-			out.print("<br><style> body{color:rgb(255,255,255); font-family:calibri; text-align:center; font-size:30px;position:relative; top:20px}</style>");
+			out.print("<br><style> body{color:rgb(255,255,255); font-family:calibri, arial; text-align:center; font-size:30px;position:relative; top:20px}</style>");
 			
 			out.print("<p4 class = \"test\"><b>" + session.getAttribute("username").toString() +"</b>&nbsp&nbsp(#" + session.getAttribute("userid").toString()+ ")</p4>");
 		%>
@@ -156,10 +156,10 @@ try(Connection conn=dataSource.getConnection()){
 			
 			// GREY TEXT
 			
-			out.print("<style> p3{color:White; font-family:calibri; text-align:center; font-size:25px;}</style>");
+			out.print("<style> p3{color:White; font-family:calibri, arial; text-align:center; font-size:25px;}</style>");
 			out.print("<p3><br> Profile Picture: </p3>");
 			
-			out.print("<style> p{color:LightSlateGrey; font-family:calibri; text-align:center; font-size:15px;}</style>");
+			out.print("<style> p{color:LightSlateGrey; font-family:calibri, arial; text-align:center; font-size:15px;}</style>");
 			out.print("<br><p> - Currently Selected - </p>");
 			
 			
@@ -663,7 +663,7 @@ try(Connection conn=dataSource.getConnection()){
 	</script>
 	<%
 	}catch (Exception e){
-			out.print("<style> body{color:rgb(255,255,255); font-family:calibri; text-align:center; font-size:20px;}</style>");
+			out.print("<style> body{color:rgb(255,255,255); font-family:calibri, arial; text-align:center; font-size:20px;}</style>");
 			out.print("A known error has occurred\n");
 			out.print("<br><br>");
 			out.print("<form method=\"post\" action=\""+response.encodeURL("Logout.jsp")+"\">");

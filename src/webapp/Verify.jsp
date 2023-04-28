@@ -127,10 +127,10 @@ try(Connection conn=dataSource.getConnection();
 		<img src="images/hydar.png" alt="hydar" >
 		</div>
 <%
-		out.print("<p style = \"color:rgb(255,255,255); font-family:calibri; font-size:20px; z-index:1; position:absolute; text-align:right; left:50%; display:block; top:calc(50% - 130px);\">"); 
+		out.print("<p style = \"color:rgb(255,255,255); font-family:calibri, arial; font-size:20px; z-index:1; position:absolute; text-align:right; left:50%; display:block; top:calc(50% - 130px);\">"); 
 		out.print("Username not found or <br>incorrect password<br>\n");
 		out.print("<br>");
-		out.print("<form method=\"get\" action=\"Login.jsp\" style = \"color:rgb(255,255,255); font-family:calibri; font-size:20px; z-index:1; position:absolute; text-align:right; left:calc(50% + 130px); display:block; top:calc(50% - 50px);\">");
+		out.print("<form method=\"get\" action=\"Login.jsp\" style = \"color:rgb(255,255,255); font-family:calibri, arial; font-size:20px; z-index:1; position:absolute; text-align:right; left:calc(50% + 130px); display:block; top:calc(50% - 50px);\">");
 		out.print("<td><input value=\"Back\" type=\"submit\" class = \"button3\"></td>");
 		out.print("</form>");
 	}else{
@@ -144,7 +144,7 @@ try(Connection conn=dataSource.getConnection();
 	}
 	conn.close();
 } catch (Exception e){
-	out.print("<style> body{color:rgb(255,255,255); font-family:calibri; text-align:center; font-size:20px;}</style>");
+	out.print("<style> body{color:rgb(255,255,255); font-family:calibri, arial; text-align:center; font-size:20px;}</style>");
 	out.print("A known error has occurred\n");
 	out.print("<br><br>");
 	out.print("<form method=\"post\" action=\""+response.encodeURL("Logout.jsp")+"\">");

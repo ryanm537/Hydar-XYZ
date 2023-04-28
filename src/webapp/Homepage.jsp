@@ -338,9 +338,9 @@ try(Connection conn=dataSource.getConnection()){
 	
 	//TOP BAR
 	
-	out.print("<h1 style = \"color:rgb(255,255,255); font-size:15px; font-family:calibri; text-align:right;position:relative;\"></style>");
+	out.print("<h1 style = \"color:rgb(255,255,255); font-size:15px; font-family:calibri, arial; text-align:right;position:relative;\"></style>");
 	out.print("Hello <div id=\"profileName\" style=\"display:inline\">" + session.getAttribute("username").toString() + "</div>! | ");
-	out.print("<style type=\"text/css\"> a{color:LightGrey; font-family:calibri; text-align:right; font-size:15px}</style>");
+	out.print("<style type=\"text/css\"> a{color:LightGrey; font-family:calibri, arial; text-align:right; font-size:15px}</style>");
 	out.print("<a href="+PROFILE+"> Profile</a>&nbsp;| ");
 	out.print("<a href="+MAIN_MENU+"> Home</a>&nbsp;| ");
 	%><a <%=uid==3?"hidden=''":""%>id='logout_link' href=<%=LOGOUT%> > Log out</a><%
@@ -391,7 +391,7 @@ try(Connection conn=dataSource.getConnection()){
 	
 	
 	
-	out.print("<style> .nav{text-align:center; font-family:calibri; list-style-type:none; margin:0; padding:0} .nav li{color:rgb(255,255,255); display:inline-block;  font-size:20px;  position:relative; top:-12px;}</style>");
+	out.print("<style> .nav{text-align:center; font-family:calibri, arial; list-style-type:none; margin:0; padding:0} .nav li{color:rgb(255,255,255); display:inline-block;  font-size:20px;  position:relative; top:-12px;}</style>");
 	out.print("<ul class=\"nav\"><li>");
 	out.print("<form id = \"PostButton\" onsubmit=\"post();return false;\" accept-charset=\"UTF-8\" action=\"204.html\" target=\"\">");
 	%>
@@ -420,10 +420,10 @@ try(Connection conn=dataSource.getConnection()){
 	
 	// GREY TEXT BAR
 	
-		out.print("<style> p{color:LightSlateGrey; font-family:calibri; text-align:center; font-size:15px; position:relative; top:5px;line-height:1px;}</style>");
+		out.print("<style> p{color:LightSlateGrey; font-family:calibri, arial; text-align:center; font-size:15px; position:relative; top:5px;line-height:1px;}</style>");
 		
 		out.print("<p>Auto update posts: ");
-		out.print("<style> #two{color:LightSlateGrey; font-family:calibri; text-align:center; font-size:15px;}</style>");
+		out.print("<style> #two{color:LightSlateGrey; font-family:calibri, arial; text-align:center; font-size:15px;}</style>");
 		if(autoRefresh.equals("autoOff")){
 			String encoded=response.encodeURL("\"Homepage.jsp?autoOn=autoOn&board="+board+"\"");
 			out.print("<a id = \"two\" href="+encoded+">");
@@ -474,7 +474,7 @@ try(Connection conn=dataSource.getConnection()){
 	
 	<!-- NEW MESSAGES  BAR -->
 	
-	<style> body{color:rgb(255,255,255); font-family:calibri; text-align:left; font-size:15px;}</style>
+	<style> body{color:rgb(255,255,255); font-family:calibri, arial; text-align:left; font-size:15px;}</style>
 		
 	
 	<div hidden='' id='bar' style='width: 100%; height: 1px; border-bottom: 2px solid #be4949; text-align: center'>
@@ -517,7 +517,7 @@ try(Connection conn=dataSource.getConnection()){
 	ps.setInt(3,board);
 	int updateLastVisited = ps.executeUpdate();*/
 } catch (Exception e) {
-	out.print("<style> body{color:rgb(255,255,255); font-family:calibri; text-align:center; font-size:20px;}</style>");
+	out.print("<style> body{color:rgb(255,255,255); font-family:calibri, arial; text-align:center; font-size:20px;}</style>");
 	out.print("<center>");
 	out.print("A known error has occurred.\n");
 	out.print("<br><br>");;

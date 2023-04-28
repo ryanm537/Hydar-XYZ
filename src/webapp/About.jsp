@@ -15,7 +15,7 @@
 </head> 
 <style>
 	body{
-		font-family:calibri;
+		font-family:calibri, arial;
 		background-image:url('images/hydarface.png');
 		background-repeat:no-repeat;
 		background-attachment:fixed;

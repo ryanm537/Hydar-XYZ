@@ -89,7 +89,7 @@
 
 <%
 //Files.writeString(Path.of(request.getServletContext().getResource("/log.txt").toURI()),"juydar");
-out.print("<p style = \"color:rgb(255,255,255); font-family:calibri; font-size:20px; z-index:1; position:absolute; text-align:left; left:50%; display:block; top:calc(50% - 180px);\">");
+out.print("<p style = \"color:rgb(255,255,255); font-family:calibri, arial; font-size:20px; z-index:1; position:absolute; text-align:left; left:50%; display:block; top:calc(50% - 180px);\">");
 %>
 <br>
 <b>
@@ -97,7 +97,7 @@ Welcome to Hydar</b><br><br>
 Returning users login 
 <br>
 <form method="get" action="Verify.jsp"  >
-<p style = "color:rgb(255,255,255); font-family:calibri; z-index:1; position:fixed; position:absolute; text-align:left; left:50%; display:block; top:calc(50% - 70px);">
+<p style = "color:rgb(255,255,255); font-family:calibri, arial; z-index:1; position:fixed; position:absolute; text-align:left; left:50%; display:block; top:calc(50% - 70px);">
 
 <input  type="text" name="username" size = "20px" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px;" placeholder = "Username" autofocus><br>
  
@@ -105,7 +105,7 @@ Returning users login
 <input type="password" name="password" size = "20px" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px; position:relative;top:4px;" placeholder = "Password">
 <input type="submit" name="submit" value = "Go" class= "button3"><br><br>
 </form>
-<p style = "color:rgb(255,255,255); font-family:calibri;  z-index:1; position:fixed; position:absolute; text-align:left; left:50%; display:block; top:calc(50% + 120px);">
+<p style = "color:rgb(255,255,255); font-family:calibri, arial;  z-index:1; position:fixed; position:absolute; text-align:left; left:50%; display:block; top:calc(50% + 120px);">
 Don't have an account? rip!<br><a href = '#' onclick='document.location.replace("<%=response.encodeURL("VerifyAnonymous.jsp")%>");' style ="color:rgb(170,220,255);">Log in with Anonymous account</a>
 </p>
 </body>
