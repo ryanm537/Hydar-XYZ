@@ -73,7 +73,7 @@ enum Encoding{
 	static Encoding compute(String accept) {
 		if(accept==null)return identity;
 		List<String> encs = Arrays.stream(accept.split(","))
-			.map(x->x.contains(";")?x.split(";",2)[0]:x)
+			.map(x->x.split(";",2)[0])
 			.map(String::trim)
 			.filter(Config.ZIP_ALGS::contains)
 			.toList();
