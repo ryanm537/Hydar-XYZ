@@ -20,7 +20,17 @@
 Class.forName("com.mysql.jdbc.Driver");
 DataSource dataSource = (DataSource) new InitialContext().lookup("java:comp/env/jdbc/hydar");
 try(Connection conn=dataSource.getConnection()){
+	int uid=(int)session.getAttribute("userid");
+	// CHECK PERMS
 	
+	String str = "SELECT user.permission_level FROM user WHERE user.id = ?" ;
+	var ps = conn.prepareStatement(str);
+	ps.setInt(1,uid);
+	var result=ps.executeQuery();
+	String perms = "";
+	if(!result.next()||!result.getString("user.permission_level").equals("water_hydar")){
+		throw new Exception();
+	}
 	try{
 		
 		Files.deleteIfExists(Paths.get("./bots/raye_questions.txt"));
@@ -33,8 +43,8 @@ try(Connection conn=dataSource.getConnection()){
 	
 	
 	Statement stmt = conn.createStatement();
-	String str = "SELECT number FROM board";
-	ResultSet result = stmt.executeQuery(str);
+	str = "SELECT number FROM board";
+	result = stmt.executeQuery(str);
 	while(result.next()){
 		Statement stmt2 = conn.createStatement();
 		String str2 = "SELECT post.contents, post.created_date, posts.user FROM post, posts, isin WHERE post.board = " + result.getInt("number") + " AND posts.post = post.id AND post.board = isin.board AND isin.user = 2";
