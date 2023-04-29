@@ -113,6 +113,7 @@ public class HydarWS extends OutputStream{
 		}
 	
 	}
+	static final byte[] CLOSE={(byte)(0x80 | 0x08),0};
 	@Override
 	public void close(){
 		try {
@@ -120,10 +121,12 @@ public class HydarWS extends OutputStream{
 				endpoint.onClose();
 			}
 			super.close();
+			if(thread.alive)
+				thread.output.write(CLOSE);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}finally {
-			thread.alive=false;
+			thread.close();
 		}
 	}
 	private int read_() throws IOException{

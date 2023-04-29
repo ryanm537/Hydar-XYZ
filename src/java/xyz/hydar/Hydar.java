@@ -556,7 +556,7 @@ class ServerThread implements Runnable {
 		//read blocks for 5 seconds
 		if(!limiter.acquire(Token.FAST_API,Config.TC_FAST_HTTP_REQUEST)) {
 			sendError("429",Optional.empty());
-			alive=false;
+			close();
 			return;
 		}
 		int hb=0;
@@ -566,7 +566,7 @@ class ServerThread implements Runnable {
 			//char[] buffer=new char[1024];
 			fl=input.readLineCRLFLatin1();
 			if(fl==null){
-				this.alive=false;	
+				close();
 				return;
 			}firstLine = fl.split(" ");
 			hb+=fl.length();
@@ -574,7 +574,7 @@ class ServerThread implements Runnable {
 			if (firstLine.length < 3) {
 				System.out.println("400 by invalid starter: "+Arrays.asList(firstLine));
 				sendError("400",Optional.empty());
-				this.alive=false;
+				close();
 				return;
 			}
 			//tests http version
@@ -593,7 +593,7 @@ class ServerThread implements Runnable {
 			if(!h1use) {
 				sendError("408",Optional.empty());
 			}
-			this.alive=false;
+			close();
 			return;
 		}
 		if (hb>0) {
@@ -610,19 +610,19 @@ class ServerThread implements Runnable {
 					int cl=(cls==null)?0:Integer.parseInt(cls);
 					if(fl.equals("PRI * HTTP/2.0")){
 						if (!input.readLineCRLFLatin1().equals("SM")){
-							this.alive=false;
+							close();
 							return;
 						}input.skip(2);
 						break;
 					}else if(firstLine[2].equals("HTTP/2.0")) {
-						this.alive=false;
+						close();
 						return;
 					}
 					limiter.forceBuffer(cl);
 					body=input.readNBytes(cl);
 					bodyLength=body.length;
 					if(bodyLength<cl) {
-						alive=false;
+						close();
 						return;
 					}
 					if(bodyLength==0&&headers.containsKey("transfer-encoding")) {
@@ -636,7 +636,7 @@ class ServerThread implements Runnable {
 									length=HexFormat.fromHexDigits(line);
 									byte[] chunk=input.readNBytes(length);
 									if(chunk.length<length) {
-										alive=false;
+										close();
 										return;
 									}
 									chunkStream.write(chunk);
@@ -906,7 +906,7 @@ class ServerThread implements Runnable {
 				var ret = new HydarEE.HttpServletResponse(rs);
 				if(!limiter.acquire(Token.SLOW_API, Config.TC_SLOW_JSP_INVOKE)) {
 					sendError("429",hstream);
-					this.alive=false;
+					close();
 					return;
 				}
 				boolean fromCookie=true;
@@ -928,7 +928,7 @@ class ServerThread implements Runnable {
 				HydarEE.jsp_dispatch(servletName,request, ret);
 				if(!limiter.acquire(Token.SLOW_API, (int)(System.currentTimeMillis()-invokeTime))) {
 					sendError("429",hstream);
-					this.alive=false;
+					close();
 					return;
 				}
 				Response resp = ret.toHTTP();
@@ -956,7 +956,7 @@ class ServerThread implements Runnable {
 			
 			System.out.println("400 by invalid method");
 			sendError("400",hstream);
-			this.alive=false;
+			close();
 			return;
 		}
 	}
@@ -999,8 +999,8 @@ class ServerThread implements Runnable {
 		HStream hs = new HStream(StreamState.half_closed_remote,h2,1);
 		byte[] magic = input.readNBytes(24);
 		if(!Arrays.equals(magic,HydarH2.MAGIC)) {
-			this.alive=false;
 			sendError("400",Optional.of(hs));
+			close();
 			return null;
 		} 
 		Frame.parse(input,h2);
@@ -1036,7 +1036,11 @@ class ServerThread implements Runnable {
 		
 		
 	}
-	
+	public void close() {
+		alive=false;
+		try(client){}
+		catch(IOException ioe) {}
+	}
 }
 class Resource{
 	public final String etag;
@@ -1256,7 +1260,7 @@ public class Hydar {
 								.header("Location",location)
 								.data(location.getBytes())
 								.write();
-							this.alive=false;
+							close();
 						}
 					};
 					threadCount.incrementAndGet();

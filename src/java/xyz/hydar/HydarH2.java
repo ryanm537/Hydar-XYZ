@@ -93,7 +93,7 @@ public class HydarH2{
 		}finally {
 			//System.out.println("GO AWAY "+error+" "+info);
 			//new RuntimeException().fillInStackTrace().printStackTrace();
-			thread.alive=false;
+			thread.close();
 		}
 	}
 	
@@ -709,7 +709,7 @@ class Frame{
 				return;
 			}
 			System.out.println("GO AWAY(client)");
-			t.alive=false;
+			h2.goaway(0,"ack");
 			//send too maybe
 			break;
 			case PUSH_PROMISE:
