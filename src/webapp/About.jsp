@@ -163,7 +163,7 @@
 		position:relative;
 		margin-right:60px;
 		margin-left:640px;
-		top: 1110px;
+		top: 1100px;
 		text-align:left;
 	}
 	.img5{
