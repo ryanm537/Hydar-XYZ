@@ -59,6 +59,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
 
@@ -1284,12 +1285,15 @@ public class Hydar {
 		try {//ssl initialization
 			if(Config.SSL_ENABLED){
 				KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
-				InputStream tstore = Files.newInputStream(Path.of(Config.SSL_TRUST_STORE_PATH));
-				trustStore.load(tstore, Config.SSL_TRUST_STORE_PASSPHRASE.toCharArray());
-				tstore.close();
-				TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-				tmf.init(trustStore);
-				
+				TrustManager[] tms=null;
+				if(!Config.SSL_TRUST_STORE_PATH.isBlank()){
+					InputStream tstore = Files.newInputStream(Path.of(Config.SSL_TRUST_STORE_PATH));
+					trustStore.load(tstore, Config.SSL_TRUST_STORE_PASSPHRASE.toCharArray());
+					tstore.close();
+					TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+					tmf.init(trustStore);
+					tms= tmf.getTrustManagers();
+				}
 				KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
 				InputStream kstore = Files.newInputStream(Path.of(Config.SSL_KEY_STORE_PATH));
 				keyStore.load(kstore, Config.SSL_KEY_STORE_PASSPHRASE.toCharArray());
@@ -1298,9 +1302,9 @@ public class Hydar {
 				kmf.init(keyStore, Config.SSL_KEY_STORE_PASSPHRASE.toCharArray());
 				SSLContext ctx = SSLContext.getInstance(Config.SSL_CONTEXT_NAME);
 				try{
-					ctx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), SecureRandom.getInstance("NativePRNGNonBlocking"));
+					ctx.init(kmf.getKeyManagers(), tms, SecureRandom.getInstance("NativePRNGNonBlocking"));
 				}catch(NoSuchAlgorithmException e){
-					ctx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), SecureRandom.getInstanceStrong());
+					ctx.init(kmf.getKeyManagers(), tms, SecureRandom.getInstanceStrong());
 				}
 				SSLServerSocketFactory factory = ctx.getServerSocketFactory();
 				server = (Config.HOST==null)

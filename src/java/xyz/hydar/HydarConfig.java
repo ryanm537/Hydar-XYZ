@@ -27,7 +27,7 @@ class Config{
 	private static String CACHE_DIR_PATH = "./HydarCompilerCache";
 	public static String IMPORTANT_PATH = "./bots/Amogus.jar";
 	public static boolean SSL_ENABLED = false;
-	public static String SSL_TRUST_STORE_PATH, SSL_TRUST_STORE_PASSPHRASE, SSL_KEY_STORE_PATH, SSL_KEY_STORE_PASSPHRASE;
+	public static String SSL_TRUST_STORE_PATH="", SSL_TRUST_STORE_PASSPHRASE="", SSL_KEY_STORE_PATH, SSL_KEY_STORE_PASSPHRASE;
 	public static String SSL_CONTEXT_NAME = "TLS";
 	public static List<String> CLASSPATH=new ArrayList<>(List.of(System.getProperty("java.class.path")));
 	public static String[] SSL_ENABLED_PROTOCOLS = new String[]{"TLSv1.2","TLSv1.3"};
