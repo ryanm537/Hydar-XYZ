@@ -24,13 +24,19 @@ async function addLocalMedia(target){
 	var stream = await getUserAudio();
 	let tar=users.get(target);
 	try {
-		[stream, userVideo].filter(x=>x)
-			.map(x=>x.getTracks())
-			.forEach((track)=>{
+		stream.getTracks().forEach(
+			(track)=>{
+			if(muted&&track.kind=="audio")
+				track.enabled=false;
+			tar.pc.addTrack(track, stream);}
+		);
+		if(userVideo)
+			userVideo.getTracks().forEach(
+			 (track)=>{
 				if(muted&&track.kind=="audio")
 					track.enabled=false;
-				tar.pc.addTrack(track, stream);
-			});
+			tar.pc.addTrack(track,stream);}
+			);
 	} catch(err) {
 		console.dir(err);
 	}
