@@ -126,15 +126,15 @@ public class HydarLimiter extends Limiter{
 					long delta=(resetMap.get(time)+time-(now));
 					//time until the next update
 					//but if <0, we should make it even longer
-					System.out.print("delta: "+delta);
+					//System.out.print("delta: "+delta);
 					delta += delta * (-1*delta)/(time);
-					System.out.println(", "+delta);
-					System.out.println("next update in "+(delta));
+					//System.out.println(", "+delta);
+					//System.out.println("next update in "+(delta));
 					if(!blocking&&delta>250)return false;
 					if(delta+totalWait>15000) {
 						return false;
 					}else {
-						System.out.println("throttling for "+delta+" ms"+t);
+						//System.out.println("throttling for "+delta+" ms"+t);
 						if(delta<0)continue;
 						totalWait+=(int)delta+250;
 						sleep((int)delta+250);
@@ -144,7 +144,7 @@ public class HydarLimiter extends Limiter{
 					int smoothFactor=(int)(1024*left/total);
 					int sleepTime=(int)Math.min(1000,(1024*(smoothFactor+amount)/(left+smoothFactor)));
 					//int sleepTime=(int)Math.min(1000,((1024*amount)/(left)));
-					System.out.println("l2: throttling for "+(sleepTime)+" ms(max 1k) "+t);
+					//System.out.println("l2: throttling for "+(sleepTime)+" ms(max 1k) "+t);
 					if(sleepTime<100)continue;
 					sleep(sleepTime);
 					totalWait+=sleepTime;

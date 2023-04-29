@@ -1271,7 +1271,7 @@ public class Hydar {
 		}).start();
 	}
 	private static void sendErrorNow(Socket client,Limiter limiter,String code) throws IOException{
-		if(limiter.acquireNow(Token.FAST_API,Config.TC_FAST_HTTP_REQUEST))
+		if(limiter.acquireNow(Token.OUT,Response.getErrorPage(code).length()))
 			HydarUtil.TFAC.newThread(()->{
 				try(client;OutputStream output = client.getOutputStream()){
 					new Response(code).output(output).write();
