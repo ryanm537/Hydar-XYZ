@@ -168,6 +168,13 @@ form{ display: inline-block; }
 			top:30px;
 			overflow-x:hidden;
 		}
+		
+		.aboutButton{
+			font-size:15px;
+			display:inline;
+			text-align:left;
+		}
+		
 	</style>
 <body>
 <body style = "background-color:rgb(51, 57, 63);text-align:center;"> 
@@ -315,9 +322,21 @@ try(Connection conn=dataSource.getConnection()){
 	
 	<%
 			//TOP BAR
+					
+					
+					
 					out.print("<h1 style = \"color:rgb(255,255,255); font-size:15px; font-family:calibri, arial; text-align:right;position:relative;\"></style>");
 					out.print("Hello <div id=\"profileName\" style=\"display:inline\">" + session.getAttribute("username").toString() + "</div>! | ");
 					out.print("<style type=\"text/css\"> a{color:LightGrey; font-family:calibri, arial; text-align:right; font-size:15px}</style>");
+					
+					%>
+					<div id = "aboutButton", class = "aboutButton">
+						<a href = "About.jsp" class = "aboutButton">About</a>
+					</div>
+					
+					<b> | </b>
+					<%
+					
 					
 					if(uid!=3){
 					%><a href= <%=PROFILE %> > Profile</a>&nbsp;|
@@ -325,6 +344,9 @@ try(Connection conn=dataSource.getConnection()){
 					}else{
 						%><a href=<%=LOGIN %> > Log in</a><%
 					}
+					
+					
+					
 					out.print("&nbsp;&nbsp;");
 					out.print("<style type=\"text/css\"> h1{color:rgb(255,255,255); text-align:left; font-size:15px}</style>");
 					out.print("<img src=\"images/hydar.png\" alt=\"hydar\" width = \"25px\" height = \"40px\" align = \"center\">");
