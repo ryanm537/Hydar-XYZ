@@ -148,7 +148,7 @@ def bzsell(id):
     return v
 # example usages of the functions
 # recommended use of refresh(runs every time the calc is run, but not if used in last 5 min)
-if (not os.path.exists('auctions.txt')) or (((time.time_ns() // 1_000_000_000)-os.path.getmtime("auctions.txt"))>3600):
+if (not os.path.exists('auctions.txt')) or (((time.time_ns() // 1_000_000_000)-os.path.getmtime("auctions.txt"))>3600*24):
     refresh()
     
 
