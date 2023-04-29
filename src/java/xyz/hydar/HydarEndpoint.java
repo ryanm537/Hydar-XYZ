@@ -38,7 +38,7 @@ public class HydarEndpoint extends HydarWS.Endpoint{
 	Board board;
 	HydarEE.HttpSession session;
 	public static Map<Integer,Board> boards = new ConcurrentHashMap<>();//board id => board
-	
+	static volatile String PYTHON_PATH=null;
 	boolean vc=false;
 	public HydarEndpoint(HydarWS websocket) {
 		super(websocket);
@@ -55,6 +55,10 @@ public class HydarEndpoint extends HydarWS.Endpoint{
 		if(Board.REFRESH_TIMER==-1) {
 			String refr=session.getServletContext().getInitParameter("BOARD_REFRESH_DELAY");
 			Board.REFRESH_TIMER=refr==null?45000:Long.parseLong(refr);
+		}
+		if(PYTHON_PATH==null){
+			String path=session.getServletContext().getInitParameter("PYTHON_PATH");
+			PYTHON_PATH=path==null?"python":path;
 		}
 		//TODO: better way to do this
 		HttpServletRequest req = new HttpServletRequest("PermCheck", search+"&last_id=0")
@@ -567,14 +571,14 @@ class Board{
 		int newID=newMessage(inputText,u,toReply,transaction,session,false);
 		if(this.hasRaye && inputText.length()>5 && inputText.startsWith("raye ")){
 			//newMessage(inputText,u,toReply,transaction, true);
-			TasqueManager.add(new PythonBot(this,new String[]{"python","./bots/raye.py", inputText.substring(5)},null,""+newID,0,true));
+			TasqueManager.add(new PythonBot(this,new String[]{HydarEndpoint.PYTHON_PATH,"./bots/raye.py", inputText.substring(5)},null,""+newID,0,true));
 		}
 		//direct comparison(==) to ensure it was actually triggered by the command
 		//(so typing "Getting bits data..." won't actually do it)
 		else if(inputText==FORGE){
-			TasqueManager.add(new PythonBot(this,new String[]{"python","./bots/HydarForgeCalculator_0.2.5.4.py"},u,""+newID,0,false));
+			TasqueManager.add(new PythonBot(this,new String[]{HydarEndpoint.PYTHON_PATH,"./bots/HydarForgeCalculator_0.2.5.4.py"},u,""+newID,0,false));
 		}else if(inputText==BITS){
-			TasqueManager.add(new PythonBot(this,new String[]{"python","./bots/HydarBitsCalculator.py"},u,""+newID,0,false));
+			TasqueManager.add(new PythonBot(this,new String[]{HydarEndpoint.PYTHON_PATH,"./bots/HydarBitsCalculator.py"},u,""+newID,0,false));
 		}else if(inputText.equals("/bloons")) {
 			TasqueManager.add(new JSBot(this,u,""+newID,"bloons.js",0));
 		}
