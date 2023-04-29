@@ -845,7 +845,7 @@ class Board{
 				replyLength=1;
 			}
 			String actualContents = inputText.substring(14+replyName.length()+replyContents.length());
-			System.out.println(actualContents);
+			//System.out.println(actualContents);
 			String trimmed=actualContents.trim();
 			if(u.perms.equals("water_hydar")
 					&&(trimmed.startsWith("/ipban")
@@ -1044,7 +1044,6 @@ class PythonBot implements Tasque{
 				Member u = board.members.get(board.messages.get(idOfPost).uid);
 				if(u!=null){
 					String repliedText = m.message;
-					System.out.println(m.message);
 					if(repliedText.contains("<iframe") || repliedText.contains("<a href") || repliedText.contains("<img src"))
 						repliedText=" ";
 					replyHeader = "Replying to "+URLDecoder.decode(u.username,StandardCharsets.UTF_8)+" "+repliedText+": ";
@@ -1052,7 +1051,6 @@ class PythonBot implements Tasque{
 				
 			}
 			this.output=replyHeader+output;
-			System.out.println(output);
 		}
 		board.newMessage(this.output,u,toReply,transaction,null,raye);
 	}
