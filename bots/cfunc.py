@@ -1,6 +1,10 @@
 from ctypes import *
+import platform
 #cfile = "./cstuff.dll"
-cfile = "./bots/cstuff.dll"
+if platform.system() == "Windows":
+    cfile = "./bots/cstuff.dll"
+else:
+    cfile = "./bots/cstuff.so"
 cFunctions = CDLL(cfile)
 #class array:
 #	def __init__(self, arg):
