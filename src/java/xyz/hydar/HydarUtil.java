@@ -22,13 +22,17 @@ import java.net.Socket;
 import java.net.http.HttpTimeoutException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
+import java.nio.file.WatchEvent.Kind;
 import java.nio.file.WatchEvent.Modifier;
 import java.nio.file.WatchKey;
+import java.nio.file.WatchService;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.SecureRandom;
 import java.time.Duration;
@@ -95,7 +99,16 @@ public class HydarUtil {
 				if(field.getName().equals("FILE_TREE"))
 					modif_=(Modifier) field.get(null);
 			}
-		}catch(Exception e) {}
+			//test the service
+			try(WatchService svc= FileSystems.getDefault().newWatchService()){
+				var key=Path.of(".").register(svc,new Kind<?>[] {StandardWatchEventKinds.ENTRY_MODIFY},modif_);
+				key.pollEvents();
+				key.cancel();
+			}
+		}catch(Exception e) {
+			System.out.println("Recursive file watcher not supported");
+			modif_=null;
+		}
 		UNSAFE_MODIFIER=modif_;
 	}
 	public static WatchEvent.Modifier getUnsafe() {
