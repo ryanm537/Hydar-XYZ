@@ -307,7 +307,7 @@ public class HydarEE{
 				if(x.startsWith("!"))
 					outer.append(x,1,x.length());
 				else if(x.startsWith("=")) {
-					inner.append("out.write((");
+					inner.append("out.write(\"\"+(");
 					inner.append(x,1,x.length());
 					inner.append("));");
 				}
