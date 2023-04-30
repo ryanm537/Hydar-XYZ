@@ -14,70 +14,114 @@ USE `chatRoom`;
 
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-DROP TABLE IF EXISTS `user`;
+DROP TABLE IF EXISTS `board`;
 
 CREATE TABLE IF NOT EXISTS 	`board` (
-	`creator` varchar(50),
-	`number` int,
-	`name` varchar(50),
+	`creator` int not null,
+	`number` int NOT NULL AUTO_INCREMENT,
+	`name` varchar(50) not null,
+    `image` varchar(20) not null,
+	`channelof` int not null default -1,
+    `public` tinyint not null default 0,
+	`dm` tinyint not null default 0,
+    `readonly` tinyint not null default 0,
     PRIMARY KEY (`number`),
     KEY(`name`)
 );
-INSERT INTO board(`creator`, `number`, `name`) VALUES("", 1, "Everything Else");
-INSERT INTO board(`creator`, `number`, `name`) VALUES("", 2, "SAS4");
-INSERT INTO board(`creator`, `number`, `name`) VALUES("", 3, "Skyblock");
+CREATE INDEX get_channels ON `board`(`channelof`) USING HASH;
+INSERT INTO board(`creator`, `name`, `public`, `image`,`channelof`,`dm`,`readonly`) VALUES(-1, "Everything Else", 1, "everythingelse.png",-1,0,0);
+INSERT INTO board(`creator`, `name`, `public`, `image`,`channelof`,`dm`,`readonly`) VALUES(-1, "SAS4", 1, "sas4.png",-1,0,0);
+INSERT INTO board(`creator`, `name`, `public`, `image`,`channelof`,`dm`,`readonly`) VALUES(-1, "Skyblock", 1, "skyblock.png",-1,0,0);
+INSERT INTO board(`creator`, `name`, `public`, `image`,`channelof`,`dm`,`readonly`) VALUES(1, "Hydar", 0, "misc.png",-1,0,0);
 
+DROP TABLE IF EXISTS `user`;
 CREATE TABLE IF NOT EXISTS `user` (
-  `username` varchar(50) ,
-  `password` varchar(50) ,
-  `id` int ,
-  `pfp` varchar(100),
-  `boards` text,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `username` varchar(50) not null,
+  `password` varbinary(32) not null,
+  `addr` varbinary(16) not null DEFAULT x'7f000001',
+  `pfp` varchar(100) not null,
+  `permission_level` enum("water_hydar","great_white","yeti","skeleton","reserved2") not null,
+  `pings` tinyint not null,
+  `volume` tinyint not null,
+  `pingvolume` tinyint not null,
+  `vcvolume` tinyint not null,
   PRIMARY KEY (`id`),
-  KEY (`username`)
+  KEY (`username`),
+  KEY (`addr`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+DROP TABLE IF EXISTS `ban`;
+CREATE TABLE IF NOT EXISTS `ban`(
+	`id` int,
+	`type` enum("user","message","addr"),
+	`addr` varbinary(16) not null,
+	PRIMARY KEY(`addr`),
+    KEY(`id`)
+);
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO user(`username`, `password`, `id`, `pfp`, `boards`) VALUES("klin_", "catfish2001", 0, "hydar2.png", " 1, 2, 3, ");
-INSERT INTO user(`username`, `password`, `id`, `pfp`, `boards`) VALUES("Glenn M", "password", 1, "hydar2.png", " 1, 2, 3, ");
-
+INSERT INTO user(`username`, `id`,  `password`, `pfp`, `permission_level`, `pings`, `volume`, `pingvolume`, `vcvolume`) VALUES("Raye",2,"raye", "images/r.png", "water_hydar", 0, 50, 50, 50);
+INSERT INTO user(`username`, `id`,  `password`, `pfp`, `permission_level`, `pings`, `volume`, `pingvolume`, `vcvolume`) VALUES("Guest",3,"skeleton", "images/emp.png", "skeleton", 0, 50, 50, 50);
+SELECT * FROM user;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 DROP TABLE IF EXISTS `post`;
 CREATE TABLE IF NOT EXISTS `post` (
-  `contents` varchar(500),
-  `id` int ,
-  `board` int,
-  `created_date` long,
+  `contents` varchar(3000) not null,
+  `id` int NOT NULL AUTO_INCREMENT not null,
+  `board` int not null,
+  `created_date` bigint not null,
+  `addr` varbinary(16),/*nullable*/
+  CONSTRAINT `board_posts_post` FOREIGN KEY (`board`) REFERENCES `board` (`number`) ON DELETE CASCADE,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+ALTER TABLE `post` AUTO_INCREMENT = 0;
+
+
 /*!40101 SET character_set_client = @saved_cs_client */;
 #INSERT INTO post(`contents`, `id`, `board`, `created_date`)
 	#VALUES ("Hello", 0, 1, 0);
 
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
+DROP TABlE IF EXISTS `posts`;
 CREATE TABLE IF NOT EXISTS `posts` (
-  `user` int ,
-  `post` int ,
+  `user` int not null,
+  `post` int not null,
   PRIMARY KEY (`user`, `post`),
-  KEY `user_posts_post` (`user`),
-  CONSTRAINT `user_posts_post` FOREIGN KEY (`user`) REFERENCES `user` (`id`),
-  CONSTRAINT `post_posted` FOREIGN KEY (`post`) REFERENCES `post` (`id`)
+  CONSTRAINT `user_posts_post` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `post_posted` FOREIGN KEY (`post`) REFERENCES `post` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 #INSERT INTO posts(`user`, `post`)
 #	VALUES (0, 0);
-    
-#SELECT * FROM posts
 
-#INSERT INTO admin(`id`, `phone`,  `name`, `ssn`) VALUES(134, "7327321234", "Admin1", 25235252);
-#INSERT INTO user(`username`, `password`, `id`) VALUES("Admin1",  "password", 134);
-#INSERT INTO customer_rep(`id`, `phone`,  `name`, `ssn`) VALUES(14, "7327321234", "customerrep1", 25235252);
-#INSERT INTO user(`username`, `password`, `id`) VALUES("cr1",  "password", 14);
-
-#DELETE FROM customer_rep WHERE id=13;
-#SELECT * FROM QUESTION;
-#DELETE FROM is_for WHERE item = 123;
-#SELECT bid.amount, item.id, item.name, item.highest_bid, item.location, item.close_date FROM bid, user, creates, is_for, item 
-#	WHERE user.id=creates.user AND creates.bid = bid.id
-#		AND bid.id = is_for.bid AND is_for.item = item.id AND user.id = 7 ORDER BY item.id;
+DROP TABLE IF EXISTS `isin`;
+CREATE TABLE IF NOT EXISTS `isin` (
+	`user` int not null,
+	`board` int not null,
+    `lastvisited` bigint not null,
+    PRIMARY KEY (`user`, `board`),
+	CONSTRAINT `user_is_in` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+	CONSTRAINT `is_in_board` FOREIGN KEY (`board`) REFERENCES `board` (`number`) ON DELETE CASCADE
+);
+INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (2, 1, 0);
+INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (2, 2, 0);
+INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (2, 3, 0);
+INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (2, 4, 0);
+INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (3, 1, 0);
+INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (3, 2, 0);
+INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (3, 3, 0);
+DROP TABLE IF EXISTS `invitedto`;
+CREATE TABLE IF NOT EXISTS `invitedto` (
+	`user` int not null,
+	`board` int not null,
+    PRIMARY KEY (`user`, `board`),
+	CONSTRAINT `user_invited_to` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+	CONSTRAINT `invited_to_board` FOREIGN KEY (`board`) REFERENCES `board` (`number`) ON DELETE CASCADE
+);
+SELECT * FROM invitedto;
+SELECT * FROM user;
+SELECT * FROM board;
+SELECT * FROM isin;
+SELECT * FROM post;
+SELECT * FROM posts;
