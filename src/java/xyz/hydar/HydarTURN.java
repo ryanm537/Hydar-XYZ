@@ -542,9 +542,9 @@ class Permission extends Expireable{
 	}
 }
 class TURNChannel extends Expireable{
-	public short number;
-	public Client peer;
-	public Client client;
+	public final short number;
+	public final Client peer;
+	public final Client client;
 	public TURNChannel(short number, Client client, Client peer) {
 		super(600);
 		this.number=number;
@@ -709,10 +709,10 @@ class Allocation extends Expireable{
 }
 
 class TURNUpdateTask implements Runnable{
-	Expireable e;
-	int ttl=-1;
+	final Expireable e;
+	final int ttl;
 	public TURNUpdateTask(Expireable e) {
-		this.e=e;
+		this(e,-1);
 	}
 	public TURNUpdateTask(Expireable e, int ttl) {
 		this.e=e;
