@@ -1429,7 +1429,7 @@ public class Hydar {
 		
 		if(Config.TURN_ENABLED){
 			try {
-				Class<?> clazz=Class.forName("xyz.hydar.HydarTURN");
+				Class<?> clazz=Class.forName("xyz.hydar.turn.HydarTURN");
 				UnaryOperator<String> auth=Hydar::authenticate;
 				int port = Config.TURN_PORT;
 				
