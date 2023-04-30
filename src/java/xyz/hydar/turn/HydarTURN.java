@@ -1,4 +1,4 @@
-package xyz.hydar;
+package xyz.hydar.turn;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -37,7 +37,7 @@ import java.util.zip.CRC32;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-import xyz.hydar.server.HydarUtil;
+import xyz.hydar.ee.HydarUtil;
 //realms are not checked + peers cannot be remote and cant receive data(virtual peers
 //hmacsha256/other recent features not implemented
 //reservations/dont fragment are ignored

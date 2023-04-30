@@ -1,4 +1,4 @@
-package xyz.hydar;
+package xyz.hydar.app;
 import static java.lang.Integer.parseInt;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -29,11 +29,11 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import xyz.hydar.server.HydarEE;
-import xyz.hydar.server.HydarWS;
-import xyz.hydar.server.HydarEE.HttpServletRequest;
-import xyz.hydar.server.HydarEE.HttpServletResponse;
-import xyz.hydar.server.HydarEE.HttpSession;
+import xyz.hydar.ee.HydarEE;
+import xyz.hydar.ee.HydarWS;
+import xyz.hydar.ee.HydarEE.HttpServletRequest;
+import xyz.hydar.ee.HydarEE.HttpServletResponse;
+import xyz.hydar.ee.HydarEE.HttpSession;
 
 public class HydarEndpoint extends HydarWS.Endpoint{
 	int id;

@@ -1,7 +1,7 @@
 <%@page import="java.nio.charset.StandardCharsets"%>
 <%@page import="java.nio.CharBuffer"%>
 <%@page import="java.util.stream.Stream"%>
-<%@page import="xyz.hydar.HydarUtil"%>
+<%@page import="xyz.hydar.server.HydarUtil"%>
 <%@ page language="java" contentType="text/html; charset=ISO-8859-1"
     pageEncoding="ISO-8859-1" session='false'%>
 <%@ page import="java.io.*,java.util.*, java.time.*, java.text.*, java.util.Date, java.sql.*"%>
