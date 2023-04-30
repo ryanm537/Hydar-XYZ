@@ -34,6 +34,7 @@ public class HydarWS extends OutputStream{
 	public int ping=10;
 	public ServerThread thread;
 	private static final byte[] EMPTY_BLOCK=new byte[]{0x00,0x00,(byte)0xff,(byte)0xff};
+	private static final byte[] WS_CLOSE={(byte)(0x80 | 0x08),0};
 	private BAOS inflate_baos;
 	private InflaterOutputStream inflate_ios;
 	public static ConcurrentHashMap<String, Object> endpoints=new ConcurrentHashMap<>();
@@ -113,19 +114,16 @@ public class HydarWS extends OutputStream{
 		}
 	
 	}
-	static final byte[] CLOSE={(byte)(0x80 | 0x08),0};
 	@Override
-	public void close(){
+	public void close() throws IOException{
 		try {
 			if(endpoint!=null) {
 				endpoint.onClose();
 			}
 			super.close();
 			if(thread.alive)
-				thread.output.write(CLOSE);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}finally {
+				thread.output.write(WS_CLOSE);
+		} finally {
 			thread.close();
 		}
 	}

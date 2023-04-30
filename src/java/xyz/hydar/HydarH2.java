@@ -79,7 +79,7 @@ public class HydarH2{
 		streams.values().forEach(x->x.state=StreamState.closed);
 		streams.clear();
 		System.out.println("go away "+error+" "+info+" ");
-		new RuntimeException().fillInStackTrace().printStackTrace();
+		//new RuntimeException().fillInStackTrace().printStackTrace();
 		try{
 			var dos = ByteBuffer.allocate(info.length()+8)
 				.putInt(maxStream&0x7fffffff)
