@@ -520,14 +520,10 @@ public class HydarTURN implements AutoCloseable{
 			}
 		}
 		
-		public void write(byte[] data){
-			try {	
+		public void write(byte[] data) throws IOException{
 				//System.out.println("sending "+HexFormat.of().formatHex(data)+" to "+client.client+":"+client.clientPort);
-				
-				this.server.send(new DatagramPacket(data,data.length,client.client,client.clientPort));
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+			this.server.send(new DatagramPacket(data,data.length,client.client,client.clientPort));
+			
 		}
 		@Override
 		public void kill() {
