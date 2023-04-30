@@ -29,9 +29,11 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import xyz.hydar.HydarEE.HttpServletRequest;
-import xyz.hydar.HydarEE.HttpServletResponse;
-import xyz.hydar.HydarEE.HttpSession;
+import xyz.hydar.server.HydarEE;
+import xyz.hydar.server.HydarWS;
+import xyz.hydar.server.HydarEE.HttpServletRequest;
+import xyz.hydar.server.HydarEE.HttpServletResponse;
+import xyz.hydar.server.HydarEE.HttpSession;
 
 public class HydarEndpoint extends HydarWS.Endpoint{
 	int id;
@@ -46,12 +48,12 @@ public class HydarEndpoint extends HydarWS.Endpoint{
 	}
 	@Override
 	public void onOpen() throws IOException{
-		this.session=websocket.thread.session;
+		this.session=getSession();
 		Integer tmp=(Integer)session.getAttribute("userid");
 		if(tmp==null) {
 			close();
 			return;
-		}
+		} 
 		if(Board.REFRESH_TIMER==-1) {
 			String refr=session.getServletContext().getInitParameter("BOARD_REFRESH_DELAY");
 			Board.REFRESH_TIMER=refr==null?45000:Long.parseLong(refr);
@@ -62,12 +64,12 @@ public class HydarEndpoint extends HydarWS.Endpoint{
 		}
 		//TODO: better way to do this
 		HttpServletRequest req = new HttpServletRequest("PermCheck", search+"&last_id=0")
-				.withAddr(new InetSocketAddress(websocket.thread.client_addr,0))
+				.withAddr(new InetSocketAddress(getRemoteAddress(),0))
 				.withSession(this.session,true);
 		HydarEE.HttpServletResponse ret = HydarEE.jsp_invoke(req);
 		//only guests have ip attr
 		if(tmp==3) {
-			session.setAttribute("ip",websocket.thread.client_addr);
+			session.setAttribute("ip",getRemoteAddress());
 		}else
 			session.removeAttribute("ip");
 		if(ret.getStatus()>=300){
@@ -319,7 +321,7 @@ class Board{
 				var hResponse = HydarEE.jsp_invoke("MsgApi",t.session,"board="+this.boardId+"&last_id="+0);
 				if(hResponse.getStatus()>=300)
 					continue;
-				String h=hResponse.baos.toString(UTF_8);
+				String h=hResponse.getBuffer().toString(UTF_8);
 				parseApi(h);
 				if(members.get(t.id)==null){
 					continue;
@@ -717,7 +719,7 @@ class Board{
 							ret=HydarEE.jsp_invoke("CreateBoard",session,"input_create="+ channelName +"&channelof=" + this.channelOf);
 						}
 						if(ret.getStatus()<400) {
-							String resp=ret.baos.toString();
+							String resp=ret.getBuffer().toString();
 							int start=resp.indexOf("board=")+6;
 							int end=resp.indexOf("&",start);
 							resp=resp.substring(start,end<0?resp.length():end);
