@@ -20,8 +20,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -36,8 +38,6 @@ import java.util.zip.CRC32;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-
-import xyz.hydar.ee.HydarUtil;
 //realms are not checked + peers cannot be remote and cant receive data(virtual peers
 //hmacsha256/other recent features not implemented
 //reservations/dont fragment are ignored
@@ -561,10 +561,13 @@ public class HydarTURN implements AutoCloseable{
 	public class Nonce extends HydarTURN.Expireable{
 		public final Client client;
 		public final byte[] nonce;
+		private static final SecureRandom gen=new SecureRandom();
 		public Nonce(Client c) {
 			super(3600);
 			this.client=c;
-			this.nonce = HydarUtil.noise(16).getBytes();
+			byte[] raw=new byte[16];
+			gen.nextBytes(raw);
+			this.nonce = Base64.getEncoder().encode(raw);
 		}
 		@Override
 		public void kill() {
