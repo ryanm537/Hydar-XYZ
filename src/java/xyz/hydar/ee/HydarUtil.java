@@ -1,4 +1,4 @@
-package xyz.hydar;
+package xyz.hydar.ee;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;

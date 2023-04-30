@@ -1,7 +1,8 @@
-package xyz.hydar;
+package xyz.hydar.ee;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toUnmodifiableMap;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -320,10 +321,10 @@ public class HydarEE{
 				.append(extraImports)
 				.append("public class "+o+v+i+a)
 				.append(q)
-				.append(" extends xyz.hydar.HydarEE.JspServlet{"+u+a_+r_+t+a__)
+				.append(" extends xyz.hydar.ee.HydarEE.JspServlet{"+u+a_+r_+t+a__)
 				.append(outer);
-			x__.append("public void _jspService(xyz.hydar.HydarEE.HttpServletRequest request, xyz.hydar.HydarEE.HttpServletResponse response) {")
-				.append("xyz.hydar.HydarEE.HttpSession session = request.getSession();")
+			x__.append("public void _jspService(xyz.hydar.ee.HydarEE.HttpServletRequest request, xyz.hydar.ee.HydarEE.HttpServletResponse response) {")
+				.append("xyz.hydar.ee.HydarEE.HttpSession session = request.getSession();")
 				.append("PrintWriter out = response.getWriter();")
 				.append("try{\n")
 				.append(x_)
@@ -838,6 +839,9 @@ public class HydarEE{
 		}
 		public PrintWriter getWriter(){
 			return out;
+		}
+		public ByteArrayOutputStream getBuffer() {
+			return baos;
 		}
 	}
 	public static class HttpSession{

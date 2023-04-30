@@ -1,4 +1,4 @@
-package xyz.hydar.server;
+package xyz.hydar.ee;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.util.concurrent.Executors.newCachedThreadPool;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;

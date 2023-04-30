@@ -1,4 +1,4 @@
-package xyz.hydar;
+package xyz.hydar.ee;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Field;

@@ -1,4 +1,4 @@
-package xyz.hydar;
+package xyz.hydar.ee;
 import static java.util.stream.Collectors.toUnmodifiableMap;
 
 import java.net.InetAddress;

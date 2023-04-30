@@ -1,4 +1,4 @@
-package xyz.hydar;
+package xyz.hydar.ee;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.util.Comparator.comparing;
 import static java.util.Comparator.naturalOrder;

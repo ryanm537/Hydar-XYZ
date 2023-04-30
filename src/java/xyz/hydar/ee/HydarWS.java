@@ -1,8 +1,9 @@
-package xyz.hydar;
+package xyz.hydar.ee;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.LongBuffer;
 import java.nio.charset.StandardCharsets;
@@ -14,6 +15,8 @@ import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterOutputStream;
+
+import xyz.hydar.ee.HydarEE.HttpSession;
 
 /**A WebSocket context*/
 public class HydarWS extends OutputStream{
@@ -345,6 +348,12 @@ public class HydarWS extends OutputStream{
 				this.search=websocket.search;
 			}
 		} 
+		public HttpSession getSession() {
+			return websocket.thread.session;
+		}
+		public InetAddress getRemoteAddress() {
+			return websocket.thread.client_addr;
+		}
 		public abstract void onOpen() throws IOException;
 		public abstract void onClose() throws IOException;
 		public abstract void onMessage(String message) throws IOException;

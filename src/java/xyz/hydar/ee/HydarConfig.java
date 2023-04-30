@@ -1,4 +1,4 @@
-package xyz.hydar;
+package xyz.hydar.ee;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
