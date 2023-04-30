@@ -93,15 +93,15 @@ class Attr{
  */
 class Packet {
 	// 0b00 req 0b01 indic 0b10 resp 0b11 error
-	public int messageClass;
+	public final int messageClass;
 	// 12 bits :skull
-	public int messageType;
+	public final int messageType;
 	// length of attributes only
 	public short forcedLength=-1;
 	public short length;
 	//mask used for XOR'd addresses
-	public byte[] mask;
-	public byte[] transaction;// byte[12]
+	public final byte[] mask;
+	public final byte[] transaction;// byte[12]
 	// message classes
 	public static final int REQUEST = 0;
 	public static final int INDICATION = 1;
@@ -469,17 +469,11 @@ class Client {
 		try {
 			InetAddress c = InetAddress.getByAddress(ip);
 			if(c.equals(HydarTURN.ip)) {
-				ArrayList<Client> j=new ArrayList<Client>();
-				Client.alloc.forEach((k,v)->{
-					if(v.port==port)
-						j.add(k);
-				});
-				if(j.size()>0)
-					return j.get(0);
-				else{
-					System.out.print("e");
-					return null;
-				}
+				//client that created allocation w/ that port
+				return Client.alloc.entrySet().stream()
+					.filter(x->x.getValue().port==port)
+					.map(x->x.getKey())
+					.findFirst().orElse(null);
 			}else return new Client(c, port, serverPort);
 		} catch (UnknownHostException u) {
 			u.printStackTrace();
@@ -488,35 +482,22 @@ class Client {
 	}
 
 	public byte[] xor(Packet s) {
-		byte[] pl = new byte[4 + client.getAddress().length];
-		boolean ipv4 = (client.getAddress().length == 4);
-		pl[0] = 0x00;
-		if (ipv4)
-			pl[1] = 0x01;
-		else
-			pl[1] = 0x02;
-		pl[2] = (byte) ((((clientPort) & 0xFF00) >> 8) ^ 0x21);
-		pl[3] = (byte) (((clientPort) & 0xFF) ^ 0x12);
-		int i = 0;
-		for (i = 0; i < client.getAddress().length; i++)
-			pl[4 + i] = (byte) ((client.getAddress()[i]) ^ s.mask[i]);
-		return pl;
+		return xorAddress(client.getAddress(), s.mask, clientPort);
 	}
-
 	public byte[] xorRelay(Packet s) {
 		var a = alloc.get(this);
-		boolean ipv4 = (HydarTURN.ip.getAddress().length == 4);
-		byte[] p = new byte[HydarTURN.ip.getAddress().length + 4];
+		return xorAddress(HydarTURN.ip.getAddress(), s.mask, a.port);
+	}
+	static byte[] xorAddress(byte[] addr, byte[] mask, int port) {
+		int len=addr.length;
+		boolean ipv4 = (len == 4);
+		byte[] p = new byte[len + 4];
 		p[0] = 0x00;
-		if (ipv4)
-			p[1] = 0x01;
-		else
-			p[1] = 0x02;
-		p[2] = (byte) ((((a.port) & 0xFF00) >> 8) ^ 0x21);
-		p[3] = (byte) (((a.port) & 0xFF) ^ 0x12);
-		int i = 0;
-		for (i = 0; i < HydarTURN.ip.getAddress().length; i++)
-			p[4 + i] = (byte) ((HydarTURN.ip.getAddress()[i]) ^ s.mask[i]);
+		p[1] = (byte) (ipv4?0x01:0x02);
+		p[2] = (byte) ((((port) & 0xFF00) >> 8) ^ 0x21);
+		p[3] = (byte) (((port) & 0xFF) ^ 0x12);
+		for (int i = 0; i < len; i++)
+			p[4 + i] = (byte) (addr[i] ^ mask[i]);
 		return p;
 	}
 }
@@ -622,7 +603,6 @@ class Allocation extends Expireable{
 	public final int port;
 	public final Map<Short, TURNChannel> channels=new ConcurrentHashMap<>();
 	public final Map<Client, Permission> permissions=new ConcurrentHashMap<>();
-	public Packet auth;
 	public volatile static int nextPort = 32400;
 	// first packet, stores username password realm nonce
 	//username in allocation maybe hydar
@@ -763,7 +743,7 @@ abstract class Expireable{
 	public static final ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
 	
 	//init-> start the Runnable if its null ig
-	public volatile AtomicInteger ttl;
+	public final AtomicInteger ttl;
 	public volatile boolean alive;
 	public Expireable(int ttl) {
 		timer.schedule(new TURNUpdateTask(this), 1000,TimeUnit.MILLISECONDS);
@@ -781,18 +761,18 @@ class TCPHydarThread extends Thread{
 	public static final Map<Client,TCPHydarThread> threads = new ConcurrentHashMap<>();
 	public volatile boolean alive;
 	public final Socket socket;
-	public volatile Client client;
-	public InetAddress client_addr;
-	private volatile OutputStream output;
+	public final Client client;
+	public final InetAddress client_addr;
+	private final OutputStream output;
 	public volatile int timeouts;
 	public final TCPHydarStunInstance instance;
-	public TCPHydarThread(TCPHydarStunInstance instance, Socket client) {
+	public TCPHydarThread(TCPHydarStunInstance instance, Socket client) throws IOException {
 		this.socket=client;
 		this.instance=instance;
 		this.timeouts=0;
 		this.client=new Client(socket.getInetAddress(),socket.getPort(),socket.getLocalPort());
 		this.client_addr=socket.getInetAddress();
-		System.out.println(this.client);
+		this.output=new BufferedOutputStream(client.getOutputStream());
 		threads.put(this.client, this);
 		this.alive=true;
 	}
@@ -807,8 +787,7 @@ class TCPHydarThread extends Thread{
 	}
 	@Override
 	public void run() {
-		try(socket) {
-			output=new BufferedOutputStream(socket.getOutputStream());
+		try(socket;output) {
 			DataInputStream input = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
 			while(this.alive&&timeouts<15) {
 				
@@ -1342,8 +1321,8 @@ class HydarTURN {
 				
 				p.waitFor();
 				BufferedReader bfr = new BufferedReader(new InputStreamReader(p.getInputStream()));
-				//ip = InetAddress.getByName("192.168.1.4");
-				//ip = InetAddress.getByName(bfr.readLine());
+				//ip = InetAddress.getByName("192.168.1.3");
+				ip = InetAddress.getByName(bfr.readLine());
 				bfr.close();
 				udp_instance = new UDPHydarStunInstance(Config.TURN_PORT);
 				new Thread(udp_instance).start();
