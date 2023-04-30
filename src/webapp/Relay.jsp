@@ -1,4 +1,4 @@
-<%@page import="xyz.hydar.server.HydarWS"%>
+<%@page import="xyz.hydar.ee.HydarWS"%>
 <%@page import="java.io.IOException" %>
 <%!//Class.forName("HydarWS");
 static{
@@ -13,5 +13,5 @@ static{
 			})
 			.onClose((output)->System.out.println("Closing..."))
 			);*/
-	xyz.hydar.server.HydarWS.registerEndpoint("Relay.jsp",xyz.hydar.app.HydarEndpoint.class);
+	xyz.hydar.ee.HydarWS.registerEndpoint("Relay.jsp",xyz.hydar.app.HydarEndpoint.class);
 }%>
