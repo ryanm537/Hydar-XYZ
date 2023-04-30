@@ -1,4 +1,4 @@
-package xyz.hydar;
+package xyz.hydar.server;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.util.concurrent.Executors.newCachedThreadPool;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
@@ -6,15 +6,18 @@ import static java.util.stream.Collectors.groupingBy;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.net.URL;
 import java.net.http.HttpTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -50,6 +53,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.UnaryOperator;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -1425,8 +1429,22 @@ public class Hydar {
 		
 		if(Config.TURN_ENABLED){
 			try {
-				Class.forName("xyz.hydar.HydarTURN");
-			}catch(ClassNotFoundException e) {
+				Class<?> clazz=Class.forName("xyz.hydar.HydarTURN");
+				UnaryOperator<String> auth=Hydar::authenticate;
+				int port = Config.TURN_PORT;
+				
+				try(var is=new URL("https://ifconfig.me").openStream();
+					var rdr=new InputStreamReader(is);
+					var bfr = new BufferedReader(rdr)){
+					String turnAddr=bfr.readLine();
+					//String turnAddr = "192.168.1.3";
+					clazz.getConstructor(UnaryOperator.class,String.class,int.class)
+						.newInstance(auth,turnAddr,port);
+				}
+				//ip = InetAddress.getByName(bfr.readLine());
+				//bfr.close();
+			}catch(Exception e) {
+				e.printStackTrace();
 				System.out.println("TURN module not found.");
 			}
 		}
