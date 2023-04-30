@@ -970,12 +970,12 @@ class ServerThread implements Runnable {
 		if(isHead)build.disableLength().disableData();
 		return build;
 	}
-	private Response getError(String code, Optional<HStream> hs) {
+	protected Response getError(String code, Optional<HStream> hs) {
 		String error=Response.getErrorPage(code);
 		var builder = !isHead?newResponse(code,hs).data(error.getBytes()):newResponse(code,hs);
 		return builder;
 	}
-	private void sendError(String code, Optional<HStream> hs) throws IOException{
+	protected void sendError(String code, Optional<HStream> hs) throws IOException{
 		getError(code,hs).write();
 	}
 	private final Response UPGRADE(String protocol) {
@@ -1251,6 +1251,11 @@ public class Hydar {
 						public void hparse(Map<String,String> headers, Optional<HStream> hstream, byte[] body, int bodyLength) throws IOException {
 							String path = headers.get(":path");
 							String host = hstream.isPresent() ? headers.get(":authority") : headers.get("host");
+							if(host==null) {
+								sendError("400",hstream);
+								close();
+								return;
+							}
 							String location="https://"+host.split(":",2)[0];
 							if(Config.PORT!=443)
 								location+=":"+Config.PORT;
