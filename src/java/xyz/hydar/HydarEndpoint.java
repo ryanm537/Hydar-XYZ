@@ -88,7 +88,7 @@ public class HydarEndpoint extends HydarWS.Endpoint{
 	@Override
 	public void onClose() {
 		if(board!=null) {
-			board.dropUser(this);
+			board.dropUser(this, false);//already being closed
 			HydarEE.jsp_invoke("OnClose",session,"board="+board.boardId);
 		}
 	}
@@ -421,14 +421,18 @@ class Board{
 			if(t.id==id)
 				dropUser(t);
 	}
-	public void dropUser(HydarEndpoint user){//separate from kick
+	public void dropUser(HydarEndpoint user) {
+		dropUser(user,true);
+	}
+	public void dropUser(HydarEndpoint user, boolean close){//separate from kick
 		System.out.println("drop "+user.id);
 		lock.lock();
 		try {
 			if(users.remove(user)) {
-				try {
-					user.close();
-				} catch (IOException e) {}
+				if(close)
+					try {
+						user.close();
+					} catch (IOException e) {}
 				if(users.size()==0){
 					System.out.println("drop board "+this.boardId+" (multiple is not an error)");
 					HydarEndpoint.boards.remove(this.boardId);
