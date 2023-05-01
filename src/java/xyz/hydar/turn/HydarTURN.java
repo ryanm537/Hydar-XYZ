@@ -42,11 +42,11 @@ import javax.crypto.spec.SecretKeySpec;
 //hmacsha256/other recent features not implemented
 //reservations/dont fragment are ignored
 public class HydarTURN implements AutoCloseable{
-	public final InetAddress ip;
-	public final UDPHydarStunInstance udp_instance;
-	public final TCPHydarStunInstance tcp_instance;
-	public final Function<String,String> auth;
-	public static final boolean SHOULD_FINGERPRINT=false;
+	private final InetAddress ip;
+	private final UDPInstance udp_instance;
+	private final TCPInstance tcp_instance;
+	private final Function<String,String> auth;
+	private static final boolean SHOULD_FINGERPRINT=false;
 	/**
 	 * Wrapper for STUN attributes.
 	 * Each attribute has a type and data array and can be encoded as:
@@ -662,10 +662,9 @@ public class HydarTURN implements AutoCloseable{
 			this.alive=false;
 		}
 	}
-	public class UDPHydarStunInstance extends HydarStunInstance{
-		public final DatagramSocket server;
-		public UDPHydarStunInstance(int port) {
-			super();
+	public class UDPInstance extends HydarStunInstance{
+		final DatagramSocket server;
+		public UDPInstance(int port) {
 			try {
 				this.port = port;
 				this.server = new DatagramSocket(port);
@@ -704,6 +703,12 @@ public class HydarTURN implements AutoCloseable{
 				e.printStackTrace();
 				return;
 			}
+		}
+
+		@Override
+		public void close() throws IOException {
+			alive=false;
+			server.close();
 		}
 		@Override
 		public void run(){
@@ -788,7 +793,10 @@ public class HydarTURN implements AutoCloseable{
 	 * If all the checks pass, the server creates the allocation.
 	 * 
 	 */
-	public class TCPHydarStunInstance extends HydarStunInstance{
+	public class TCPInstance extends HydarStunInstance{
+		private ServerSocket server;
+		private volatile boolean alive;
+		private static AtomicInteger threadCount=new AtomicInteger();
 		class TCPHydarThread extends Thread{
 			public static final Map<Client,TCPHydarThread> threads = new ConcurrentHashMap<>();
 			public volatile boolean alive;
@@ -797,8 +805,8 @@ public class HydarTURN implements AutoCloseable{
 			public final InetAddress client_addr;
 			private final OutputStream output;
 			public volatile int timeouts;
-			public final TCPHydarStunInstance instance;
-			public TCPHydarThread(TCPHydarStunInstance instance, Socket client) throws IOException {
+			public final TCPInstance instance;
+			public TCPHydarThread(TCPInstance instance, Socket client) throws IOException {
 				this.socket=client;
 				this.instance=instance;
 				this.timeouts=0;
@@ -853,18 +861,13 @@ public class HydarTURN implements AutoCloseable{
 						HydarTURN.limiter.remove(client_addr);
 					}
 				}*/
-				TCPHydarStunInstance.threadCount.decrementAndGet();
+				TCPInstance.threadCount.decrementAndGet();
 				threads.remove(client);
 			}
 		}
 
 
-		public ServerSocket server;
-		public volatile boolean alive;
-		public static AtomicInteger threadCount=new AtomicInteger();
-		public static int maxThreads=256;
-		public TCPHydarStunInstance(int port) {
-			super();
+		public TCPInstance(int port) {
 			this.port = port;
 			try {
 				this.server = new ServerSocket(port);
@@ -875,7 +878,11 @@ public class HydarTURN implements AutoCloseable{
 				e.printStackTrace();
 			}
 		}
-	
+		@Override
+		public void close() throws IOException {
+			alive=false;
+			server.close();
+		}
 		@Override
 		void send(Packet response, Client c) {
 			TCPHydarThread.threads.get(c).write(response.toByteArray());
@@ -930,7 +937,7 @@ public class HydarTURN implements AutoCloseable{
 	 * A transport-independent STUN/TURN instance
 	 * (override run() to call recv())
 	 * */
-	abstract class HydarStunInstance extends Thread {
+	abstract class HydarStunInstance implements Runnable, AutoCloseable{
 		public int port;
 		public boolean alive=true;
 	
@@ -940,10 +947,10 @@ public class HydarTURN implements AutoCloseable{
 		@Override
 		public abstract void run();
 	
-		public Client fromXor(byte[] addr, Packet p) {
+		Client fromXor(byte[] addr, Packet p) {
 			return parseClient(addr,port, p);
 		}
-		public void recv(Packet s, Client c) {
+		void recv(Packet s, Client c) {
 			Packet response = null;
 			switch (s.messageType) {
 			case Packet.BINDING:
@@ -1314,9 +1321,9 @@ public class HydarTURN implements AutoCloseable{
 		try {
 			this.auth=auth;
 			this.ip=InetAddress.getByName(ip);
-			udp_instance = new UDPHydarStunInstance(port);
+			udp_instance = new UDPInstance(port);
 			new Thread(udp_instance).start();
-			tcp_instance = new TCPHydarStunInstance(port);
+			tcp_instance = new TCPInstance(port);
 			new Thread(tcp_instance).start();
 		} catch (Exception e) {
 			throw new RuntimeException(e);
