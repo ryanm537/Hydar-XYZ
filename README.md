@@ -31,4 +31,3 @@ Finally, the <b>frontend code</b> contains the client aspects of these, ensuring
 <br><br>
 In addition to the above main components, Hydar includes additional, optional modules to improve user experience. These include a pure Java implementation of the <b>STUN/TURN</b> protocol for relaying calls, as well as advanced, custom <b>JDBC connection and statement pooling</b>, which ensures prepared statements are closed properly and connections are reused, and is loaded through JNDI similarly to in other servlet containers. Finally, Hydar can optionally <b>rate limit</b> expensive servlet code through the HydarLimiter API.
 <br><br>
->>>>>>> 5ab67daacd4f66d51da6c3c3bf56db17768b592d
