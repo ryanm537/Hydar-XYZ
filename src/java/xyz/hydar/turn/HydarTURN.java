@@ -32,26 +32,180 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.zip.CRC32;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-//realms are not checked + peers cannot be remote and cant receive data(virtual peers
-//hmacsha256/other recent features not implemented
-//reservations/dont fragment are ignored
+/**
+ * An instance of HydarTURN encapsulates both a tcp and udp instance of a STUN/TURN server.
+ * When invoked through the CLI it will start an instance and use x->"password" as the authenticator
+ * on port 3478. This might be configurable later
+ * The constructor accepts an auth function, local transport address, and local port #.
+ * 
+ * notes:
+ * realms are not checked + peers cannot be remote and cant receive data(virtual peers
+ * hmacsha256/other recent features not implemented
+ * reservations/dont fragment are ignored
+*/
 public class HydarTURN implements AutoCloseable{
+	/**The IP is a local address*/
 	private final InetAddress ip;
+	/**These instances are created on the same local port*/
 	private final UDPInstance udp_instance;
 	private final TCPInstance tcp_instance;
-	private final Function<String,String> auth;
+	private final UnaryOperator<String> auth;
+	/**Disables Packet::setFp. This is an optional turn feature.*/
 	private static final boolean SHOULD_FINGERPRINT=false;
+	/**The constructor accepts an auth function, local transport address, and local port #.*/
+	public HydarTURN(UnaryOperator<String> auth, String ip, int port) {
+		System.out.println("Creating TURN servers @"+ip+":"+port+"...");
+		try {
+			this.auth=auth;
+			this.ip=InetAddress.getByName(ip);
+			udp_instance = new UDPInstance(port);
+			new Thread(udp_instance).start();
+			tcp_instance = new TCPInstance(port);
+			new Thread(tcp_instance).start();
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+	/**Unmask an xor mapped address and generate a 5-tuple for it*/
+	Client parseClient(byte[] xAddr, int serverPort, Packet s) {
+		//boolean ipv4 = (xAddr[1] == (byte) 0x01);
+		int port = (((xAddr[2]&0xff) ^ (byte) 0x21) << 8) | ((xAddr[3] ^ (byte) 0x12)&0xff);
+		byte[] ip = new byte[xAddr.length - 4];
+		for (int i = 0; i < ip.length; i++)
+			ip[i] = (byte) ((xAddr[i + 4]) ^ s.mask[i]);
+		try {
+			InetAddress c = InetAddress.getByAddress(ip);
+			if(c.equals(HydarTURN.this.ip)) {
+				//client that created allocation w/ that port
+				return Client.alloc.entrySet().stream()
+					.filter(x->x.getValue().port==port)
+					.map(x->x.getKey())
+					.findFirst().orElse(null);
+			}else return new Client(c, port, serverPort);
+		} catch (UnknownHostException u) {
+			u.printStackTrace();
+			return null;
+		}
+	}
+	/**Parse a packet from a byte array(utility)*/
+	Packet parsePacket(byte[] input) throws EOFException {
+		return parsePacket(new DataInputStream(new ByteArrayInputStream(input)));
+	}
+	/**Parse a packet from a stream*/
+	Packet parsePacket(DataInputStream dis) throws EOFException{
+		try {
+			
+			short h = dis.readShort();
+			
+			if ((h & 0xc000) != 0) {
+				if(h>=0x4000&&h<0x7FFF) {
+					short length = dis.readShort();
+					byte[] data = new byte[length];
+					dis.read(data,0,length);
+					dis.skip(length%4==0?0:(4-length%4));
+					var s=new Packet(Packet.INDICATION, Packet.CHANNELDATA, new byte[12]);
+					s.setAttribute(Attr.DATA,data);
+					s.setAttribute(Attr.CHANNEL_NUMBER,Packet.wrapShort(h));
+					return s;
+				}else{
+					System.out.println("bad channel #");
+					return null;
+				}
+			}
+			int c = Packet.cl((byte)(h>>>8), (byte)h);
+			int t = Packet.ty((byte)(h>>>8), (byte)h);
+			short length = dis.readShort();
+			if (dis.readInt() !=  0x2112A442){
+				System.out.println("bad cookie");
+				return null;
+			}
+			byte[] r = dis.readNBytes(12);
+			Packet s = new Packet(c, t, r);
+			//s.forceLength(length);
+			boolean reachedMi=false;
+			short actualLength=0;
+			while (actualLength< length) {
+				short atype = dis.readShort();
+				short alen = dis.readShort();
+				byte[] adata = dis.readNBytes(alen);
+				if(adata.length<alen)
+					return null;
+				if (adata.length % 4 != 0) {
+					dis.skip(4 - alen % 4);
+				}
+				if (!reachedMi&&atype == Attr.MESSAGE_INTEGRITY) {
+					s.forceLength((short)(s.length+24));
+					s.error = 99;
+					if (s.getAttribute(Attr.USERNAME) == null)
+						s.error = 400;
+					if (!s.checkMi(adata)){
+						System.out.println("integrity check failed");
+						s.error = 401;
+					}s.setAttribute(atype, adata);
+					reachedMi=true;
+					s.forceLength((short)-1);
+				}
+				//if (a.type == Attribute.NONCE && !(new String(a.data).equals("hydar hydar"))) {
+				//	s.error = 438;
+				//}
+				if(!reachedMi) {
+					s.setAttribute(atype, adata);
+				}
+				actualLength+=Attr.byteLength(alen);
+			}
+			s.length=actualLength;
+			if (s.error == 0 && s.messageClass != Packet.INDICATION && s.messageType != Packet.BINDING) {
+				s.error = 401;
+			} else
+				s.error = 0;
+			
+			return s;
+		} catch (EOFException e) {
+			//e.printStackTrace();
+			throw new RuntimeException(e);
+		} catch (IOException e) {
+			//e.printStackTrace();
+			return null;
+		}
+	}
+	/**Get the correct instance depending on client's preferred transport*/
+	HydarStunInstance getInstance(Client c) {
+		switch(c.protocol) {
+		case Client.UDP:
+			return udp_instance;
+		case Client.TCP:
+			return tcp_instance;
+		default:
+			return null;
+		}
+	}
+	/**Call the authenticator*/
+	String authenticate(String user) {
+		return auth.apply(user);
+	}
+	@Override
+	public void close() {
+		udp_instance.alive=false;
+		tcp_instance.alive=false;
+		Expireable.timer.shutdownNow();
+	}
+	/**Launches an instance on localhost:3478 with authenticator x->"password"*/
+	public static void main(String[] args) throws InterruptedException {
+		System.out.println("Using default authenticator(any username->'password')");
+		//
+		try(var turn=new HydarTURN(x->"password","localhost",3478)){
+			Thread.sleep(Long.MAX_VALUE);
+		}
+	}
 	/**
-	 * Wrapper for STUN attributes.
+	 * Utilities for STUN/TURN attributes.
 	 * Each attribute has a type and data array and can be encoded as:
 	 * (2 bytes)type (2 bytes) length (? bytes) data
-	 * Can be read from a stream or converted to a byte array.
 	 * The payload must be padded to a multiple of 4 bytes, without affecting the length.
 	 */
 	static class Attr{
@@ -79,16 +233,20 @@ public class HydarTURN implements AutoCloseable{
 		public static final short RESERVATION_TOKEN = (short) 0x22;
 		// TURN - comprehension optional
 		public static final short FINGERPRINT = (short) 0x8028;
+		
+		private Attr() {}//static only
 		/**
-		 * Attribute format:
-		 * (2 bytes)type (2 bytes) length (? bytes) data
-		 * The payload must be padded to a multiple of 4 bytes, without affecting the length.
-		 */
-		private Attr() {}
+		 * Rounds up a length to the next multiple of 4.
+		 * (All STUN attributes are padded to a multiple of 4 bytes.)
+		 * */
 		public static int byteLength(int length) {
 			int pad = (length % 4 == 0 ? 0 : (4 - length % 4));
 			return length+pad+4;
 		}
+		/**
+		 * Put the packet represented by 'type' with payload 'data'
+		 * to the given ByteBuffer at its current position.
+		 * */
 		public static void write(short type, byte[] data, ByteBuffer b) {
 			int pad = (data.length % 4 == 0 ? 0 : (4 - data.length % 4));
 			b.putShort(type)
@@ -98,8 +256,9 @@ public class HydarTURN implements AutoCloseable{
 		}
 	}
 	/**
-	 * This class represents a STUN packet
-	 * askjfdslgk
+	 * This class represents a single STUN/TURN packet.
+	 * See "STUN Message Structure":
+	 * https://www.rfc-editor.org/rfc/rfc5389#page-10
 	 */
 	class Packet {
 		// 0b00 req 0b01 indic 0b10 resp 0b11 error
@@ -112,6 +271,10 @@ public class HydarTURN implements AutoCloseable{
 		//mask used for XOR'd addresses
 		public final byte[] mask;
 		public final byte[] transaction;// byte[12]
+
+		public volatile int error = 0;
+		public final ArrayList<byte[]> xorPeers= new ArrayList<>();
+		public final LinkedHashMap<Short, byte[]> attributes= new LinkedHashMap<>();
 		// message classes
 		public static final int REQUEST = 0;
 		public static final int INDICATION = 1;
@@ -126,33 +289,47 @@ public class HydarTURN implements AutoCloseable{
 		public static final short DATA = (short) 0x07;
 		public static final short CREATEPERMISSION = (short) 0x08;
 		public static final short CHANNELBIND = (short) 0x09;
-		//fake
+		//fake(CHANNELDATA is represented by a message class, not type, but we need this)
 		public static final short CHANNELDATA = (short) 0xee;
-	
-		public volatile int error = 0;
-		public final ArrayList<byte[]> xorPeers= new ArrayList<>();
-		public final LinkedHashMap<Short, byte[]> attributes= new LinkedHashMap<>();
-		//problem: attributes are out of order
+		/**
+		 * Create a Packet.
+		 * Transaction id is needed for XOR'ing addresses.
+		 * (The mask is the 4 bytes of the magic cookie, then 12 bytes from tid)
+		 * */
 		public Packet(int messageClass, int messageType, byte[] transaction) {
 			this.messageClass = messageClass;
 			this.messageType = messageType;
 			this.transaction = transaction;
+			
 			mask=ByteBuffer.allocate(16)
 				.putInt(0x2112A442)
 				.put(transaction)
 				.array();
 		}
+		/**
+		 * When adding a message integrity attribute, 
+		 * we need to give it a length
+		 * in order to correctly compute the hash.
+		 * */
 		public void forceLength(short l) {
 			this.forcedLength=l;
 		}
+		/**
+		 * Copy an attribute from another packet.
+		 * */
 		public void copy(Packet s, short type) {
 			setAttribute(type,s.getAttribute(type));
 		}
-	
+		/**
+		 * Get the payload of an attribute.
+		 * */
 		public byte[] getAttribute(short type) {
 			return attributes.get(type);
 		}
-	
+		/**
+		 * Set an attribute. If present, it will be replaced.
+		 * The overall packet length will be updated.
+		 * */
 		public void setAttribute(short type,byte[] value) {
 			if(type==Attr.XOR_PEER_ADDRESS)
 				xorPeers.add(value);
@@ -162,86 +339,100 @@ public class HydarTURN implements AutoCloseable{
 			attributes.put(type, value);
 			length += Attr.byteLength(value.length);
 		}
+		/**Utility for converting int -> byte[]*/
 		public static byte[] wrapInt(int h) {
 			return ByteBuffer.allocate(4).putInt(h).array();
 		}
-		public static byte[] wrapShort(short h) {
-			return new byte[] {(byte)(((h) & 0xFF00) >> 8),(byte)((h) & 0xFF)};
-		}
-		public static short getShort(byte[] input) {
-			return (short)(((input[0]&0xff)<<8)+(input[1]&0xff));
-		}
+		/**Utility for converting byte[] -> int*/
 		public static int getInt(byte[] input) {
 			return ByteBuffer.wrap(input).getInt();
 		}
-		
+
+		/**Utility for converting short -> byte[], only used for channel #*/
+		public static byte[] wrapShort(short h) {
+			return new byte[] {(byte)(((h) & 0xFF00) >> 8),(byte)((h) & 0xFF)};
+		}
+		/**Utility for converting byte[] -> short, only used for channel #*/
+		public static short getShort(byte[] input) {
+			return (short)(((input[0]&0xff)<<8)+(input[1]&0xff));
+		}
 		/**
 		 * Static utility to get message class(int) from the first 2 bytes of a STUN packet.
+		 * From https://www.rfc-editor.org/rfc/rfc5389#page-11
 		 */
-		public static int cl(byte[] t){
-		    return ((t[0]&0b1)<<1) | ((t[1]&0x10)>>4);
-	    	}
+		public static int cl(byte first, byte second){
+		    return ((first&0b1)<<1) | ((second&0x10)>>4);
+	    }
 		/**
 		 * Static utility to get message type(int) from the first 2 bytes of a STUN packet.
+		 * From https://www.rfc-editor.org/rfc/rfc5389#page-11
+		 * 
+		 * 'Note: This unfortunate encoding is due to assignment of values in
+		 * [RFC3489] that did not consider encoding Indications, Success, and
+		 * Errors using bit fields.'
 		 */
-		public static int ty(byte[] t){
-		    return (t[1]&0b1)|
-			    (t[1]&0b10)|
-			    (t[1]&0b100)|
-			    (t[1]&0b1000)|
-				((t[1]&0b100000)>>1)|
-				((t[1]&0b1000000)>>1)|
-				((t[1]&0b10000000)>>1)|
-				((t[1]&0b100000000)>>1)|
-				((t[0]&0b10)<<7)|
-				((t[0]&0b100)<<7)|
-				((t[0]&0b1000)<<7)|
-				((t[0]&0b10000)<<7)|
-				((t[0]&0b100000)<<7);
+		public static int ty(byte first, byte second){
+		    return (second&0b1)|
+			    (second&0b10)|
+			    (second&0b100)|
+			    (second&0b1000)|
+				((second&0b100000)>>1)|
+				((second&0b1000000)>>1)|
+				((second&0b10000000)>>1)|
+				((second&0b100000000)>>1)|
+				((first&0b10)<<7)|
+				((first&0b100)<<7)|
+				((first&0b1000)<<7)|
+				((first&0b10000)<<7)|
+				((first&0b100000)<<7);
 	    	}
 		/**
 		 * Static utility to create the first 2 bytes of a STUN packet given a class and type.
+		 * From https://www.rfc-editor.org/rfc/rfc5389#page-11
+		 * 
+		 * 'Note: This unfortunate encoding is due to assignment of values in
+		 * [RFC3489] that did not consider encoding Indications, Success, and
+		 * Errors using bit fields.'
 		 */
-		public static byte[] type(int c, int t){
-		    return new byte[]{(byte)(
+		public static void putType(int c, int t, ByteBuffer target){
+			target.put((byte)(
 				((c&0b10)>>1) |
 				((t&0b10000000)>>6) |
 				((t&0b100000000)>>6) |
 				((t&0b1000000000)>>6) |
 				((t&0b10000000000)>>6) |
-				((t&0b100000000000)>>6)),(byte)((t&0b1) |
+				((t&0b100000000000)>>6)))
+			.put((byte)((t&0b1) |
 				(t&0b10) |
 				(t&0b100) |
 				(t&0b1000) |
 				((c&0b1)<<4) |
 				((t&0b10000)<<1) |
 				((t&0b100000)<<1) |
-				((t&0b1000000)<<1))};
+				((t&0b1000000)<<1)));
 	    	}
+		/**The header length is always 20 bytes.*/
 		public int byteLength() {
 			return 20+length;
 		}
+		/**Allocate a new byte array and store this packet in it.
+		 * We write the 20 byte header, then each attribute
+		 * See Attr::write for details on attribute formatting.
+		 * */
 		public byte[] toByteArray() {
-			var out=ByteBuffer.allocate(20+length)
-					.put(type(messageClass,messageType))
-					.putShort(forcedLength<0?length:forcedLength)
-					.putInt(0x2112A442)
-					.put(transaction);
+			var out=ByteBuffer.allocate(20+length);
+			putType(messageClass,messageType,out);
+			out.putShort(forcedLength<0?length:forcedLength)
+				.putInt(0x2112A442)
+				.put(transaction);
 			attributes.forEach((k,v)->Attr.write(k,v,out));
 			return out.array();
 		}
-		@Override
-		public String toString() {
-			return HexFormat.of().formatHex(toByteArray());
-		}
-		public String toStringV() {
-			return "Packet Class="+messageClass+" Type= "+messageType+"Attributes: "+attributes.values();
-		}
-	
-		public String toBinary() {
-			return new BigInteger(this.toByteArray()).toString(2);
-		}
-	
+		/**
+		 * Set the message integrity attribute.
+		 * This uses hmacSHA1
+		 * See https://www.rfc-editor.org/rfc/rfc5389#section-15.4
+		 * */
 		public void setMi() {
 			try {
 				forceLength((short)(this.length+24));
@@ -262,6 +453,11 @@ public class HydarTURN implements AutoCloseable{
 				return;
 			}
 		}
+		/**
+		 * Set CRC32 fingerprint attribute.
+		 * This is optional, disabled by default.
+		 * (Might be configurable eventually)
+		 * */
 		public void setFp() {
 			if(HydarTURN.SHOULD_FINGERPRINT) {
 				forceLength((short)(this.length+8));
@@ -274,6 +470,13 @@ public class HydarTURN implements AutoCloseable{
 				forceLength((short)-1);
 			}
 		}
+		/**
+		 * Return true if the message integrity attribute
+		 * with the given byte[] as its payload
+		 * is correct for this packet.
+		 * If false, we must reject the packet.
+		 * (HydarTURN::authenticate is used to derive hmac key)
+		 * */
 		public boolean checkMi(byte[] mi_) {
 				String un = new String(getAttribute(Attr.USERNAME)).trim();
 				String realm = new String(getAttribute(Attr.REALM)).trim();
@@ -289,13 +492,15 @@ public class HydarTURN implements AutoCloseable{
 						return true;
 	
 				} catch (Exception e) {// NoSuchAlgorithmException | UnsupportedEncoding
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+					throw new RuntimeException(e);
 				}
 				return false;
 			
 		}
-	
+		/**
+		 * An error code is converted to 2 bytes.
+		 * See https://www.rfc-editor.org/rfc/rfc5389#page-37
+		 * */
 		public static byte[] wrapError(int errorCode) {
 			byte c1 = (byte) (errorCode / 100);
 			byte c2 = (byte) (errorCode % 100);
@@ -305,7 +510,9 @@ public class HydarTURN implements AutoCloseable{
 					.put(c2)
 					.array();
 		}
-	
+		/**
+		 * Wrapper for HMAC algorithms.
+		 * */
 		public byte[] mi(String algorithm, byte[] key) {
 			try {
 				SecretKeySpec secretKeySpec = new SecretKeySpec(key, algorithm);
@@ -313,20 +520,38 @@ public class HydarTURN implements AutoCloseable{
 				mac.init(secretKeySpec);
 				return mac.doFinal(toByteArray());
 			} catch (InvalidKeyException | NoSuchAlgorithmException e) {
-				e.printStackTrace();
-				return null;
+				throw new RuntimeException(e);
 			}
 		}
+
+		/**For debugging */
+		@Override
+		public String toString() {
+			return HexFormat.of().formatHex(toByteArray());
+		}
+		/**For debugging */
+		public String toStringV() {
+			return "Packet Class="+messageClass+" Type= "+messageType+"Attributes: "+attributes.values();
+		}
+		/**For debugging*/
+		public String toBinary() {
+			return new BigInteger(this.toByteArray()).toString(2);
+		}
 	}
+
+	/**
+	 * A client is identified by a 5-tuple:          
+	 * 	client addr,client port, 
+	 * 	server addr, server port, 
+	 * 	transport protocol      
+	 * It may also be associated with temporary nonces and allocations.
+	 * See https://www.rfc-editor.org/rfc/rfc5766#page-19
+	 * */
 	class Client {
 		public static Map<Client, Nonce> nonces = new ConcurrentHashMap<>();
 		public static Map<Client, Allocation> alloc = new ConcurrentHashMap<>(99);
 		public Nonce nonce;// used
 		// 5-tuple
-		// client addr client port
-		// server addr server port
-		// transport protocol
-		
 		// ===========================
 		public final InetAddress client;
 		public final int clientPort;
@@ -339,7 +564,8 @@ public class HydarTURN implements AutoCloseable{
 		//protocols
 		public static final short UDP = 0;
 		public static final short TCP = 1;
-		public static final short TCP_OVER_TLS = 2;
+		public static final short TCP_OVER_TLS = 2;//currently unsupported
+		/**Construct a client 5-tuple from UDP glue*/
 		public Client(DatagramSocket s, DatagramPacket d) {
 			server = ip;
 			serverPort = s.getPort();
@@ -352,7 +578,11 @@ public class HydarTURN implements AutoCloseable{
 				
 			}this.nonce = nonces.get(this);
 		}
-	
+		/**Construct a client 5-tuple from an address and ports
+		 * Default server address is used
+		 * Protocol is always TCP since UDP would use the above constructor.
+		 * (might change if TLS is added)
+		 * */
 		public Client(InetAddress client, int clientPort, int serverPort) {
 			server = ip;
 			this.serverPort = serverPort;
@@ -365,36 +595,45 @@ public class HydarTURN implements AutoCloseable{
 				
 			}this.nonce = nonces.get(this);
 		}
-	
+		/**Associate an allocation with this client*/
 		public void setAllocation(Allocation allocation) {
 			this.allocation = allocation;
 			alloc.put(this, allocation);
 		}
-	
-		// new constructor for TCP/TCP over TLS/DTLS over UDP
+		/**Used for mapping Clients to Allocations*/
 		@Override
 		public int hashCode() {
 			return (client.hashCode()*31+clientPort)*31+protocol;
 		}
+		/**Used for mapping Clients to Allocations*/
 		@Override
 		public boolean equals(Object o) {
 			return (o instanceof Client c)
 					&& client.equals(c.client)
 					&& clientPort == c.clientPort && protocol == c.protocol;
 		}
+		/**For debugging*/
 		@Override
 		public String toString() {
 			return ""+client+":"+clientPort+"?"+protocol;
 		}
 		
-	
+		/**
+		 * Encode the client address
+		 * https://www.rfc-editor.org/rfc/rfc5389#section-15.2
+		 * */
 		public byte[] xor(Packet s) {
 			return xorAddress(client.getAddress(), s.mask, clientPort);
 		}
+		/**
+		 * Encode the server address
+		 * https://www.rfc-editor.org/rfc/rfc5389#section-15.2
+		 * */
 		public byte[] xorRelay(Packet s) {
 			var a = alloc.get(this);
 			return xorAddress(ip.getAddress(), s.mask, a.port);
 		}
+		/**Encode any address(used by above)*/
 		static byte[] xorAddress(byte[] addr, byte[] mask, int port) {
 			int len=addr.length;
 			boolean ipv4 = (len == 4);
@@ -408,11 +647,14 @@ public class HydarTURN implements AutoCloseable{
 			return p;
 		}
 	}
+	/**
+	 * Channels, allocations, permissions, and nonces
+	 * are all expired by a global timer encapsulated here.
+	 * */
 	abstract class Expireable{
 		//private static Set<Expireable> set = null;
 		public static final ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
 		
-		//init-> start the Runnable if its null ig
 		public final AtomicInteger ttl;
 		public volatile boolean alive;
 		public Expireable(int ttl) {
@@ -423,13 +665,16 @@ public class HydarTURN implements AutoCloseable{
 		public void set(int ttl) {
 			timer.schedule(new TURNUpdateTask(this,ttl), 250,TimeUnit.MILLISECONDS);
 		}
-		public HydarStunInstance getInstance(Client c) {
-			return HydarTURN.this.getInstance(c);
-		}
+		/**Cleanup operations for this expireable.*/
 		public abstract void kill();
 		//@Override
 		//public abstract void run();
 	}
+	/**
+	 * A client can create an allocation to connect to other clients.
+	 * It also stores Channels and Permissions.
+	 * https://www.rfc-editor.org/rfc/rfc5766#page-19
+	 * */
 	class Allocation extends HydarTURN.Expireable{
 		// 5-tuple
 		public final Client client;
@@ -440,6 +685,24 @@ public class HydarTURN implements AutoCloseable{
 		public final Map<Short, TURNChannel> channels=new ConcurrentHashMap<>();
 		public final Map<Client, Permission> permissions=new ConcurrentHashMap<>();
 		public volatile static int nextPort = 32400;
+		/**Create an allocation.*/
+		public Allocation(Client c, int ttl) {
+			super(ttl);
+			try {
+				nextPort += 2;
+				if(nextPort>65000)
+					nextPort=32400;
+				port = nextPort;
+				this.server = new DatagramSocket(port);
+				this.server.setReceiveBufferSize(2000);
+				this.server.setSoTimeout(5000);
+				c.setAllocation(this);
+				this.client=c;
+				//this.server.connect(c.client,c.clientPort);
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+		}
 		// first packet, stores username password realm nonce
 		//username in allocation maybe hydar
 		/**@TODO 
@@ -487,6 +750,11 @@ public class HydarTURN implements AutoCloseable{
 			//The transport address is not currently bound to a different channel number
 			
 		}
+		/**
+		 * Create a permission. 
+		 * A client must create a permission to allow other clients to connect to it
+		 * https://www.rfc-editor.org/rfc/rfc5766#page-19
+		 * */
 		public boolean createPerm(Client peer) {
 			System.out.println("Creating perm "+client+" -> "+peer);
 			//System.out.println(permissions);
@@ -502,24 +770,9 @@ public class HydarTURN implements AutoCloseable{
 			permissions.put(peer, perm);
 			return true;
 		}
-		public Allocation(Client c, int ttl) {
-			super(ttl);
-			try {
-				nextPort += 2;
-				if(nextPort>65000)
-					nextPort=32400;
-				port = nextPort;
-				this.server = new DatagramSocket(port);
-				this.server.setReceiveBufferSize(2000);
-				this.server.setSoTimeout(5000);
-				c.setAllocation(this);
-				this.client=c;
-				//this.server.connect(c.client,c.clientPort);
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
-		}
-		
+		/**
+		 * Wrapper for sending DatagramPackets
+		 * */
 		public void write(byte[] data) throws IOException{
 				//System.out.println("sending "+HexFormat.of().formatHex(data)+" to "+client.client+":"+client.clientPort);
 			this.server.send(new DatagramPacket(data,data.length,client.client,client.clientPort));
@@ -539,6 +792,10 @@ public class HydarTURN implements AutoCloseable{
 				c.ttl.set(0);
 		}
 	}
+	/**
+	 * A TURN permission.
+	 * See https://www.rfc-editor.org/rfc/rfc5766#page-19
+	 * */
 	class Permission extends HydarTURN.Expireable{
 		public final Client peer;
 		public final Client client;
@@ -558,6 +815,10 @@ public class HydarTURN implements AutoCloseable{
 			return (""+client+"->"+peer+"["+ttl+"]");
 		}
 	}
+	/**
+	 * A TURN nonce.
+	 * See https://www.rfc-editor.org/rfc/rfc5766#page-19
+	 * */
 	class Nonce extends HydarTURN.Expireable{
 		public final Client client;
 		public final byte[] nonce;
@@ -581,6 +842,11 @@ public class HydarTURN implements AutoCloseable{
 			return new String(nonce);
 		}
 	}
+	/**
+	 * Expires or renews Expireables depending on the given ttl.
+	 * TODO: use scheduledfutures/cancelling to reduce the amount of times
+	 * this is created
+	 * */
 	class TURNUpdateTask implements Runnable{
 		final HydarTURN.Expireable e;
 		final int ttl;
@@ -610,6 +876,11 @@ public class HydarTURN implements AutoCloseable{
 			}
 		}
 	}
+	/**
+	 * A TURN channel. These will probably be used
+	 * in sessions by Chromium browsers
+	 * See https://www.rfc-editor.org/rfc/rfc5766#page-19
+	 * */
 	class TURNChannel extends HydarTURN.Expireable{
 		public final short number;
 		public final Client peer;
@@ -620,20 +891,21 @@ public class HydarTURN implements AutoCloseable{
 			this.peer=peer;
 			this.client=client;
 		}
-		public void write(byte[] j) {
-			//TURNChannelData client->peer
-			AtomicInteger sent = new AtomicInteger();
+		/**ChannelData client->peer*/
+		public void write(byte[] j) throws IOException{
 			//attempt to send TURNChannelData
 			if(Client.alloc.get(peer)==null||!Client.alloc.get(client).permissions.containsKey(peer)) {
 				System.out.println("no perm - channeldata");
 				return;
-			}Client.alloc.get(peer).channels.values().forEach((v)->{
+			}
+			boolean sent=false;
+			for(TURNChannel v:Client.alloc.get(peer).channels.values()){
 				if(v.peer.equals(client)) {
-					sent.incrementAndGet();
+					sent=true;
 					v.read(j);
 				}
-			});
-			if(sent.get()==0) {
+			}
+			if(!sent) {
 				var response = new Packet(Packet.INDICATION, Packet.DATA, new byte[12]);
 				response.setAttribute(Attr.DATA,j);
 				response.setAttribute(Attr.XOR_PEER_ADDRESS,client.xorRelay(response));
@@ -643,8 +915,8 @@ public class HydarTURN implements AutoCloseable{
 			}
 			//peer.allocation.write(j);
 		}
-		public void read(byte[] j) {
-			//TURNChannelData peer->client
+		/**ChannelData from peer->client*/
+		public void read(byte[] j) throws IOException{
 			int pad = (j.length % 4 == 0 ? 0 : (4 - j.length % 4));
 			byte[] response = ByteBuffer.allocate(j.length+pad+4)
 					.putShort(number)
@@ -662,6 +934,7 @@ public class HydarTURN implements AutoCloseable{
 			this.alive=false;
 		}
 	}
+	/**A HydarStunInstance using a DatagramSocket for transport*/
 	public class UDPInstance extends HydarStunInstance{
 		final DatagramSocket server;
 		public UDPInstance(int port) {
@@ -676,33 +949,16 @@ public class HydarTURN implements AutoCloseable{
 			}
 		}
 		@Override
-		void send(Packet response, Client c){
-			try {
+		void send(Packet response, Client c) throws IOException{
 				this.server.send(
 					new DatagramPacket(response.toByteArray(), response.byteLength(), c.client, c.clientPort));
-				//this.server.send(
-				//		new DatagramPacket(response.toByteArray(), response.toByteArray().length, c.client, c.clientPort));
-				//this.server.send(
-				//		new DatagramPacket(response.toByteArray(), response.toByteArray().length, c.client, c.clientPort));
-			}catch(IOException e) {
-				e.printStackTrace();
-				return;
-			}
+			
 		}
 		
 		@Override
-		void send(byte[] response, Client c) {
-			try {
-				this.server.send(
-					new DatagramPacket(response, response.length, c.client, c.clientPort));
-				//this.server.send(
-				//		new DatagramPacket(response, response.length, c.client, c.clientPort));
-				//this.server.send(
-				//		new DatagramPacket(response, response.length, c.client, c.clientPort));
-			}catch(IOException e) {
-				e.printStackTrace();
-				return;
-			}
+		void send(byte[] response, Client c) throws IOException {
+			this.server.send(
+				new DatagramPacket(response, response.length, c.client, c.clientPort));
 		}
 
 		@Override
@@ -793,10 +1049,79 @@ public class HydarTURN implements AutoCloseable{
 	 * If all the checks pass, the server creates the allocation.
 	 * 
 	 */
+	/**A HydarStunInstance using a ServerSocket for transport*/
 	public class TCPInstance extends HydarStunInstance{
 		private ServerSocket server;
 		private volatile boolean alive;
 		private static AtomicInteger threadCount=new AtomicInteger();
+		public TCPInstance(int port) {
+			this.port = port;
+			try {
+				this.server = new ServerSocket(port);
+				//HydarTURN.ip=server.getLocalAddress();
+				this.server.setSoTimeout(5000);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+
+		@Override
+		public void close() throws IOException {
+			alive=false;
+			server.close();
+		}
+		@Override
+		void send(Packet response, Client c){
+			TCPHydarThread.threads.get(c).write(response.toByteArray());
+			
+		}
+	
+		@Override
+		void send(byte[] response, Client c){
+			TCPHydarThread.threads.get(c).write(response);
+		}
+	
+	
+		@Override
+		public void run() {
+			System.out.println("Starting TURN(tcp) server...");
+			try {
+				while (alive) {
+					try {
+						Socket socket = this.server.accept();
+						/**TODO:
+						InetAddress addr = socket.getInetAddress(); if(!HydarTURN.limiter.containsKey(addr)){
+							HydarTURN.limiter.put(addr,new AtomicInteger());
+						}if(!HydarTURN.rateLimiter.containsKey(addr)){
+							HydarTURN.rateLimiter.put(addr,new AtomicInteger());
+						}
+						int count = HydarTURN.limiter.get(addr).incrementAndGet();
+						int ratecount = HydarTURN.rateLimiter.get(addr).addAndGet(10);
+						if(count>8||ratecount>100){
+							HydarTURN.limiter.get(addr).decrementAndGet();
+							continue;
+						}*/
+						socket.setTcpNoDelay(true);
+						new Thread(new TCPHydarThread(this,socket)).start();
+						//authenticate - check nonce etc
+						//or maybe do that in parse?
+						
+		
+					} catch (SocketTimeoutException e) {
+		
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}
+			}catch (Exception e) {
+				e.printStackTrace();
+				return;
+			}
+		}
+
+
 		class TCPHydarThread extends Thread{
 			public static final Map<Client,TCPHydarThread> threads = new ConcurrentHashMap<>();
 			public volatile boolean alive;
@@ -830,8 +1155,6 @@ public class HydarTURN implements AutoCloseable{
 				try(socket;output) {
 					DataInputStream input = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
 					while(this.alive&&timeouts<15) {
-						
-						//input.skip(999999999);
 						if(input.available()>1024000){
 							this.alive=false;
 							break;
@@ -841,7 +1164,6 @@ public class HydarTURN implements AutoCloseable{
 							break;
 						//System.out.println(s);
 						if(s==null) {
-							//input.skip(999999999);
 							timeouts++;
 							input.skip(input.available());
 							continue;
@@ -865,84 +1187,18 @@ public class HydarTURN implements AutoCloseable{
 				threads.remove(client);
 			}
 		}
-
-
-		public TCPInstance(int port) {
-			this.port = port;
-			try {
-				this.server = new ServerSocket(port);
-				//HydarTURN.ip=server.getLocalAddress();
-				this.server.setSoTimeout(5000);
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
-		@Override
-		public void close() throws IOException {
-			alive=false;
-			server.close();
-		}
-		@Override
-		void send(Packet response, Client c) {
-			TCPHydarThread.threads.get(c).write(response.toByteArray());
-			
-		}
-	
-		@Override
-		void send(byte[] response, Client c) {
-			TCPHydarThread.threads.get(c).write(response);
-		}
-	
-	
-		@Override
-		public void run() {
-			System.out.println("Starting TURN(tcp) server...");
-			try {
-				while (alive) {
-					try {
-						Socket socket = this.server.accept();
-						/**TODO:
-						InetAddress addr = socket.getInetAddress(); if(!HydarTURN.limiter.containsKey(addr)){
-							HydarTURN.limiter.put(addr,new AtomicInteger());
-						}if(!HydarTURN.rateLimiter.containsKey(addr)){
-							HydarTURN.rateLimiter.put(addr,new AtomicInteger());
-						}
-						int count = HydarTURN.limiter.get(addr).incrementAndGet();
-						int ratecount = HydarTURN.rateLimiter.get(addr).addAndGet(10);
-						if(count>8||ratecount>100){
-							HydarTURN.limiter.get(addr).decrementAndGet();
-							continue;
-						}*/
-						socket.setTcpNoDelay(true);
-						new Thread(new TCPHydarThread(this,socket)).start();
-						//authenticate - check nonce etc
-						//or maybe do that in parse?
-						
-	
-					} catch (SocketTimeoutException e) {
-	
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
-				}
-			}catch (Exception e) {
-				e.printStackTrace();
-				return;
-			}
-		}
 		
 	}
 	/**
 	 * A transport-independent STUN/TURN instance
-	 * (override run() to call recv())
+	 * (implementors override run() to call recv())
 	 * */
 	abstract class HydarStunInstance implements Runnable, AutoCloseable{
 		public int port;
 		public boolean alive=true;
 	
-		abstract void send(Packet response, Client c);
-		abstract void send(byte[] response, Client c);
+		abstract void send(Packet response, Client c) throws IOException;
+		abstract void send(byte[] response, Client c) throws IOException;
 		
 		@Override
 		public abstract void run();
@@ -950,7 +1206,7 @@ public class HydarTURN implements AutoCloseable{
 		Client fromXor(byte[] addr, Packet p) {
 			return parseClient(addr,port, p);
 		}
-		void recv(Packet s, Client c) {
+		void recv(Packet s, Client c)  throws IOException{
 			Packet response = null;
 			switch (s.messageType) {
 			case Packet.BINDING:
@@ -1196,144 +1452,6 @@ public class HydarTURN implements AutoCloseable{
 			default:
 				break;
 			}
-		}
-	}
-	Client parseClient(byte[] xAddr, int serverPort, Packet s) {
-		//boolean ipv4 = (xAddr[1] == (byte) 0x01);
-		int port = (((xAddr[2]&0xff) ^ (byte) 0x21) << 8) | ((xAddr[3] ^ (byte) 0x12)&0xff);
-		byte[] ip = new byte[xAddr.length - 4];
-		for (int i = 0; i < ip.length; i++)
-			ip[i] = (byte) ((xAddr[i + 4]) ^ s.mask[i]);
-		try {
-			InetAddress c = InetAddress.getByAddress(ip);
-			if(c.equals(HydarTURN.this.ip)) {
-				//client that created allocation w/ that port
-				return Client.alloc.entrySet().stream()
-					.filter(x->x.getValue().port==port)
-					.map(x->x.getKey())
-					.findFirst().orElse(null);
-			}else return new Client(c, port, serverPort);
-		} catch (UnknownHostException u) {
-			u.printStackTrace();
-			return null;
-		}
-	}
-	Packet parsePacket(byte[] input) throws EOFException {
-		return parsePacket(new DataInputStream(new ByteArrayInputStream(input)));
-	}
-	Packet parsePacket(DataInputStream dis) throws EOFException{
-		try {
-			
-			short h = dis.readShort();
-			
-			if ((h & 0xc000) != 0) {
-				if(h>=0x4000&&h<0x7FFF) {
-					short length = dis.readShort();
-					byte[] data = new byte[length];
-					dis.read(data,0,length);
-					dis.skip(length%4==0?0:(4-length%4));
-					var s=new Packet(Packet.INDICATION, Packet.CHANNELDATA, new byte[12]);
-					s.setAttribute(Attr.DATA,data);
-					s.setAttribute(Attr.CHANNEL_NUMBER,Packet.wrapShort(h));
-					return s;
-				}else{
-					System.out.println("bad channel #");
-					return null;
-				}
-			}
-			int c = Packet.cl(Packet.wrapShort(h));
-			int t = Packet.ty(Packet.wrapShort(h));
-			short length = dis.readShort();
-			if (dis.readInt() !=  0x2112A442){
-				System.out.println("bad cookie");
-				return null;
-			}
-			byte[] r = dis.readNBytes(12);
-			Packet s = new Packet(c, t, r);
-			//s.forceLength(length);
-			boolean reachedMi=false;
-			short actualLength=0;
-			while (actualLength< length) {
-				short atype = dis.readShort();
-				short alen = dis.readShort();
-				byte[] adata = dis.readNBytes(alen);
-				if(adata.length<alen)
-					return null;
-				if (adata.length % 4 != 0) {
-					dis.skip(4 - alen % 4);
-				}
-				if (!reachedMi&&atype == Attr.MESSAGE_INTEGRITY) {
-					s.forceLength((short)(s.length+24));
-					s.error = 99;
-					if (s.getAttribute(Attr.USERNAME) == null)
-						s.error = 400;
-					if (!s.checkMi(adata)){
-						System.out.println("integrity check failed");
-						s.error = 401;
-					}s.setAttribute(atype, adata);
-					reachedMi=true;
-					s.forceLength((short)-1);
-				}
-				//if (a.type == Attribute.NONCE && !(new String(a.data).equals("hydar hydar"))) {
-				//	s.error = 438;
-				//}
-				if(!reachedMi) {
-					s.setAttribute(atype, adata);
-				}
-				actualLength+=Attr.byteLength(alen);
-			}
-			s.length=actualLength;
-			if (s.error == 0 && s.messageClass != Packet.INDICATION && s.messageType != Packet.BINDING) {
-				s.error = 401;
-			} else
-				s.error = 0;
-			
-			return s;
-		} catch (EOFException e) {
-			//e.printStackTrace();
-			throw new RuntimeException(e);
-		} catch (IOException e) {
-			//e.printStackTrace();
-			return null;
-		}
-	}
-	HydarStunInstance getInstance(Client c) {
-		switch(c.protocol) {
-		case Client.UDP:
-			return udp_instance;
-		case Client.TCP:
-			return tcp_instance;
-		default:
-			return null;
-		}
-	}
-	String authenticate(String user) {
-		return auth.apply(user);
-	}
-	@Override
-	public void close() {
-		udp_instance.alive=false;
-		tcp_instance.alive=false;
-		Expireable.timer.shutdownNow();
-	}
-	public HydarTURN(UnaryOperator<String> auth, String ip, int port) {
-		System.out.println("Creating TURN servers @"+ip+":"+port+"...");
-		try {
-			this.auth=auth;
-			this.ip=InetAddress.getByName(ip);
-			udp_instance = new UDPInstance(port);
-			new Thread(udp_instance).start();
-			tcp_instance = new TCPInstance(port);
-			new Thread(tcp_instance).start();
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
-	public static void main(String[] args) throws InterruptedException {
-		System.out.println("Using default authenticator(any username->'password')");
-		//
-		try(var turn=new HydarTURN(x->"password","localhost",3478)){
-			Thread.sleep(Long.MAX_VALUE);
 		}
 	}
 }
