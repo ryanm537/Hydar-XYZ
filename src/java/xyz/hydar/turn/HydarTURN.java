@@ -101,7 +101,7 @@ public class HydarTURN implements AutoCloseable{
 	 * This class represents a STUN packet
 	 * askjfdslgk
 	 */
-	public class Packet {
+	class Packet {
 		// 0b00 req 0b01 indic 0b10 resp 0b11 error
 		public final int messageClass;
 		// 12 bits :skull
@@ -318,7 +318,7 @@ public class HydarTURN implements AutoCloseable{
 			}
 		}
 	}
-	public class Client {
+	class Client {
 		public static Map<Client, Nonce> nonces = new ConcurrentHashMap<>();
 		public static Map<Client, Allocation> alloc = new ConcurrentHashMap<>(99);
 		public Nonce nonce;// used
@@ -408,7 +408,7 @@ public class HydarTURN implements AutoCloseable{
 			return p;
 		}
 	}
-	public abstract class Expireable{
+	abstract class Expireable{
 		//private static Set<Expireable> set = null;
 		public static final ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
 		
@@ -430,7 +430,7 @@ public class HydarTURN implements AutoCloseable{
 		//@Override
 		//public abstract void run();
 	}
-	public class Allocation extends HydarTURN.Expireable{
+	class Allocation extends HydarTURN.Expireable{
 		// 5-tuple
 		public final Client client;
 		
@@ -539,7 +539,7 @@ public class HydarTURN implements AutoCloseable{
 				c.ttl.set(0);
 		}
 	}
-	public class Permission extends HydarTURN.Expireable{
+	class Permission extends HydarTURN.Expireable{
 		public final Client peer;
 		public final Client client;
 		public Permission(Client client, Client peer) {
@@ -558,7 +558,7 @@ public class HydarTURN implements AutoCloseable{
 			return (""+client+"->"+peer+"["+ttl+"]");
 		}
 	}
-	public class Nonce extends HydarTURN.Expireable{
+	class Nonce extends HydarTURN.Expireable{
 		public final Client client;
 		public final byte[] nonce;
 		private static final SecureRandom gen=new SecureRandom();
@@ -581,7 +581,7 @@ public class HydarTURN implements AutoCloseable{
 			return new String(nonce);
 		}
 	}
-	public class TURNUpdateTask implements Runnable{
+	class TURNUpdateTask implements Runnable{
 		final HydarTURN.Expireable e;
 		final int ttl;
 		public TURNUpdateTask(HydarTURN.Expireable e) {
@@ -610,7 +610,7 @@ public class HydarTURN implements AutoCloseable{
 			}
 		}
 	}
-	public class TURNChannel extends HydarTURN.Expireable{
+	class TURNChannel extends HydarTURN.Expireable{
 		public final short number;
 		public final Client peer;
 		public final Client client;
@@ -677,7 +677,7 @@ public class HydarTURN implements AutoCloseable{
 			}
 		}
 		@Override
-		public void send(Packet response, Client c){
+		void send(Packet response, Client c){
 			try {
 				this.server.send(
 					new DatagramPacket(response.toByteArray(), response.byteLength(), c.client, c.clientPort));
@@ -692,7 +692,7 @@ public class HydarTURN implements AutoCloseable{
 		}
 		
 		@Override
-		public void send(byte[] response, Client c) {
+		void send(byte[] response, Client c) {
 			try {
 				this.server.send(
 					new DatagramPacket(response, response.length, c.client, c.clientPort));
@@ -877,13 +877,13 @@ public class HydarTURN implements AutoCloseable{
 		}
 	
 		@Override
-		public void send(Packet response, Client c) {
+		void send(Packet response, Client c) {
 			TCPHydarThread.threads.get(c).write(response.toByteArray());
 			
 		}
 	
 		@Override
-		public void send(byte[] response, Client c) {
+		void send(byte[] response, Client c) {
 			TCPHydarThread.threads.get(c).write(response);
 		}
 	
@@ -930,12 +930,12 @@ public class HydarTURN implements AutoCloseable{
 	 * A transport-independent STUN/TURN instance
 	 * (override run() to call recv())
 	 * */
-	public abstract class HydarStunInstance extends Thread {
+	abstract class HydarStunInstance extends Thread {
 		public int port;
 		public boolean alive=true;
 	
-		public abstract void send(Packet response, Client c);
-		public abstract void send(byte[] response, Client c);
+		abstract void send(Packet response, Client c);
+		abstract void send(byte[] response, Client c);
 		
 		@Override
 		public abstract void run();
@@ -1191,7 +1191,7 @@ public class HydarTURN implements AutoCloseable{
 			}
 		}
 	}
-	public Client parseClient(byte[] xAddr, int serverPort, Packet s) {
+	Client parseClient(byte[] xAddr, int serverPort, Packet s) {
 		//boolean ipv4 = (xAddr[1] == (byte) 0x01);
 		int port = (((xAddr[2]&0xff) ^ (byte) 0x21) << 8) | ((xAddr[3] ^ (byte) 0x12)&0xff);
 		byte[] ip = new byte[xAddr.length - 4];
@@ -1211,10 +1211,10 @@ public class HydarTURN implements AutoCloseable{
 			return null;
 		}
 	}
-	public Packet parsePacket(byte[] input) throws EOFException {
+	Packet parsePacket(byte[] input) throws EOFException {
 		return parsePacket(new DataInputStream(new ByteArrayInputStream(input)));
 	}
-	public Packet parsePacket(DataInputStream dis) throws EOFException{
+	Packet parsePacket(DataInputStream dis) throws EOFException{
 		try {
 			
 			short h = dis.readShort();
@@ -1290,7 +1290,7 @@ public class HydarTURN implements AutoCloseable{
 			return null;
 		}
 	}
-	public HydarStunInstance getInstance(Client c) {
+	HydarStunInstance getInstance(Client c) {
 		switch(c.protocol) {
 		case Client.UDP:
 			return udp_instance;
@@ -1300,7 +1300,7 @@ public class HydarTURN implements AutoCloseable{
 			return null;
 		}
 	}
-	public String authenticate(String user) {
+	String authenticate(String user) {
 		return auth.apply(user);
 	}
 	@Override
