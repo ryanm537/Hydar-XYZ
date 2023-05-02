@@ -32,6 +32,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.UnaryOperator;
 import java.util.zip.CRC32;
 
@@ -917,6 +918,7 @@ public class HydarTURN implements AutoCloseable{
 	/**A HydarStunInstance using a DatagramSocket for transport*/
 	public class UDPInstance extends HydarStunInstance{
 		final DatagramSocket server;
+		final ReentrantLock writeLock=new ReentrantLock();
 		public UDPInstance(int port) throws SocketException {
 			this.port = port;
 			this.server = new DatagramSocket(port);
@@ -926,15 +928,23 @@ public class HydarTURN implements AutoCloseable{
 		}
 		@Override
 		void send(Packet response, Client c) throws IOException{
-				this.server.send(
-					new DatagramPacket(response.toByteArray(), response.byteLength(), c.client, c.clientPort));
-			
+			send(response.toByteArray(),c);
 		}
 		
 		@Override
 		void send(byte[] response, Client c) throws IOException {
-			this.server.send(
-				new DatagramPacket(response, response.length, c.client, c.clientPort));
+			writeLock.lock();//Lock in case a packet received from TCP instances tries to overwrite the bind address
+			try {
+				var conn=server.getRemoteSocketAddress();
+				if(conn!=null)
+					server.disconnect();
+					this.server.send(
+						new DatagramPacket(response, response.length, c.client, c.clientPort));
+				if(conn!=null)
+					server.connect(conn);
+			}finally {
+				writeLock.unlock();
+			}
 		}
 
 		@Override
@@ -944,6 +954,8 @@ public class HydarTURN implements AutoCloseable{
 		}
 		@Override
 		public void run(){
+			byte[] d = new byte[4096];
+			DatagramPacket receive = new DatagramPacket(d, 4096);
 			System.out.println("Starting TURN(udp) server...");
 	//		Packet j = new Packet(3, 0,
 	//				new byte[] { 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01 });
@@ -951,38 +963,34 @@ public class HydarTURN implements AutoCloseable{
 	//		System.out.println(j);
 	//		System.out.println(j.toBinary());
 			// System.out.println();
-			try {
-				while (alive) {
-					try {
-						byte[] d = new byte[4096];
-						DatagramPacket receive = new DatagramPacket(d, 4096);
-						this.server.receive(receive);
-						Packet s = parsePacket(d);
-						server.connect(receive.getSocketAddress());
-						Client c = new Client(server, receive);
-						server.disconnect();
-						/**InetAddress addr = receive.getAddress();
-						if(!HydarTURN.rateLimiter.containsKey(addr)){
-							HydarTURN.rateLimiter.put(addr,new AtomicInteger());
-						}
-						int ratecount = HydarTURN.rateLimiter.get(addr).incrementAndGet();
-						if(ratecount>150){
-							continue;
-						}*/
-						recv(s,c);
-						//authenticate - check nonce etc
-						//or maybe do that in parse?
-						
-	
-					} catch (SocketTimeoutException e) {
-	
-					} catch (Exception e) {
-						e.printStackTrace();
+			while (alive) {
+				writeLock.lock();
+				try {
+					this.server.receive(receive);
+					Packet s = parsePacket(d);
+					server.connect(receive.getSocketAddress());
+					Client c = new Client(server, receive);
+					server.disconnect();
+					/**InetAddress addr = receive.getAddress();
+					if(!HydarTURN.rateLimiter.containsKey(addr)){
+						HydarTURN.rateLimiter.put(addr,new AtomicInteger());
 					}
+					int ratecount = HydarTURN.rateLimiter.get(addr).incrementAndGet();
+					if(ratecount>150){
+						continue;
+					}*/
+					recv(s,c);
+					//authenticate - check nonce etc
+					//or maybe do that in parse?
+					
+
+				} catch (SocketTimeoutException e) {
+
+				} catch (Exception e) {
+					e.printStackTrace();
+				}finally {
+					writeLock.unlock();
 				}
-			}catch (Exception e) {
-				e.printStackTrace();
-				return;
 			}
 		}
 	}
