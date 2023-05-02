@@ -13,6 +13,7 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -916,16 +917,11 @@ public class HydarTURN implements AutoCloseable{
 	/**A HydarStunInstance using a DatagramSocket for transport*/
 	public class UDPInstance extends HydarStunInstance{
 		final DatagramSocket server;
-		public UDPInstance(int port) {
-			try {
-				this.port = port;
-				this.server = new DatagramSocket(port);
-				//HydarTURN.ip=server.getLocalAddress();
-				this.server.setReceiveBufferSize(2000);
-				this.server.setSoTimeout(5000);
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
+		public UDPInstance(int port) throws SocketException {
+			this.port = port;
+			this.server = new DatagramSocket(port);
+			this.server.setReceiveBufferSize(2000);
+			this.server.setSoTimeout(5000);
 		}
 		@Override
 		void send(Packet response, Client c) throws IOException{
@@ -1033,16 +1029,11 @@ public class HydarTURN implements AutoCloseable{
 		private ServerSocket server;
 		private volatile boolean alive;
 		private static AtomicInteger threadCount=new AtomicInteger();
-		public TCPInstance(int port) {
+		public TCPInstance(int port) throws IOException {
 			this.port = port;
-			try {
-				this.server = new ServerSocket(port);
-				//HydarTURN.ip=server.getLocalAddress();
-				this.server.setSoTimeout(5000);
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			this.server = new ServerSocket(port);
+			//HydarTURN.ip=server.getLocalAddress();
+			this.server.setSoTimeout(5000);
 		}
 
 
