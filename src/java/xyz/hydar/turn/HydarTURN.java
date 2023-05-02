@@ -920,6 +920,7 @@ public class HydarTURN implements AutoCloseable{
 		public UDPInstance(int port) throws SocketException {
 			this.port = port;
 			this.server = new DatagramSocket(port);
+			
 			this.server.setReceiveBufferSize(2000);
 			this.server.setSoTimeout(5000);
 		}
@@ -957,7 +958,9 @@ public class HydarTURN implements AutoCloseable{
 						DatagramPacket receive = new DatagramPacket(d, 4096);
 						this.server.receive(receive);
 						Packet s = parsePacket(d);
+						server.connect(receive.getSocketAddress());
 						Client c = new Client(server, receive);
+						server.disconnect();
 						/**InetAddress addr = receive.getAddress();
 						if(!HydarTURN.rateLimiter.containsKey(addr)){
 							HydarTURN.rateLimiter.put(addr,new AtomicInteger());
