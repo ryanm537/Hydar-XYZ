@@ -14,7 +14,6 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
@@ -41,7 +40,8 @@ import javax.crypto.spec.SecretKeySpec;
  * An instance of HydarTURN encapsulates both a tcp and udp instance of a STUN/TURN server.
  * When invoked through the CLI it will start an instance and use x->"password" as the authenticator
  * on port 3478. This might be configurable later
- * The constructor accepts an auth function, local transport address, and local port #.
+ * The constructor accepts an auth function and local port #.
+ * 
  * 
  * notes:
  * realms are not checked + peers cannot be remote and cant receive data(virtual peers
@@ -50,7 +50,6 @@ import javax.crypto.spec.SecretKeySpec;
 */
 public class HydarTURN implements AutoCloseable{
 	/**The IP is a local address*/
-	private final InetAddress ip;
 	/**These instances are created on the same local port*/
 	private final UDPInstance udp_instance;
 	private final TCPInstance tcp_instance;
@@ -58,11 +57,10 @@ public class HydarTURN implements AutoCloseable{
 	/**Disables Packet::setFp. This is an optional turn feature.*/
 	private static final boolean SHOULD_FINGERPRINT=false;
 	/**The constructor accepts an auth function, local transport address, and local port #.*/
-	public HydarTURN(UnaryOperator<String> auth, String ip, int port) {
-		System.out.println("Creating TURN servers @"+ip+":"+port+"...");
+	public HydarTURN(UnaryOperator<String> auth,  int port) {
+		System.out.println("Creating TURN servers @"+":"+port+"...");
 		try {
 			this.auth=auth;
-			this.ip=InetAddress.getByName(ip);
 			udp_instance = new UDPInstance(port);
 			new Thread(udp_instance).start();
 			tcp_instance = new TCPInstance(port);
@@ -78,19 +76,11 @@ public class HydarTURN implements AutoCloseable{
 		byte[] ip = new byte[xAddr.length - 4];
 		for (int i = 0; i < ip.length; i++)
 			ip[i] = (byte) ((xAddr[i + 4]) ^ s.mask[i]);
-		try {
-			InetAddress c = InetAddress.getByAddress(ip);
-			if(c.equals(HydarTURN.this.ip)) {
-				//client that created allocation w/ that port
-				return Client.alloc.entrySet().stream()
-					.filter(x->x.getValue().port==port)
-					.map(x->x.getKey())
-					.findFirst().orElse(null);
-			}else return new Client(c, port, serverPort);
-		} catch (UnknownHostException u) {
-			u.printStackTrace();
-			return null;
-		}
+		//client that created allocation w/ that port
+		return Client.alloc.entrySet().stream()
+			.filter(x->x.getValue().port==port)
+			.map(x->x.getKey())
+			.findFirst().orElse(null);
 	}
 	/**Parse a packet from a byte array(utility)*/
 	Packet parsePacket(byte[] input) throws EOFException {
@@ -198,7 +188,7 @@ public class HydarTURN implements AutoCloseable{
 	public static void main(String[] args) throws InterruptedException {
 		System.out.println("Using default authenticator(any username->'password')");
 		//
-		try(var turn=new HydarTURN(x->"password","localhost",3478)){
+		try(var turn=new HydarTURN(x->"password",3478)){
 			Thread.sleep(Long.MAX_VALUE);
 		}
 	}
@@ -567,7 +557,7 @@ public class HydarTURN implements AutoCloseable{
 		public static final short TCP_OVER_TLS = 2;//currently unsupported
 		/**Construct a client 5-tuple from UDP glue*/
 		public Client(DatagramSocket s, DatagramPacket d) {
-			server = ip;
+			server = s.getLocalAddress();
 			serverPort = s.getPort();
 			client = d.getAddress();
 			clientPort = d.getPort();
@@ -583,8 +573,8 @@ public class HydarTURN implements AutoCloseable{
 		 * Protocol is always TCP since UDP would use the above constructor.
 		 * (might change if TLS is added)
 		 * */
-		public Client(InetAddress client, int clientPort, int serverPort) {
-			server = ip;
+		public Client(InetAddress client, int clientPort, InetAddress server, int serverPort) {
+			this.server = server;
 			this.serverPort = serverPort;
 			this.client = client;
 			this.clientPort = clientPort;
@@ -631,7 +621,7 @@ public class HydarTURN implements AutoCloseable{
 		 * */
 		public byte[] xorRelay(Packet s) {
 			var a = alloc.get(this);
-			return xorAddress(ip.getAddress(), s.mask, a.port);
+			return xorAddress(a.server.getAddress(), s.mask, a.port);
 		}
 		/**Encode any address(used by above)*/
 		static byte[] xorAddress(byte[] addr, byte[] mask, int port) {
@@ -680,7 +670,7 @@ public class HydarTURN implements AutoCloseable{
 		public final Client client;
 		
 		// transport address
-		public final DatagramSocket server;
+		public final InetAddress server;
 		public final int port;
 		public final Map<Short, TURNChannel> channels=new ConcurrentHashMap<>();
 		public final Map<Client, Permission> permissions=new ConcurrentHashMap<>();
@@ -693,9 +683,7 @@ public class HydarTURN implements AutoCloseable{
 				if(nextPort>65000)
 					nextPort=32400;
 				port = nextPort;
-				this.server = new DatagramSocket(port);
-				this.server.setReceiveBufferSize(2000);
-				this.server.setSoTimeout(5000);
+				this.server=c.server;
 				c.setAllocation(this);
 				this.client=c;
 				//this.server.connect(c.client,c.clientPort);
@@ -770,17 +758,8 @@ public class HydarTURN implements AutoCloseable{
 			permissions.put(peer, perm);
 			return true;
 		}
-		/**
-		 * Wrapper for sending DatagramPackets
-		 * */
-		public void write(byte[] data) throws IOException{
-				//System.out.println("sending "+HexFormat.of().formatHex(data)+" to "+client.client+":"+client.clientPort);
-			this.server.send(new DatagramPacket(data,data.length,client.client,client.clientPort));
-			
-		}
 		@Override
 		public void kill() {
-			server.close();
 			if(client!=null) {
 				Client.alloc.remove(client);
 				client.allocation=null;
@@ -1135,7 +1114,8 @@ public class HydarTURN implements AutoCloseable{
 				this.socket=client;
 				this.instance=instance;
 				this.timeouts=0;
-				this.client=new Client(socket.getInetAddress(),socket.getPort(),socket.getLocalPort());
+				this.client=new Client(socket.getInetAddress(),socket.getPort(),
+						socket.getLocalAddress(),socket.getLocalPort());
 				this.client_addr=socket.getInetAddress();
 				this.output=new BufferedOutputStream(client.getOutputStream());
 				threads.put(this.client, this);
