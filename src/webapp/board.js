@@ -403,12 +403,12 @@ function wrapVC(){
 			if(t.pc)
 				t.pc.restartIce();
 		}
-		if(me && me.id==3)
-			hstr+="<i>You need to log in to join VC!</i>"
 	}
 	if(me && me.username && me.vc){
 		hstr+=me.username+"<div style='display:inline;color:rgb(0,255,255)'> (you)</div><br>";
 	}
+	if(me && me.id==3)
+		hstr+="<i>You need to log in to join VC!</i>"
 	return hstr;
 }
 function updateVC(){
