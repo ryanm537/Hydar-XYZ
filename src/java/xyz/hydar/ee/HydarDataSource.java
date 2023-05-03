@@ -75,18 +75,29 @@ public abstract class HydarDataSource implements DataSource, AutoCloseable{
 
 	private volatile boolean closed=false;
 	private final ScheduledFuture<?> h;
+	/**
+	 * Recycle a connection(return to pool) on close, dispose on error.
+	 * */
+	private final ConnectionEventListener l = new ConnectionEventListener(){
+		@Override
+		public void connectionClosed(ConnectionEvent event) {
+			recycle((PooledConnection)event.getSource());
+		}
+		@Override
+		public void connectionErrorOccurred(ConnectionEvent event) {
+			lock.lock();
+			try {
+				dispose((PooledConnection)event.getSource());
+			}finally {
+				lock.unlock();
+			}
+		}
+	};
+	/**Set up the cleanup task(see ::clean).*/
 	static {
 		Runtime.getRuntime().addShutdownHook(new Thread(()->pools.forEach(HydarDataSource::close)));
 	}
-	public static HydarDataSource of(String url, String user, String password) throws SQLException {
-		return builder().url(url).username(user).password(password).build();
-	}
-	public static HydarDataSource of(Properties settings) throws SQLException {
-		return builder().properties(settings).build();
-	}
-	public static Builder builder() {
-		return new Builder();
-	}
+	/**Copy info from builder.*/
 	private HydarDataSource(Builder builder) throws SQLException {
 		this.username = builder.username;
 		this.password = builder.password;
@@ -105,36 +116,33 @@ public abstract class HydarDataSource implements DataSource, AutoCloseable{
 		this.pool = new ArrayBlockingQueue<>(maxTotal, true);
 		this.h= ses.scheduleWithFixedDelay(this::clean,60000,60000,TimeUnit.MILLISECONDS);
 	}
+	/**Create a builder with url, user and password.*/
+	public static HydarDataSource of(String url, String user, String password) throws SQLException {
+		return builder().url(url).username(user).password(password).build();
+	}
+	/**Set builder properties from the given Properties(uses reflection).*/
+	public static HydarDataSource of(Properties settings) throws SQLException {
+		return builder().properties(settings).build();
+	}
+	/**Return a new Builder.*/
+	public static Builder builder() {
+		return new Builder();
+	}
+	/**
+	 * Initialization step - add new pooled connections.
+	 * We call getConnection() or getConnection(user, password)
+	 * depending on if user==null/empty.
+	 * Reusing credentials is preferred.
+	 * */
 	public void start() throws SQLException {
 		for(int i=0;i<initialSize;i++)
 			pool.add(new PooledConn((username!=null&&username.length()>0),username, password, false));
 	}
-	private final ConnectionEventListener l = new ConnectionEventListener(){
-		@Override
-		public void connectionClosed(ConnectionEvent event) {
-			//System.out.println("possibly in h");
-			//System.out.println("EVENT: conn closed");
-			//System.out.println("size "+pool.size()+" active "+actives.size());
-			recycle((PooledConnection)event.getSource());
-		}
-
-		@Override
-		public void connectionErrorOccurred(ConnectionEvent event) {
-			
-			lock.lock();
-			try {
-				dispose((PooledConnection)event.getSource());
-			}finally {
-				lock.unlock();
-			}
-			
-		}
-	};
-	private void activateChecked(PooledConn pc) {
-		pc.activeSince=System.currentTimeMillis();
-		if(actives.putIfAbsent(pc.pc, pc)!=null)
-			throw new RuntimeException("ACTIVE DUPLICATE");
-	}
+	/**
+	 * Runs periodically to remove extra idle connections
+	 * and connections that have been active for too long
+	 * (most likely an application forgot to close)
+	 * */
 	private void clean() {
 		lock.lock();
 		try {
@@ -161,6 +169,9 @@ public abstract class HydarDataSource implements DataSource, AutoCloseable{
 			lock.unlock();
 		}
 	}
+	/**
+	 * Close the entire pool.
+	 * */
 	@Override
 	public void close() {
 		closed=true;
@@ -173,15 +184,50 @@ public abstract class HydarDataSource implements DataSource, AutoCloseable{
 			pools.remove(this);
 		}
 	}
+	/**
+	 * Add the given PooledConn to the active pool.
+	 * Active pool is needed to clean up resources properly.
+	 * If it was already there, throws an exception.
+	 * */
+	private void activateChecked(PooledConn pc) {
+		pc.activeSince=System.currentTimeMillis();
+		if(actives.putIfAbsent(pc.pc, pc)!=null)
+			throw new RuntimeException("ACTIVE DUPLICATE");
+	}
+	/**
+	 * Remove a connection from the active pool, 
+	 * and return the underlying PooledConn.
+	 * */
 	private PooledConn deactivateChecked(PooledConnection pc) {
 		var pooledConn=actives.remove(pc);
 		if(pooledConn==null)
 			throw new RuntimeException("MISSING CONNECTION");
 		return pooledConn;
 	}
+	/**
+	 * Destroy a connection, usually caused by errors
+	 * or if too many idles.
+	 * */
 	private void dispose(PooledConnection conn) {
 		var pc = deactivateChecked(conn);
 		if(pc!=null)pc.close();
+	}
+	/**call getConnection() or getConnection(user, password)
+	 * depending on if user==null/empty.
+	 * Reusing credentials is preferred.*/
+	@Override
+	public Connection getConnection() throws SQLException {
+		return getConn_(false, username, password);
+	}
+	/**We can't change the user name or password. 
+	 * It might return brand new(non-pooled)
+	 * connections instead of failing in the future.
+	 * */
+	@Override
+	public Connection getConnection(String username, String password) throws SQLException {
+		if(this.username!=null && !(username.equals(this.username)&&password.equals(this.password)))
+			throw new SQLException("Cannot change the username.");
+		return getConn_(true, username, password);
 	}
 	private Connection getConn_(boolean login, String username, String password) throws SQLException{
 		var conn= getConn(login,username,password);
@@ -226,16 +272,6 @@ public abstract class HydarDataSource implements DataSource, AutoCloseable{
 		}finally {
 			lock.unlock();
 		}
-	}
-	@Override
-	public Connection getConnection() throws SQLException {
-		return getConn_(false, username, password);
-	}
-	@Override
-	public Connection getConnection(String username, String password) throws SQLException {
-		if(this.username!=null && !(username.equals(this.username)&&password.equals(this.password)))
-			throw new SQLException("Cannot change the username.");
-		return getConn_(true, username, password);
 	}
 	private Connection newConn(boolean login, String username, String password) throws SQLException{
 		var pc=new PooledConn(login,username,password, false);
