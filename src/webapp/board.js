@@ -703,49 +703,6 @@ function postString(x){
 	sendToServer("N,"+n+","+replyID+","+x);
 	//$.get(n+"?autoOn=autoOff&replyID="+replyID+"&input_text="+encodeURIComponent(document.forms[3].input_text.value)+"&board_num="+q).fail(function(){document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
 }
-function insertScript(script, toReply, func){
-	const el=document.getElementById("extraLoader_"+toReply);
-	if(!el)
-		return;
-	el.onload=null;
-	const targetE="msgText_"+toReply;
-	function appendScript(){
-		document.getElementById("p5").setAttribute("loaded",'true');
-		if(!document.getElementById(targetE))
-			return;
-		if(!window[func]){
-			var botScript=document.getElementById("bot_"+func);
-			if(!botScript){
-				botScript=document.createElement("script");
-				botScript.setAttribute("id", "bot_"+func);
-				//botScript.setAttribute("async","");
-				botScript.setAttribute("src",script);
-				document.head.appendChild(botScript);
-			}
-			var newP5=()=>{
-				new p5(window[func],targetE);
-				botScript.removeEventListener('load',newP5);
-			};
-			botScript.addEventListener('load',newP5);
-		}else new p5(window[func],targetE);
-	}
-	var p5e=document.getElementById("p5");
-	if(!p5e){
-		p5e=document.createElement("script");
-		p5e.setAttribute("id", "p5");
-		//p5.setAttribute("async","");
-		p5e.setAttribute("src", "p5.min.js");
-		
-		document.head.appendChild(p5e);
-		p5e.addEventListener('load',appendScript);
-		
-	}else if(!p5e.getAttribute("loaded")){
-		p5e.addEventListener('load',appendScript);
-	}
-	else{
-		appendScript();
-	}
-}
 document.addEventListener('keypress', (event)=>{
 	if(event.key == 'Enter' && event.shiftKey== false){
 		const textbox=document.getElementById("input_text");

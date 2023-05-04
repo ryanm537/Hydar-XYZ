@@ -586,7 +586,7 @@ class Board{
 		}else if(inputText==BITS){
 			TasqueManager.add(new PythonBot(this,new String[]{HydarEndpoint.PYTHON_PATH,"./bots/HydarBitsCalculator.py"},u,""+newID,0,false));
 		}else if(inputText.equals("/bloons")) {
-			TasqueManager.add(new JSBot(this,u,""+newID,"bloons.js",0));
+			TasqueManager.add(new IframeBot(this,u,""+newID,"bloons.html",0));
 		}
 		return null;
 	}
@@ -1088,18 +1088,18 @@ interface Tasque extends Runnable{
 	}
 }
 //TODO: common subclass
-class JSBot extends PythonBot{
-	final String script;
-	public JSBot(Board b, Member u, String toReply, String script, int transaction) {
+class IframeBot extends PythonBot{
+	final String url;
+	public IframeBot(Board b, Member u, String toReply, String url, int transaction) {
 		super(b, null, u, toReply, transaction, false);
-		this.script=script;
+		this.url=url;
 	}
 	@Override
 	public void run() {
-		String func=script.substring(0,script.indexOf(".js"));
-		this.output="""
-			hop on bloons<style onload='insertScript(&quot;%s&quot;,&quot;%s&quot;,&quot;%s&quot;)' id='extraLoader_%s'></style>"""
-				.formatted(script, toReply, func, toReply);
+		this.output=new StringBuilder(64)
+				.append("hop on bloons<br><iframe width='400' height='400' frameBorder='0' src = '")
+				.append(url).append("'></iframe>")
+				.toString();//url is trusted field
 		success();
 	}
 }
