@@ -877,6 +877,7 @@ public class HydarEE{
 				.values().stream().filter(x->x.size()>64).forEach(x->
 					x.stream().sorted(Comparator.comparingLong(s->s.lastUsed))
 						.limit(x.size()-64)
+						.toList()//prevent concurrent mod
 						.forEach(HttpSession::invalidate)
 				);
 		}

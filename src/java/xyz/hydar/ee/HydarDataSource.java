@@ -418,7 +418,7 @@ public abstract class HydarDataSource implements DataSource, AutoCloseable{
 							psActive.put(ps, key);
 							return ps;
 						} else if (name.equals("close")) {
-							for(var entry:psActive.entrySet()) {
+							for(var entry:psActive.entrySet().stream().toList()) {
 								var k=entry.getKey();
 								try {
 									if(!k.isClosed()&&(clearStatementPoolOnReturn || 

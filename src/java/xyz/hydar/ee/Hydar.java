@@ -1438,7 +1438,7 @@ public class Hydar {
 		}
 		if(Config.TC_ENABLED){
 			try {
-				Class.forName("xyz.hydar.HydarLimiter");
+				Class.forName("xyz.hydar.ee.HydarLimiter");
 			}catch(ClassNotFoundException e) {
 				System.out.println("HydarLimiter module not found.");
 			}
