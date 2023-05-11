@@ -60,95 +60,24 @@ import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
 
-class JavaSourceFromString extends SimpleJavaFileObject {
-	private final CharSequence code;
-	public JavaSourceFromString(String name, CharSequence code) {
-		super(URI.create("hydar:///" + name + Kind.SOURCE.extension),Kind.SOURCE);
-		this.code = code;
-	}
-	@Override
-	public CharSequence getCharContent(boolean ignoreEncodingErrors) {
-		return this.code;
-	}
-}
-class HydarFileManager extends ForwardingJavaFileManager<StandardJavaFileManager>{
-	private static Map<String,BAOS> classes=new ConcurrentHashMap<>();
-	private final StandardJavaFileManager standard;
-	
-	public HydarFileManager(StandardJavaFileManager s){
-		super(s);
-		this.standard=s;
-		
-	}
-	
-	@Override
-	public void flush(){
-		
-	}
-	
-	@Override
-	public URLClassLoader getClassLoader(JavaFileManager.Location location){
-		//System.out.println(location);
-		return new URLClassLoader(new URL[0],HydarEE.class.getClassLoader()){
-			@Override
-			public Class<?> loadClass(String className) throws ClassNotFoundException{
-				try {
-					return findClass(className);
-					//return super.loadClass(className);
-				}catch(ClassNotFoundException e) {
-					return super.loadClass(className);
-					
-				}
-			}
-			@Override
-			protected Class<?> findClass(String className) throws ClassNotFoundException{
-				var ret=classes.get(className);
-				if(ret==null) {
-					return super.findClass(className);
-				}else{
-					classes.remove(className);
-					//classes.entrySet().removeIf(x->x.getKey().startsWith(className+"$"));
-					return defineClass(className,ret.buf(),0,ret.size());
-				}
-				//System.out.println("Class not found: "+className);
-				//throw new ClassNotFoundException("HYDAR class loader: could not find "+className);
-			} 
-		};
-	}
-	@Override
-	public JavaFileObject getJavaFileForOutput(
-	JavaFileManager.Location location, String className, Kind kind, FileObject sibling) throws IOException{
-		//if(location==StandardLocation.CLASS_OUTPUT || location==StandardLocation.CLASS_PATH) {
-		////	return Files.Hydar.cache.resolve(className).normalize()
-		//}
-		if(kind!=Kind.CLASS||!Config.COMPILE_IN_MEMORY){
-			return standard.getJavaFileForOutput(location,className,kind,sibling);
-		}
-		return new HydarClassObject(className);
-	}
-	static class HydarClassObject extends SimpleJavaFileObject {
-		private final String name;
-		private BAOS baos;
-		public HydarClassObject(String name) {
-			super(URI.create("hydar:///" + name + Kind.CLASS.extension),Kind.CLASS);
-			this.name = name;	
-		}
-		@Override
-		public OutputStream openOutputStream(){
-			baos=new BAOS(2048);
-			classes.put(name,baos);
-			return baos;
-		}
-	}
-	
-}
+/**
+ * Implements the JSP compiler module,
+ * and provides excecution of servlet code.
+ * 
+ * */
 public class HydarEE{
 	private static Set<Predicate<Path>> compileListeners=new HashSet<>();
-	public static Map<String,HttpServlet> servlets = new ConcurrentHashMap<>();//class name => Servlet(jsp)
-	
+	//class name => Servlet
+	public static Map<String,HttpServlet> servlets = new ConcurrentHashMap<>();
+	//get compiler and file managers for JSP compilation
 	private static final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
 	private static final StandardJavaFileManager standard = compiler.getStandardFileManager(null, null, null);
 	private static final HydarFileManager manager = new HydarFileManager(standard);
+	/**
+	 * Use a ServiceLoader to find and load implementations of xyz.hydar.ee.HttpServlet.
+	 * Overriding RESOURCE_LOCATION() is currently the only way to provide paths for these
+	 * (note that we can map path params or change the urls later in hydar.properties)
+	 * */
 	static {
 		ServiceLoader<HttpServlet> loader = ServiceLoader.load(HttpServlet.class);
 		for(HttpServlet l:loader) {
@@ -159,15 +88,27 @@ public class HydarEE{
 		}
 		System.out.println("Service loader finished.");
 	}
-	public static void addCompileListener(Predicate<Path> action) {
-		compileListeners.add(action);
-	}
-	public static int lazyCompile(Path p) {
+	/**Static only, for now.*/
+	private HydarEE() {}
+	/**
+	 * With lazy compilation enabled, JSPs will only be compiled
+	 * when loaded for the first time(or modified). An EmptyServlet
+	 * takes their place until then.
+	 * This reduces start times.
+	 * */
+	public static void lazyCompile(Path p) {
 		String e=Hydar.dir.relativize(p).normalize().toString().replace("\\","/");
 		String n=e.substring(0,e.length()-4);
 		servlets.put(n,new EmptyServlet(p));
-		return 0;
 	}
+	/**
+	 * A 'compile listener' executes when a JSP is compiled. Used primarily by HydarWS.
+	 * If it returns true, it is removed, otherwise it stays and might be executed again.
+	 * */
+	public static void addCompileListener(Predicate<Path> action) {
+		compileListeners.add(action);
+	}
+	/**Utility to escape quotes at the end of a string. This is needed in text blocks.*/
 	static StringBuilder escapeTrailingQuotes(StringBuilder inner) {
 		int qi=inner.length();
 		while(qi>0&&inner.charAt(--qi)=='\"');
@@ -175,17 +116,15 @@ public class HydarEE{
 		inner.setLength(qi+1);
 		return inner.append("\\\"".repeat(quotes));
 	}
-	static URLClassLoader ucl;
-	static {
-		try {
-			ucl=new URLClassLoader(new URL[] {Hydar.cache.toUri().toURL()},HydarEE.class.getClassLoader());
-		} catch (MalformedURLException e) {
-			e.printStackTrace();
-		}
-	}
+	/**Used by 'include file' directives. Acts as replaceFirst on a substring, w/o regex.*/
 	static String replaceOneLit(String s, int start, int end, String replacement) {
 		return s.replaceFirst(Pattern.quote(s.substring(start,end)),Matcher.quoteReplacement(replacement));
 	}
+	/**
+	 * 
+	 * @param p
+	 * @return 
+	 */
 	public static int compile(Path p){
 		try{
 			compileListeners.removeIf(x->x.test(p));
@@ -332,7 +271,13 @@ public class HydarEE{
 			x__.append("}catch(Exception jsp_e){\nif(!response.isCommitted())response.sendError(500);jsp_e.printStackTrace();}finally{if(out!=null)out.close();}\n\n}\n}");
 			
 			
-			JavaFileObject file = new JavaSourceFromString(q, x__);
+			JavaFileObject file = new SimpleJavaFileObject(URI.create("hydar:///" + q + Kind.SOURCE.extension),Kind.SOURCE) {
+				@Override
+				public CharSequence getCharContent(boolean ignoreEncodingErrors) {
+					return x__;
+				}
+			};
+			
 			var compilationUnits = Arrays.asList(file);
 			var options = new ArrayList<String>();
 			
@@ -987,6 +932,85 @@ public class HydarEE{
 			} catch (IOException e) {
 				return null;
 			}
+		}
+	}
+	/**
+	 * An in-memory FileManager.
+	 * FileManagers are needed for compilation tasks.
+	 * If in-memory compilation is disabled, or the requested class
+	 * is not from a JSP, the standard file manager is used.
+	 * */
+	private static class HydarFileManager extends ForwardingJavaFileManager<StandardJavaFileManager>{
+		private static Map<String,BAOS> classes=new ConcurrentHashMap<>();
+		private final StandardJavaFileManager standard;
+		
+		/**Construct a new HydarFileManager.*/
+		public HydarFileManager(StandardJavaFileManager s){
+			super(s);
+			this.standard=s;
+			
+		}
+		/**
+		 * We override flush() to do nothing
+		 * since it would otherwise cause class files
+		 * to be created.
+		 */
+		@Override
+		public void flush(){}
+		/**
+		 * Returns a ClassLoader that
+		 * 1. loads classes from byte arrays(in the process losing references to them)
+		 * allowing them to be GC'd
+		 * 2. delegates to the default class loader if not found.
+		 */
+		@Override
+		public URLClassLoader getClassLoader(JavaFileManager.Location location){
+			return new URLClassLoader(new URL[0],HydarEE.class.getClassLoader()){
+				/**
+				 * Delegate to the standard file manager if a ClassNotFoundException
+				 * occurs.
+				 * */
+				@Override
+				public Class<?> loadClass(String className) throws ClassNotFoundException{
+					try {
+						return findClass(className);
+					}catch(ClassNotFoundException e) {
+						return super.loadClass(className);
+					}
+				}
+				/**
+				 * Deallocate and return a class loaded from a byte array stored previously
+				 * or delegate to the standard file manager.
+				 * */
+				@Override
+				protected Class<?> findClass(String className) throws ClassNotFoundException{
+					var ret=classes.remove(className);
+					if(ret==null) 
+						return super.findClass(className);
+					return defineClass(className,ret.buf(),0,ret.size());
+				} 
+			};
+		}
+		/**
+		 * Creates a JavaFileObject representing 
+		 * a class file for the given class name.
+		 * */
+		@Override
+		public JavaFileObject getJavaFileForOutput(
+		JavaFileManager.Location location, String className, Kind kind, FileObject sibling) throws IOException{
+			//Load the class or java file normally
+			if(kind!=Kind.CLASS||!Config.COMPILE_IN_MEMORY){
+				return standard.getJavaFileForOutput(location,className,kind,sibling);
+			}
+			//Create a new byte array-based class object
+			return new SimpleJavaFileObject(URI.create("hydar:///" + className + Kind.CLASS.extension),Kind.CLASS) {
+				@Override
+				public OutputStream openOutputStream(){
+					var baos=new BAOS(2048);
+					classes.put(className,baos);
+					return baos;
+				}
+			};
 		}
 	}
 }

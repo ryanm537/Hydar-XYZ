@@ -78,7 +78,7 @@ public class HydarH2{
 	public void goaway(int error, String info){
 		streams.values().forEach(x->x.state=StreamState.closed);
 		streams.clear();
-		System.out.println("go away "+error+" "+info+" ");
+		Hydar.println("go away "+error+" "+info+" ");
 		//new RuntimeException().fillInStackTrace().printStackTrace();
 		try{
 			var dos = ByteBuffer.allocate(info.length()+8)
@@ -345,7 +345,6 @@ class HStream{
 			}
 			//System.out.println("read headers took "+(new Date().getTime()-t1)+" ms");
 				//System.out.println(heads);
-			heads.put("::version","HTTP/2.0");
 				//System.out.println("\""+heads.get(":path")+"\" "+heads.get(":path").length());
 			more.skip(padLength);
 			//if(heads.get(":path").endsWith(".jsp")){
@@ -708,7 +707,7 @@ class Frame{
 				h2.goaway(1,"Expected stream 0");
 				return;
 			}
-			System.out.println("GO AWAY(client)");
+			Hydar.println("GO AWAY(client)");
 			h2.goaway(0,"ack");
 			//send too maybe
 			break;
