@@ -66,13 +66,17 @@ import javax.xml.stream.events.XMLEvent;
  * 
  * */
 public class HydarEE{
+	//executes when a JSP is compiled. Used primarily by HydarWS.
 	private static Set<Predicate<Path>> compileListeners=new HashSet<>();
+	
 	//class name => Servlet
 	public static Map<String,HttpServlet> servlets = new ConcurrentHashMap<>();
+	
 	//get compiler and file managers for JSP compilation
 	private static final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
 	private static final StandardJavaFileManager standard = compiler.getStandardFileManager(null, null, null);
 	private static final HydarFileManager manager = new HydarFileManager(standard);
+	private static final Map<String,Average> estLength=new ConcurrentHashMap<>();
 	/**
 	 * Use a ServiceLoader to find and load implementations of xyz.hydar.ee.HttpServlet.
 	 * Overriding RESOURCE_LOCATION() is currently the only way to provide paths for these
@@ -121,9 +125,11 @@ public class HydarEE{
 		return s.replaceFirst(Pattern.quote(s.substring(start,end)),Matcher.quoteReplacement(replacement));
 	}
 	/**
-	 * 
-	 * @param p
-	 * @return 
+	 * Compile the jsp at the given file path. If successful, it becomes available
+	 * as a servlet. If unsuccessful, returns -1 and prints all errors.
+	 * Otherwise it returns the number of warnings.
+	 * @param the file path for the jsp
+	 * @return -1 if any errors, otherwise # of warnings.
 	 */
 	public static int compile(Path p){
 		try{
@@ -138,6 +144,7 @@ public class HydarEE{
 			var xfac=XMLInputFactory.newInstance();
 			int start;
 			boolean doesSessions=true;
+			//First step - parse directives as xml attributes.
 			while((start=s.indexOf("<%@"))>-1){
 				int end=s.indexOf("%>",start);
 				if(end<0) throw new IOException("Compilation error: missing %>");
@@ -186,7 +193,7 @@ public class HydarEE{
 								String included=Files.readString(includePath);
 								replacement.append(included);
 								break;
-							case "taglib":
+							case "taglib"://not implemented
 								break;
 							}
 						}
@@ -214,6 +221,8 @@ public class HydarEE{
 			String a__="";
 			List<String> html = new ArrayList<String>();
 			int end=0;
+			
+			//Second step: separate java and HTML segments.
 			while((start=s.indexOf("<%",end))>=0){
 				html.add(s.substring(end,start));
 				end=s.indexOf("%>",start)+2;
@@ -221,17 +230,16 @@ public class HydarEE{
 				javas.add(s.substring(start+2,end-2));
 			}
 			html.add(s.substring(end));	
-			//System.out.println(javas);
 			int index=0;
-			//size estimate for buffers
+			
+			//Size estimate for buffers.
 			int size=Stream.concat(javas.stream(),html.stream())
 					.mapToInt(String::length)
 					.sum() + 512;
-			StringBuilder x__=new StringBuilder(size);
-			//System.out.println(new Date(j.lastModified()));
-			//System.out.println(n);
+			
+			//Generate java code(out.write(...)) for a html string.
 			Consumer<String> appendHTML = (h)->{
-				//text block if multiline, otherwise single line
+				//Text block if multiline, otherwise single line.
 				if(h.contains("\n")||h.contains("\r")) {
 					inner.append("\nout.write(\"\"\"\n").append(h.replace("\\","\\\\"));
 					escapeTrailingQuotes(inner).append("\"\"\");");
@@ -239,45 +247,54 @@ public class HydarEE{
 						.append(h.replace("\\","\\\\").replace("\"","\\\""))
 						.append("\");");
 			};
+			
+			//Third step: append java code and generated java code for html.
 			for(String x:javas){
-				//System.out.println(path);
 				appendHTML.accept(html.get(index++));
-				//x__+="\nthis.jsp_OP(\""+html.get(index).replace("\\","\\\\").replace("\"","\\\"").replace("\r","").replace("\n","\\n\"+\n\"")+"\");\n";
+				//Declaration
 				if(x.startsWith("!"))
 					outer.append(x,1,x.length());
+				//Expression
 				else if(x.startsWith("=")) {
 					inner.append("out.write(\"\"+(");
 					inner.append(x,1,x.length());
 					inner.append("));");
 				}
+				//Comment
 				else if(x.startsWith("--")&&x.endsWith("--"))
-					continue;else inner.append(x);
+					continue;
+				//Scriptlet
+				else inner.append(x);
 			}
+			//Append the rest.
 			appendHTML.accept(html.get(index));
-				//x__+="\nthis.jsp_OP(\""+html.get(index).replace("\\","\\\\").replace("\"","\\\"").replace("\r","").replace("\n","\\n\"+\n\"")+"\");\n";
-
-			x__.append("import java.io.PrintWriter;")
+			//Source structure: imports and declarations
+			StringBuilder fullSource=new StringBuilder(size);
+			fullSource.append("import java.io.PrintWriter;")
 				.append(extraImports)
 				.append("public class "+o+v+i+a)
 				.append(q)
 				.append(" extends xyz.hydar.ee.HydarEE.JspServlet{"+u+a_+r_+t+a__)
 				.append(outer);
-			x__.append("public void _jspService(xyz.hydar.ee.HydarEE.HttpServletRequest request, xyz.hydar.ee.HydarEE.HttpServletResponse response) {")
+			//Main method containing scriptlets and html
+			fullSource.append("public void _jspService(xyz.hydar.ee.HydarEE.HttpServletRequest request, xyz.hydar.ee.HydarEE.HttpServletResponse response) {")
 				.append("xyz.hydar.ee.HydarEE.HttpSession session = request.getSession();")
 				.append("PrintWriter out = response.getWriter();")
 				.append("try{\n")
 				.append(x_)
 				.append(inner);
-			x__.append("}catch(Exception jsp_e){\nif(!response.isCommitted())response.sendError(500);jsp_e.printStackTrace();}finally{if(out!=null)out.close();}\n\n}\n}");
+			//Closing
+			fullSource.append("}catch(Exception jsp_e){\nif(!response.isCommitted())response.sendError(500);jsp_e.printStackTrace();}finally{if(out!=null)out.close();}\n\n}\n}");
 			
-			
+			//A source object containing the java code given by fullSource.
 			JavaFileObject file = new SimpleJavaFileObject(URI.create("hydar:///" + q + Kind.SOURCE.extension),Kind.SOURCE) {
 				@Override
 				public CharSequence getCharContent(boolean ignoreEncodingErrors) {
-					return x__;
+					return fullSource;
 				}
 			};
 			
+			//Add arguments for compilation from hydar.properties.
 			var compilationUnits = Arrays.asList(file);
 			var options = new ArrayList<String>();
 			
@@ -288,16 +305,15 @@ public class HydarEE{
 				cp.add(Hydar.cache.toString());
 			
 			options.add(String.join(File.pathSeparator,cp));
-			//options.add("\""+String.join(File.pathSeparator,Config.CLASSPATH)+"\"");
-			//System.out.println(options);
 			options.addAll(Config.COMPILER_OPTIONS.stream().filter(x->!x.isBlank()).toList());
 			URLClassLoader ucl;
 			if(Config.COMPILE_IN_MEMORY) {
+				//Synchronize since lazy compilation allows this to run concurrently
 				synchronized(compiler) {
 					ucl=manager.getClassLoader(null);
 				}
 			}else {
-				
+				//Generate .class files, if in-memory compilation is disabled
 				Path targetPath = Hydar.cache.resolve(q+".class");
 				Files.deleteIfExists(targetPath);
 				Path parent=targetPath.getParent();
@@ -305,20 +321,20 @@ public class HydarEE{
 				synchronized(compiler) {
 					standard.setLocation(StandardLocation.CLASS_OUTPUT, List.of(Hydar.cache.toFile()));
 					ucl= new URLClassLoader(new URL[] {Hydar.cache.toUri().toURL()},HydarEE.class.getClassLoader());
-							//new URLClassLoader(new URL[] {Hydar.cache.toUri().toURL()},String.class.getClassLoader()) ;
 				}
 			}
-			
+			//Create java files for debugging, if enabled.
 			if(Config.CREATE_JAVA_FILES){
 				Path targetPath = Hydar.cache.resolve(q+".java");
 				HydarUtil.mkOptDirs(targetPath.getParent());
 				try{
-					Files.writeString(targetPath,x__);//creates the java file(not needed, but useful)
+					Files.writeString(targetPath,fullSource);//creates the java file(not needed, but useful)
 				}catch(IOException eeeeeeeeee){
 					System.out.println("Failed to write source: "+q+".java");
 					eeeeeeeeee.printStackTrace();
 				}
 			}
+			//Execute the compilation task. JavaCompiler is not inherently synchronized.
 			boolean success=false;
 			DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
 			List<Diagnostic<? extends JavaFileObject>> diagList=null;
@@ -327,20 +343,21 @@ public class HydarEE{
 				success = task.call();
 				diagList=new ArrayList<>(diagnostics.getDiagnostics());
 			}
-			//if an error is present, don't print warnings
+			
+			//If an error is present, don't print warnings.
 			String ignoredWarnings="";
 			if(diagList.stream().anyMatch(x->x.getKind()==Diagnostic.Kind.ERROR)&& 
 				diagList.removeIf(x->(x.getKind()!=Diagnostic.Kind.ERROR)))
 					ignoredWarnings=" - "+(diagnostics.getDiagnostics().size()-diagList.size())+" warning(s) skipped due to errors";
 			
-				
+			//Print errors or warnings.
 			for (Diagnostic<? extends JavaFileObject> diagnostic : diagList) {//warnings and errors
 				  int checkedStart=Math.max(0,(int)diagnostic.getStartPosition());
-				  int startPos=Math.max(0,x__.lastIndexOf("\n",checkedStart));
-				  int endPos=Math.max(0,x__.indexOf("\n",checkedStart));
+				  int startPos=Math.max(0,fullSource.lastIndexOf("\n",checkedStart));
+				  int endPos=Math.max(0,fullSource.indexOf("\n",checkedStart));
 				  String line0="^^^^^^^ fix this garbage idiot ('line' "+n+".jsp:"+diagnostic.getLineNumber()+")\n";
 				  String line1=diagnostic.getKind()+": "+diagnostic.getCode();
-				  String sLine=x__.substring(startPos,endPos).trim();
+				  String sLine=fullSource.substring(startPos,endPos).trim();
 				  String src=diagnostic.getSource()==null?"":
 						  
 						  "hydar:/"+((JavaFileObject)(diagnostic.getSource())).getName()+ignoredWarnings;
@@ -358,11 +375,12 @@ public class HydarEE{
 				  System.err.println(src+"\n"+borderStr);
 
 			}
+			
+			//Final step: load the class, create an instance, and store it so it becomes executable.
 			try{
 				synchronized(compiler) {
 					if(success){
 						//load class and update hash table
-							//Hydar.ucl = new URLClassLoader(new URL[]{target.getParent().toFile().toURI().toURL()});
 						Class<?> c= ucl.loadClass(q);
 						JspServlet servlet=(JspServlet)c.getConstructor().newInstance();
 						servlet.doesSessions=doesSessions;
@@ -392,16 +410,17 @@ public class HydarEE{
 		return -1;
 		
 	}
-	private static final Map<String,Average> estLength=new ConcurrentHashMap<>();
-	//TODO request dispatcher
+	/**Invoke a JSP with the given name and query string.*/
 	public static HydarEE.HttpServletResponse jsp_invoke(String name, String query) {
 		return jsp_invoke(new HttpServletRequest(name,query));
 	}
+	/**Invoke a JSP with the given name, session, and query string.*/
 	public static HydarEE.HttpServletResponse jsp_invoke(String name, HttpSession session, String query) {
 		var request=new HttpServletRequest(name,query);
 		request.withSession(session, true);
 		return jsp_invoke(request);
 	}
+	/**Invoke a JSP with the given HttpServletRequest.*/
 	public static HydarEE.HttpServletResponse jsp_invoke(HttpServletRequest request){
 		String name=request.path.endsWith(".jsp")?
 			request.path.substring(0,request.path.lastIndexOf(".")):
@@ -412,10 +431,16 @@ public class HydarEE{
 		jsp_dispatch(name, request, resp);
 		return resp;
 	}
-	//TODO: hide this(possible with request handler obj probably)
+	/**
+	 * Return whether sessions are enabled in the JSP directives.
+	 * TODO: hide this(possible with request handler obj probably)
+	 * */
 	public static boolean jsp_needsSession(String servletName) {
 		return ((JspServlet)servlets.get(servletName)).doesSessions;
 	}
+	/**
+	 * Execute a JSP with the given servletName, with a request and already-provided response.
+	 * */
 	public static void jsp_dispatch(String servletName, HttpServletRequest request, HttpServletResponse response){
 		var name=servletName;
 		var resp=response;
@@ -430,6 +455,7 @@ public class HydarEE{
 		meth._jspService(request, resp); 
 		estLength.computeIfAbsent(name,x->new Average()).update(resp.baos.size());
 	}
+	/**Holds a place for a jspservlet that hasn't been compiled yet.*/
 	public static class EmptyServlet extends JspServlet{
 		private final Path sourcePath;
 		public EmptyServlet(Path sourcePath) {
@@ -444,11 +470,13 @@ public class HydarEE{
 		}
 		
 	}
+	/**Superinterface of jspservlet, and possibly loadable with the SPI*/
 	public static interface HttpServlet{
 		public String RESOURCE_LOCATION();
 		public void service(HttpServletRequest request, HttpServletResponse response) throws IOException;
 		
 	}
+	/**A singular JSP page.*/
 	public static abstract class JspServlet implements HttpServlet{
 		boolean doesSessions=true;
 		@Override
@@ -475,6 +503,9 @@ public class HydarEE{
 			return value;
 		}
 	}*/
+	/**
+	 * Implements most of jakarta.servlet.http.HttpServletRequest.
+	 * */
 	public static class HttpServletRequest{
 		private final String method;
 		private final String path;
@@ -614,6 +645,9 @@ public class HydarEE{
 			return new InputStreamReader(getInputStream(),UTF_8);
 		}
 	}
+	/**
+	 * Implements most of jakarta.servlet.http.HttpServletResponse.
+	 * */
 	public static class HttpServletResponse{
 		public final PrintWriter out;
 		public BAOS baos;
@@ -789,6 +823,9 @@ public class HydarEE{
 			return baos;
 		}
 	}
+	/**
+	 * Implements most of jakarta.servlet.http.HttpSession.
+	 * */
 	public static class HttpSession{
 		public static final Map<String,HttpSession> map= new ConcurrentHashMap<>();
 		private final Map<String,Object> attr= new ConcurrentHashMap<>();
@@ -888,6 +925,10 @@ public class HydarEE{
 			map.put(id,this);
 		}
 	}
+	/**
+	 * Implements most of jakarta.servlet.ServletContext.
+	 * Init params come from hydar.properties.
+	 * */
 	public static class Context{
 		private Map<String,Object> attr;
 		Map<String,String> init;

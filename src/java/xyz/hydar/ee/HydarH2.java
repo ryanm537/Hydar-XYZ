@@ -78,7 +78,7 @@ public class HydarH2{
 	public void goaway(int error, String info){
 		streams.values().forEach(x->x.state=StreamState.closed);
 		streams.clear();
-		Hydar.println("go away "+error+" "+info+" ");
+		System.out.println("go away "+error+" "+info+" ");
 		//new RuntimeException().fillInStackTrace().printStackTrace();
 		try{
 			var dos = ByteBuffer.allocate(info.length()+8)
@@ -707,7 +707,7 @@ class Frame{
 				h2.goaway(1,"Expected stream 0");
 				return;
 			}
-			Hydar.println("GO AWAY(client)");
+			System.out.println("GO AWAY(client)");
 			h2.goaway(0,"ack");
 			//send too maybe
 			break;

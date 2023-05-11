@@ -10,6 +10,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -45,14 +46,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.UnaryOperator;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Logger;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -173,7 +171,7 @@ class ServerThread implements Runnable {
 			String[] firstLine = firstLineString.split(" ", 3);
 			// Malformed input(bots etc)
 			if (firstLine.length < 3) {
-				Hydar.println("400 by invalid starter: "+Arrays.asList(firstLine));
+				System.out.println("400 by invalid starter: "+Arrays.asList(firstLine));
 				sendError("400",Optional.empty());
 				close();
 				return;
@@ -208,7 +206,7 @@ class ServerThread implements Runnable {
 							return;
 						}input.skip(2);
 						h2=new HydarH2(this);
-						Hydar.println(client_addr+"> PRI * HTTP/2.0");
+						System.out.println(client_addr+"> PRI * HTTP/2.0");
 						
 						return;
 					}else if(firstLine[2].equals("HTTP/2.0")) {
@@ -258,7 +256,7 @@ class ServerThread implements Runnable {
 				//Parse a header and add it to 'headers' map.
 				int colonIndex = header.indexOf(":");
 				if(colonIndex<0||colonIndex>=header.length()-2){
-					Hydar.println("non-header");
+					System.out.println("non-header");
 					continue;
 				}String name = header.substring(0,colonIndex).toLowerCase();
 				String value = header.substring(colonIndex+2);
@@ -319,7 +317,7 @@ class ServerThread implements Runnable {
 			path =splitUrl[0];
 			search = splitUrl[1];
 		}
-		Hydar.println(""+client_addr+"> " + method + " " + path + " " + version+"\n");
+		System.out.println(""+client_addr+"> " + method + " " + path + " " + version);
 		
 		//Verify authority.
 		if((host==null ||(!Config.HOST.map(x->x.matcher(host).matches()).orElse(true)))) {
@@ -412,7 +410,7 @@ class ServerThread implements Runnable {
 				this.wsInit(wsKey,wsDeflate,sessionID,path,search);
 				return;
 			}else {
-				Hydar.println("400 by websocket");
+				System.out.println("400 by websocket");
 				sendError("400",hstream);
 				return;//upgrade not allowed(various reasons)
 			}
@@ -571,7 +569,7 @@ class ServerThread implements Runnable {
 			.write();
 		} else {
 		//Unknown methods.
-			Hydar.println("400 by invalid method");
+			System.out.println("400 by invalid method");
 			sendError("400",hstream);
 			close();
 			return;
@@ -916,12 +914,11 @@ class Response{
 	 * Write the headers of this response to the given OutputStream, monitored by 'limiter'.
 	 * */
 	void writeHeaders(OutputStream o, Optional<HStream> hs,Limiter limiter) throws IOException{
-		//Hydar.println(hs.map(x->x.number).orElse(0)+" "+chunked+" "+firstChunk+" "+lastChunk);
+		//System.out.println(hs.map(x->x.number).orElse(0)+" "+chunked+" "+firstChunk+" "+lastChunk);
 		if(chunked && !firstChunk)
 			return;
 		
 		if(hs.isEmpty()) {
-			Hydar.println("............< "+toString());
 			String fl = version+" "+responseStatus+" "+getInfo();
 			BAOS baos = new BAOS(256);
 			baos.write(fl.getBytes(ISO_8859_1));
@@ -964,12 +961,13 @@ class Response{
 				compressor.writeField(j, new Entry(":status",responseStatus), huffman);
 				compressor.writeFields(j, headers, huffman);
 				hf.withBuffer(h.h2.output(j.size()+9));
-				//Hydar.println(this+"---->"+HexFormat.of().formatHex(j.buf(),0,j.size()));
+				//System.out.println(this+"---->"+HexFormat.of().formatHex(j.buf(),0,j.size()));
 				hf.withData(j).writeTo(o,noData);
 			}finally { 
 				lock.unlock();
 			}
 		}
+		System.out.println("............< "+toString());
 	}
 	/**HTTP info.*/
 	public String getInfo() {
@@ -1049,14 +1047,14 @@ class Response{
 				do{
 					int flength=(int)Math.min(originalSize-offset,maxSize);
 					//if(resource!=null)
-					//Hydar.println(length+" --> "+flength);
+					//System.out.println(length+" --> "+flength);
 					boolean endStream=(offset+flength==originalSize)&&(!chunked || lastChunk);
 					tmp.endStream(endStream);
 					if(data==null) {
-						//Hydar.println("streamed write");
+						//System.out.println("streamed write");
 						tmp.withData(stream,flength,streamBuffer);
 					}else{
-						//Hydar.println("byte[] write");
+						//System.out.println("byte[] write");
 						tmp.withData(data,(int)offset,flength)
 							.withBuffer(streamBuffer);
 					}
@@ -1103,7 +1101,7 @@ class Response{
 	/**For debugging*/
 	@Override
 	public String toString() {
-		return version+" "+responseStatus+"("+getInfo()+")"+((length!=0&&sendData)?(": "+length+(sendLength?"":"*")+" bytes\n"):"\n");
+		return version+" "+responseStatus+"("+getInfo()+")"+((length!=0&&sendData)?(": "+length+(sendLength?"":"*")+" bytes"):"");
 	}
 
 }
@@ -1277,7 +1275,7 @@ class Resource{
 				return null;
 			}else if(Files.isDirectory(p) && kind != StandardWatchEventKinds.ENTRY_DELETE){
 				if(!Hydar.KEYS.containsKey(p)&& HydarUtil.addKey(p,root)) {
-					Hydar.println("Created folder listener on "+e);
+					System.out.println("Created folder listener on "+e);
 				}
 				return null;
 			}else if(kind == StandardWatchEventKinds.ENTRY_DELETE) {
@@ -1286,14 +1284,14 @@ class Resource{
 					HydarEE.servlets.remove(e+".jsp");
 					
 				}else {
-					Hydar.println("Removed folder listener on "+e);
+					System.out.println("Removed folder listener on "+e);
 					if(Hydar.KEYS.keySet().removeIf(t->t.startsWith(e+"/"))) {
-						Hydar.println("Subdirectory listeners removed");
+						System.out.println("Subdirectory listeners removed");
 					}
 				}
 				Hydar.resources.keySet().removeIf(x->Path.of(x).startsWith(e+"/"));
 				HydarEE.servlets.keySet().removeIf(x->Path.of(x).startsWith(e+"/"));
-				Hydar.println("File "+e+" was removed from the server directory.");
+				System.out.println("File "+e+" was removed from the server directory.");
 				return null;
 			}
 			if((!Config.USE_WATCH_SERVICE||Config.LASTMODIFIED_FROM_FILE)) {
@@ -1308,15 +1306,15 @@ class Resource{
 		}catch(IOException e_) {
 			Hydar.resources.remove(e);
 			HydarEE.servlets.remove(e+".jsp");
-			Hydar.println("Failed to verify "+e+" - removing");
+			System.out.println("Failed to verify "+e+" - removing");
 			return null;
 		}
-		Hydar.println("Replacing file "+q+"...");
+		System.out.println("Replacing file "+q+"...");
 		if(e.endsWith(".jsp")){
 			int diag2=0;
 			diag2 = HydarEE.compile(q);
 			if(diag2>=0)
-				Hydar.println("Successfully replaced: "+e+", warnings: "+diag2);
+				System.out.println("Successfully replaced: "+e+", warnings: "+diag2);
 		}
 		try {
 			Resource res = new Resource(q, fmodif,Config.LASTMODIFIED_FROM_FILE?fmodif:now);
@@ -1325,7 +1323,7 @@ class Resource{
 		}catch(IOException ioe) {
 			ioe.printStackTrace();
 		}
-		Hydar.println("Failed to replace: "+e);
+		System.out.println("Failed to replace: "+e);
 		return r;
 	}
 }
@@ -1351,19 +1349,12 @@ public class Hydar {
 	
 	//Maps file names to resources. These do not start with /
 	public static Map<String,Resource> resources = new ConcurrentHashMap<>();
-	//STDOUT thread
-	private static final ExecutorService stdout = Executors.newSingleThreadExecutor(HydarUtil.TFAC);
-	
 	
 	
 	//Used for TURN authentication.
 	//TODO: hashing or something at least.
 	public static String authenticate(String user){
 		return HydarEE.HttpSession.tcAuth(user);
-	}
-	/**Simple non-blocking print(will eventually be replaced by logging)*/
-	static void println(Object s) {
-		stdout.submit(()->System.out.println(s));
 	}
 	/**
 	 * Check a socket against the associated Limiter.
@@ -1389,7 +1380,7 @@ public class Hydar {
 		HydarUtil.TFAC.newThread(()->{
 			Thread.currentThread().setPriority(Thread.NORM_PRIORITY+1);
 			try(ServerSocket server301=new ServerSocket(Config.SSL_REDIRECT_FROM)){
-				Hydar.println("Upgrading HTTP requests from port "+server301.getLocalPort());
+				System.out.println("Upgrading HTTP requests from port "+server301.getLocalPort());
 				while(alive) {
 					try {
 					Socket client = server301.accept();
@@ -1422,7 +1413,7 @@ public class Hydar {
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
-				Hydar.println("SSL upgrading server not started");
+				System.out.println("SSL upgrading server not started");
 				return;
 			}
 		}).start();
@@ -1474,7 +1465,7 @@ public class Hydar {
 				if(Config.H2_ENABLED){
 					SSLParameters j=((SSLServerSocket)server).getSSLParameters();
 					j.setApplicationProtocols(new String[]{"h2","http/1.1"});
-					Hydar.println("TLS ALPN Enabled Protocols: "+Arrays.asList(j.getApplicationProtocols()));
+					System.out.println("TLS ALPN Enabled Protocols: "+Arrays.asList(j.getApplicationProtocols()));
 					((SSLServerSocket)server).setSSLParameters(j);
 				}
 			}else{
@@ -1485,7 +1476,7 @@ public class Hydar {
 			server.setSoTimeout(1000);
 		} catch (Exception f) {
 			f.printStackTrace();
-			Hydar.println("Cannot open port " + Config.PORT);
+			System.out.println("Cannot open port " + Config.PORT);
 			if(server!=null)server.close();
 		}
 		return server;
@@ -1496,11 +1487,7 @@ public class Hydar {
 	 * */
 	public static void main(String[] args) throws IOException, NamingException, InterruptedException{
 		//System.setProperty("java.class.path")
-		var log=Logger.getGlobal();
-		log.addHandler(new ConsoleHandler());
-		log.fine("hydar");
-		
-		//System.setOut(new PrintStream(new BufferedOutputStream(System.out, 1024)));
+		System.setOut(new PrintStream(new BufferedOutputStream(System.out, 1024)));
 		String configPath=args.length>0?String.join(" ",args):"./hydar.properties";
 		Config.load(configPath);
 		final ExecutorService ee;
@@ -1552,7 +1539,7 @@ public class Hydar {
 				try {
 					ee.awaitTermination(Long.MAX_VALUE,TimeUnit.MILLISECONDS);
 				} catch (InterruptedException e) {throw new RuntimeException(e);}
-				Hydar.println("All files loaded after "+(System.currentTimeMillis()-millis)+" ms");
+				System.out.println("All files loaded after "+(System.currentTimeMillis()-millis)+" ms");
 				loaded.set(true);
 				
 			};
@@ -1568,13 +1555,13 @@ public class Hydar {
 			if(errors==0){
 				Files.copy(hydr,System.out);
 				if(diag>0){
-					Hydar.println("\nCompilation successful with "+diag+" warning(s)! Starting server.");
-				}else Hydar.println("\nCompilation successful! Starting server.");
+					System.out.println("\nCompilation successful with "+diag+" warning(s)! Starting server.");
+				}else System.out.println("\nCompilation successful! Starting server.");
 			}else{
 				Files.readString(hydr);
-				Hydar.println("Compilation unsuccessful with "+errors+" error(s)! Starting server anyways lol");
+				System.out.println("Compilation unsuccessful with "+errors+" error(s)! Starting server anyways lol");
 			}
-			Hydar.println("Compilation time: "+(System.currentTimeMillis()-startTime)+" ms");
+			System.out.println("Compilation time: "+(System.currentTimeMillis()-startTime)+" ms");
 		}catch(IOException ioe){
 			ioe.printStackTrace();
 			return;	
@@ -1591,14 +1578,14 @@ public class Hydar {
 					.newInstance(auth,port);
 			}catch(Exception e) {
 				e.printStackTrace();
-				Hydar.println("TURN module not found.");
+				System.out.println("TURN module not found.");
 			}
 		}
 		if(Config.TC_ENABLED){
 			try {
 				Class.forName("xyz.hydar.ee.HydarLimiter");
 			}catch(ClassNotFoundException e) {
-				Hydar.println("HydarLimiter module not found.");
+				System.out.println("HydarLimiter module not found.");
 			}
 		}
 		//server loop(only ends on ctrl-c)
@@ -1632,7 +1619,7 @@ public class Hydar {
 					for(var k:KEYS.entrySet()) {
 						if(!k.getValue().isValid()) {
 							HydarUtil.addKey(k.getKey(),Hydar.dir);
-							Hydar.println("Invalid key for "+k.getKey()+" recreated");
+							System.out.println("Invalid key for "+k.getKey()+" recreated");
 						}
 					}
 				}
@@ -1643,7 +1630,7 @@ public class Hydar {
 					}
 					if(resources.values().retainAll(found)) {
 						HydarEE.servlets.keySet().removeIf(x->!resources.containsKey(x+".jsp"));
-						Hydar.println("A file was removed from the server directory.");
+						System.out.println("A file was removed from the server directory.");
 					}
 				}
 			}
@@ -1658,6 +1645,7 @@ public class Hydar {
 				e.printStackTrace();
 				Thread.sleep(5000);
 			}
+			System.out.flush();
 		}
 	}
 
