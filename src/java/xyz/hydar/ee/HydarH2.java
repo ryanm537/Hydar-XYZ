@@ -13,9 +13,6 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 
-enum StreamState{
-	idle,reserved_local,reserved_remote,open,half_closed_remote,half_closed_local,closed
-}
 /**Stores context for a single HTTP/2 connection. 
  * Requires an associated ServerThread(for now)
  * */
@@ -76,7 +73,7 @@ public class HydarH2{
 	}
 
 	public void goaway(int error, String info){
-		streams.values().forEach(x->x.state=StreamState.closed);
+		streams.values().forEach(x->x.state=HStream.State.closed);
 		streams.clear();
 		System.out.println("go away "+error+" "+info+" ");
 		//new RuntimeException().fillInStackTrace().printStackTrace();
@@ -147,7 +144,7 @@ class HStream{
 	  
 	  dynamic settings
 	*/
-	public StreamState state;
+	public State state;
 	public final HydarH2 h2;
 	public final int number;
 	public int blockType;
@@ -166,18 +163,17 @@ class HStream{
 	};
 	private BAOS block=EMPTY_BAOS;
 	private BAOS dataBlock=EMPTY_BAOS;
-	public HStream(StreamState state,HydarH2 h2,int number){
+	static enum State{
+		idle,reserved_local,reserved_remote,open,half_closed_remote,half_closed_local,closed
+	}
+	public HStream(State state,HydarH2 h2,int number){
 		
 		this.blockType=-1;
 		this.padLength=0;
 		this.state=state;
 		this.h2=h2;
-		if(state==StreamState.open){
-			
+		if(state==State.open){
 			h2.streams.keySet().removeIf(x->x<number);
-			
-			//.stream()
-				//.filter(x->x.getKey()<number).forEach(x->x.getValue().close(0));
 		}
 		localWindow=h2.localSettings[Setting.SETTINGS_INITIAL_WINDOW_SIZE];
 		remoteWindow= new AtomicInteger(h2.remoteSettings[Setting.SETTINGS_INITIAL_WINDOW_SIZE]);
@@ -185,7 +181,7 @@ class HStream{
 		this.number=number;
 	}
 	public void close(int reason) throws IOException{
-		state=StreamState.closed;
+		state=State.closed;
 		if(reason<0)return;
 		h2.streams.remove(this.number);
 			Frame.of(Frame.RST_STREAM, this)
@@ -222,21 +218,21 @@ class HStream{
 	private BAOS dataBlock() {
 		return dataBlock==EMPTY_BAOS?(dataBlock=new BAOS(256)):dataBlock;
 	}
+
 	/**
-	*An endpoint MUST NOT send frames other than PRIORITY on a closed
-    *stream.  An endpoint that receives any frame other than PRIORITY
-    *after receiving a RST_STREAM MUST treat that as a stream error
-    *(Section 5.4.2) of type STREAM_CLOSED.  Similarly, an endpoint
-    *that receives any frames after receiving a frame with the
-    *END_STREAM flag set MUST treat that as a connection error
-    *(Section 5.4.1) of type STREAM_CLOSED, unless the frame is
-    *permitted as described below.
-	*/
+	 * An endpoint MUST NOT send frames other than PRIORITY on a closed stream. An
+	 * endpoint that receives any frame other than PRIORITY after receiving a
+	 * RST_STREAM MUST treat that as a stream error (Section 5.4.2) of type
+	 * STREAM_CLOSED. Similarly, an endpoint that receives any frames after
+	 * receiving a frame with the END_STREAM flag set MUST treat that as a
+	 * connection error (Section 5.4.1) of type STREAM_CLOSED, unless the frame is
+	 * permitted as described below.
+	 */
 	public boolean canReceive(){
-		return this.state==StreamState.idle||this.state==StreamState.reserved_remote||this.state==StreamState.open||this.state==StreamState.half_closed_local;
+		return this.state==State.idle||this.state==State.reserved_remote||this.state==State.open||this.state==State.half_closed_local;
 	}
 	public boolean canSend(){
-		return this.state==StreamState.idle||this.state==StreamState.reserved_local||this.state==StreamState.open||this.state==StreamState.half_closed_remote;
+		return this.state==State.idle||this.state==State.reserved_local||this.state==State.open||this.state==State.half_closed_remote;
 	}
 	public void recv(Frame frame, ByteBuffer dis, InputStream more) throws IOException{
 		
@@ -249,7 +245,7 @@ class HStream{
 				blockType=Frame.HEADERS;
 				if(canReceive()){
 					h2.minStream=this.number;
-					this.state=StreamState.open;
+					this.state=State.open;
 					if(frame.padded){
 						padLength=dis.get()&0xff;
 						frame.length-=1;
@@ -279,7 +275,7 @@ class HStream{
 					break;
 				}
 				if(canReceive()){
-					this.state=StreamState.open;
+					this.state=State.open;
 					if(frame.padded){
 						padLength=dis.get()&0xff;
 						frame.length-=1;
@@ -375,9 +371,9 @@ class HStream{
 				cleanup.run();
 			}
 			this.padLength=0;
-			if(this.state!=StreamState.open){
+			if(this.state!=State.open){
 				this.close(0);
-			}else this.state=StreamState.half_closed_remote;
+			}else this.state=State.half_closed_remote;
 		}
 	}
 	//
@@ -692,72 +688,68 @@ class Frame{
 				h2.ackSettings();
 			break;
 			case PING:
-			if(stream!=0){
-				h2.goaway(1,"Expected stream 0");
-				return;
-			}
-			Frame.of(Frame.PING)
-				.ackFlag()
-				.withData(h.array(),h.position(),8)
-				.writeToH2(h2, true);
-			h.position(h.position()+8);
-			break;
-			case GOAWAY:
-			if(stream!=0){
-				h2.goaway(1,"Expected stream 0");
-				return;
-			}
-			System.out.println("GO AWAY(client)");
-			h2.goaway(0,"ack");
-			//send too maybe
-			break;
-			case PUSH_PROMISE:
-			h2.goaway(1,"Client cannot push");
-			return;
-			//Protocol error
-			case HEADERS:
-			//new stream
-			if(h2.streams.get(stream)==null){
-				if(stream%2==0){
-					//PROTOCOL ERROR
-					h2.goaway(1,"Invalid stream "+stream);
+				if(stream!=0){
+					h2.goaway(1,"Expected stream 0");
 					return;
-				}else if(stream<h2.minStream){
-					h2.streams.put(stream, new HStream(StreamState.closed,h2,stream));
-				}else h2.streams.put(stream, new HStream(StreamState.idle,h2,stream));
-			}
+				}
+				Frame.of(Frame.PING)
+					.ackFlag()
+					.withData(h.array(),h.position(),8)
+					.writeToH2(h2, true);
+				h.position(h.position()+8);
+				break;
+			case GOAWAY:
+				if(stream!=0){
+					h2.goaway(1,"Expected stream 0");
+					return;
+				}
+				System.out.println("GO AWAY(client)");
+				h2.goaway(0,"ack");
+				//send too maybe
+				break;
+			case PUSH_PROMISE:
+				h2.goaway(1,"Client cannot push");
+				return;
+			case HEADERS:
+				//new stream
+				if(h2.streams.get(stream)==null){
+					if(stream%2==0){
+						//PROTOCOL ERROR
+						h2.goaway(1,"Invalid stream "+stream);
+						return;
+					}else if(stream<h2.minStream){
+						h2.streams.put(stream, new HStream(HStream.State.closed,h2,stream));
+					}else h2.streams.put(stream, new HStream(HStream.State.idle,h2,stream));
+				}
 			case WINDOW_UPDATE://can have strm 0
 			case PRIORITY://can be received when closed? --> make new temporary closed stream and handle it
 			case RST_STREAM:
 			case DATA:
 			case CONTINUATION:
-			if(stream==0&&frame.type==WINDOW_UPDATE){
-				int inc=(h.getInt()&0x7fffffff);
-				if(inc==0){
-					h2.goaway(1,"0 window increment");
+				if(stream==0&&frame.type==WINDOW_UPDATE){
+					int inc=(h.getInt()&0x7fffffff);
+					if(inc==0){
+						h2.goaway(1,"0 window increment");
+					}else{
+						h2.remoteWindow.addAndGet(inc);
+						//h2.streams.values().forEach(s->s.remoteWindow+=inc);
+					}
+					return;
 				}else{
-					h2.remoteWindow.addAndGet(inc);
-					//h2.streams.values().forEach(s->s.remoteWindow+=inc);
+					var hstream=h2.streams.get(stream);
+					if(hstream!=null){
+						hstream.recv(frame,h,is);
+					}else{
+						//ignore
+						//is.skip(frame.length);
+						//t.goaway(1,"Invalid stream");
+					}
 				}
-				return;
-			}else{
-				var hstream=h2.streams.get(stream);
-				if(hstream!=null){
-					hstream.recv(frame,h,is);
-				}else{
-					//ignore
-					//is.skip(frame.length);
-					//t.goaway(1,"Invalid stream");
-				}
-			}
-			
-			break;
-			
-			
+				break;
 			//ignore unknown
 			default:
-			//is.skip(frame.length);
-			break;
+				//is.skip(frame.length);
+				break;
 		}
 		//read length bytes, unless less than allowed
 		//instantiate?

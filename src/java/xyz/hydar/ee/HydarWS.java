@@ -18,32 +18,41 @@ import java.util.zip.InflaterOutputStream;
 
 import xyz.hydar.ee.HydarEE.HttpSession;
 
-/**A WebSocket context*/
+/**A WebSocket context. Dependent on a ServerThread*/
 public class HydarWS extends OutputStream{
+	//TODO:
 	//private final boolean CLIENT_NO_CONTEXT_TAKEOVER;
 	//private final boolean SERVER_NO_CONTEXT_TAKEOVER;
 	//private final int CLIENT_MAX_WINDOW_BITS;
 	//private final int SERVER_MAX_WINDOW_BITS;
+	
 	//websocket buffers and stuff
-	private byte[] sb;
-	private int so=0;
+	private byte[] input;
+	private int offset=0;
 	private int size=1024;
-	private int pls=0;
+	private int payloadSize=0;
+	public int ping=10;
+	
+	//endpoint params
+	public final ServerThread thread;
 	private final String search;
 	private final String path;
-	private Endpoint endpoint;
-	//stuff for websocket compression
-	private boolean deflate;
-	public int ping=10;
-	public ServerThread thread;
+	private final Endpoint endpoint;
+
+	//empty DEFLATE block(for reuse)
 	private static final byte[] EMPTY_BLOCK=new byte[]{0x00,0x00,(byte)0xff,(byte)0xff};
+	//close packet(for reuse)
 	private static final byte[] WS_CLOSE={(byte)(0x80 | 0x08),0};
+	
+	//Compression params
+	private boolean deflate;
 	private BAOS inflate_baos;
 	private InflaterOutputStream inflate_ios;
 	public static ConcurrentHashMap<String, Object> endpoints=new ConcurrentHashMap<>();
 	private BAOS deflate_baos;
 	private DeflaterOutputStream deflate_dos;
-	
+	static final LongBuffer empty=LongBuffer.allocate(0);
+	/**Initialize this context and its endpoint, if one is available.*/
 	public HydarWS(ServerThread thread, String path,String search,boolean deflate) throws IOException{
 		
 		this.thread=thread;
@@ -57,7 +66,7 @@ public class HydarWS extends OutputStream{
 			inflate_baos = new BAOS(64);
 			inflate_ios = new InflaterOutputStream(inflate_baos,new Inflater(true));
 		}
-		sb=new byte[1024];
+		input=new byte[1024];
 		if(!hasEndpoint(path)) {
 			HydarEE.jsp_invoke(path.substring(0,path.indexOf(".jsp")),thread.session,search);
 		}
@@ -69,10 +78,17 @@ public class HydarWS extends OutputStream{
 		}
 	}
 
+	/**
+	 * Extending outputstream allows for endpoint overrides to use PrintStream.
+	 * Single writes should normally never be used.
+	 * */
 	@Override
 	public void write(int b) throws IOException {
 		write(new byte[] {(byte)b},0,1);
 	}
+	/**
+	 * Wrap the given bytes in a WS packet and send it.
+	 * */
 	@Override
 	public void write(byte[] data, int start, int len) throws IOException{
 		//System.out.println("id: "+this+" >> ");
@@ -81,14 +97,12 @@ public class HydarWS extends OutputStream{
 		try {
 			if(deflate){
 				first|=(byte)0b01000000;
-				//first=(byte)0xc1;
-				//DeflaterOutputStream out2 = new DeflaterOutputStream(out1,new Deflater(Deflater.NO_COMPRESSION, true));
 				deflate_dos.write(data,start,len);
 				deflate_dos.flush();
 				data=deflate_baos.buf();
 				start=0;
 				len=deflate_baos.size();
-				//truncate empty deflate block if present
+				//Truncate empty deflate block if present.
 				if(data[len-1]==(byte)0xff&&data[len-2]==(byte)0xff&&data[len-3]==0x00&&data[len-4]==0x00){
 					len-=4;
 				}
@@ -117,6 +131,10 @@ public class HydarWS extends OutputStream{
 		}
 	
 	}
+	/**
+	 * Closing a WebSocket calls onClose on the endpoint,
+	 * writes a close packet, then closes the socket.
+	 * */
 	@Override
 	public void close() throws IOException{
 		try {
@@ -130,15 +148,19 @@ public class HydarWS extends OutputStream{
 			thread.close();
 		}
 	}
+	/**Partial read. TODO: optimize*/
 	private int read_() throws IOException{
-		int len = thread.input.read(sb,size-1024,800);
+		int len = thread.input.read(input,size-1024,800);
 		thread.limiter.force(Token.IN,len);
 		size+=len;
-		pls+=len;
-		sb = Arrays.copyOf(sb,size);
+		payloadSize+=len;
+		input = Arrays.copyOf(input,size);
 		return len;
 	}
-	static final LongBuffer empty=LongBuffer.allocate(0);
+	/**
+	 * Unmask using bytebuffers. 
+	 * Simple loops usually get vectorized so this might not be necessary
+	 * */
 	static byte[] unmask(byte[] sb, byte[] pl, int off) {
 		var plb=ByteBuffer.wrap(pl);//output
 		var buf=ByteBuffer.wrap(sb);//input
@@ -166,70 +188,68 @@ public class HydarWS extends OutputStream{
 			close();
 			return;
 		}
-		//TODO: this still only corresponds with tcp packets->use input stream instead
-		do{
+		do{//TODO: does this account for multiple packets being queued?
 			len=read_();
-		}while(len>=0&&(len==800||length>(pls-4-off))&&thread.limiter.checkBuffer(pls));
+		}while(len>=0&&(len==800||length>(payloadSize-4-off))&&thread.limiter.checkBuffer(payloadSize));
 		if(len<0) {
 			close();return;
 		}
-		int l = (sb[1])&0b01111111;
+		//Calculate length as specified by the rfc
+		int l = (input[1])&0b01111111;
 		if(l==126){
-			length=((sb[2]&0xff)<<8)|(sb[3]&0xff);
+			length=((input[2]&0xff)<<8)|(input[3]&0xff);
 			off=4;
 		}else if(l==127){
 			for (int i=2;i<10;i++) {
 				length<<=8;
-				length|=(sb[i]&0xff);
+				length|=(input[i]&0xff);
 			}
 			off=10;
 		}else{
 			length=l;
 		}
 		
-		//read length from header
 		
-		
-		if(size>0&&sb[so]<0){
-			so+=size+len;
-			sb = Arrays.copyOf(sb,size);
+		if(size>0&&input[offset]<0){
+			offset+=size+len;
+			input = Arrays.copyOf(input,size);
 		}else {
 			//havent read enough
 			return;
 		}
 		
-		
-		if(so>0){
+		//A packet was read
+		if(offset>0){
 			ping=8;
-			pls=0;
+			payloadSize=0;
 			if(!thread.limiter.acquire(Token.FAST_API, Config.TC_FAST_WS_MESSAGE)) {
 				close();
 				return;
 			}//empty
-			if(so==1){
-				sb= new byte[1024];
+			if(offset==1){
+				input= new byte[1024];
 				return;
 			}
 			//not masked(close)
-			if(((sb[1]&(byte)0x80)>>7)==1){
+			if(((input[1]&(byte)0x80)>>7)==1){
 				System.out.println("E");
 				close();
 				return;
 			}
-			if((len+so)<length){
+			if((len+offset)<length){
 				return;
 			}
 			size=1024;
-			so=0;
+			offset=0;
 			//decode data
 			byte[] pl=new byte[(int)length];
-			unmask(sb,pl,off);
-			if(deflate&&((sb[0]&0b01000000)!=0x00)){
+			unmask(input,pl,off);
+			if(deflate&&((input[0]&0b01000000)!=0x00)){
 				inflate_ios.write(pl,0,pl.length-1);
 				//empty DEFLATE block
-				if(((sb[off+4]^sb[off])&0b00000001)==0x00){
+				if(((input[off+4]^input[off])&0b00000001)==0x00){
 					int i=pl.length-1;
-					inflate_ios.write((sb[i+off+4])^(sb[off+(i%4)]));
+					inflate_ios.write((input[i+off+4])^(input[off+(i%4)]));
 					inflate_ios.write(EMPTY_BLOCK);
 				}
 				//out.write((byte)0x00);
@@ -238,8 +258,8 @@ public class HydarWS extends OutputStream{
 				length = inflate_baos.size();
 				inflate_baos.reset();
 			}
-			byte op = (byte)(sb[0]&0x0f);
-			if(op == 0x08||sb[0]==0x88||(sb[0]==0xff&&sb[1]==0x00)){
+			byte op = (byte)(input[0]&0x0f);
+			if(op == 0x08||input[0]==0x88||(input[0]==0xff&&input[1]==0x00)){
 				System.out.println("closed socket.");
 				//output.write(pl);
 				close();
@@ -247,11 +267,11 @@ public class HydarWS extends OutputStream{
 			}else if(op == 0x09){
 				//TODO: make this use buffers as well maybe
 				System.out.println("aaa i got pinged");
-				sb[0]+=1;
+				input[0]+=1;
 				for(int i=0;i<length;i++){
-					sb[i+off+4]=(byte)((sb[i+off+4])^(sb[off+(i%4)]));
+					input[i+off+4]=(byte)((input[i+off+4])^(input[off+(i%4)]));
 				}
-				thread.output.write(sb,0,(int)length+off+4);
+				thread.output.write(input,0,(int)length+off+4);
 				thread.output.flush();
 				return;
 			}else{
@@ -268,53 +288,113 @@ public class HydarWS extends OutputStream{
 				}
 				final var limiter=thread.limiter;
 				long invokeTime=System.currentTimeMillis();
+				//Notify the endpoint.
 				endpoint.onMessage(line);
 				if(!limiter.acquire(Token.SLOW_API, (int)(System.currentTimeMillis()-invokeTime))) {
 					close();
 					return;
 				}
 			}
-			sb= new byte[1024];
+			input= new byte[1024];
 		
 		}
 		
 	}
-	
+	/**Endpoint builders can be used to convert JSPs into websocket endpoints. See the example*/
 	public static EndpointBuilder endpointBuilder() {
 		return new EndpointBuilder();
 	}
+	/**Used locally for managing endpoints*/
+	public static boolean hasEndpoint(String endpoint) {
+		return endpoints.containsKey(endpoint);
+	}
+	/**Used locally for managing endpoints*/
+	public static void removeEndpoint(String endpoint) {
+		endpoints.remove(endpoint);
+	}
+	/**Used locally for managing endpoints*/
+	private static void recompileEndpoint(String path) {
+		HydarEE.addCompileListener((file)->{
+			String path2=file.toString().replace("\\","/");
+			String n=path2.substring(path2.lastIndexOf("./")+2);
+			if(n.equals(path)) {
+				removeEndpoint(path);
+				return true;
+			}
+			return false;
+		});
+	}
+	/**Endpoint builders can be used to convert JSPs into websocket endpoints. See the example*/
+	public static void registerEndpoint(String path,EndpointBuilder builder){
+		recompileEndpoint(path);
+		endpoints.put(path,builder);
+		
+	}
+	/**Provide an endpoint class, if state that a builder can't handle is needed*/
+	public static void registerEndpoint(String path,Class<? extends Endpoint> classObject){
+		recompileEndpoint(path);
+		endpoints.put(path,classObject);
+	}
+	/**Called when a websocket is opened.*/
+	public static Endpoint constructEndpoint(String path, HydarWS websocket){
+			Object endpoint = endpoints.get(path);
+			if(endpoint==null)
+				return null;
+			Endpoint test;
+			if(endpoint instanceof EndpointBuilder epb) {
+				test=epb.build(websocket);
+			}else {
+				Class<?> endpointClass=(Class<?>)endpoint;
+				try {
+					test = (Endpoint)endpointClass.getConstructors()[0].newInstance(websocket);
+				} catch (InstantiationException | IllegalAccessException | IllegalArgumentException
+						| InvocationTargetException | SecurityException e) {
+					return null;
+				}
+			}
+			return test;
+	}
+	/**Endpoint builders can be used to convert JSPs into websocket endpoints. See the example*/
 	public static class EndpointBuilder{
 		private BiConsumer<? super HydarEE.HttpSession, ? super PrintStream> onOpen=null;
 		private Consumer<? super PrintStream> onClose=null;
 		private BiConsumer<? super String,? super PrintStream> onMessage=null;
+		/**One of the possible functional signatures is used*/
 		public EndpointBuilder onOpen(Runnable r) {
 			onOpen=(x,y)->r.run();
 			return this;
 		}
+		/**One of the possible functional signatures is used*/
 		public EndpointBuilder onClose(Runnable r) {
 			onClose=x->r.run();
 			return this;
 		}
+		/**One of the possible functional signatures is used*/
 		public EndpointBuilder onMessage(Consumer<? super String> r) {
 			onMessage=(x,y)->r.accept(x);
 			return this;
 		}
+		/**One of the possible functional signatures is used*/
 		public EndpointBuilder onOpen(Consumer<? super PrintStream> r) {
 			onOpen=(x,y)->r.accept(y);
 			return this;
 		}
+		/**One of the possible functional signatures is used*/
 		public EndpointBuilder onOpen(BiConsumer<? super HydarEE.HttpSession,? super PrintStream> r) {
 			onOpen=r;
 			return this;
 		}
+		/**One of the possible functional signatures is used*/
 		public EndpointBuilder onClose(Consumer<? super PrintStream> r) {
 			onClose=r;
 			return this;
 		}
+		/**One of the possible functional signatures is used*/
 		public EndpointBuilder onMessage(BiConsumer<? super String,? super PrintStream> r) {
 			onMessage=r;
 			return this;
 		}
+		/**Endpoint builder methods access the underlying connection as a PrintStream.*/
 		public Endpoint build(HydarWS ws) {
 			PrintStream ps = new PrintStream(ws);
 			return new Endpoint(ws) {
@@ -335,6 +415,11 @@ public class HydarWS extends OutputStream{
 		}
 		
 	}
+	/**
+	 * An endpoint represents the backend code a websocket connection
+	 * is linked to. Linked to URLs with registerEndpoint().
+	 * TODO: move to HydarEE?
+	 * */
 	public abstract static class Endpoint{
 		public HydarWS websocket;
 		public String path;
@@ -363,49 +448,5 @@ public class HydarWS extends OutputStream{
 		public final void print(String message) throws IOException{
 			websocket.write(message.getBytes());
 		}
-	}
-	public static boolean hasEndpoint(String endpoint) {
-		return endpoints.containsKey(endpoint);
-	}
-	public static void removeEndpoint(String endpoint) {
-		endpoints.remove(endpoint);
-	}
-	private static void recompileEndpoint(String path) {
-		HydarEE.addCompileListener((file)->{
-			String path2=file.toString().replace("\\","/");
-			String n=path2.substring(path2.lastIndexOf("./")+2);
-			if(n.equals(path)) {
-				removeEndpoint(path);
-				return true;
-			}
-			return false;
-		});
-	}
-	public static void registerEndpoint(String path,EndpointBuilder builder){
-		recompileEndpoint(path);
-		endpoints.put(path,builder);
-		
-	}
-	public static void registerEndpoint(String path,Class<? extends Endpoint> classObject){
-		recompileEndpoint(path);
-		endpoints.put(path,classObject);
-	}
-	public static Endpoint constructEndpoint(String path, HydarWS websocket){
-			Object endpoint = endpoints.get(path);
-			if(endpoint==null)
-				return null;
-			Endpoint test;
-			if(endpoint instanceof EndpointBuilder epb) {
-				test=epb.build(websocket);
-			}else {
-				Class<?> endpointClass=(Class<?>)endpoint;
-				try {
-					test = (Endpoint)endpointClass.getConstructors()[0].newInstance(websocket);
-				} catch (InstantiationException | IllegalAccessException | IllegalArgumentException
-						| InvocationTargetException | SecurityException e) {
-					return null;
-				}
-			}
-			return test;
 	}
 }

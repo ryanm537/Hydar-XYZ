@@ -615,11 +615,11 @@ class ServerThread implements Runnable {
 		try(var dis=settingsStream.toInputStream()){
 			Frame.parse(dis,h2);
 		}
-		HStream hs = new HStream(StreamState.half_closed_remote,h2,1);
+		HStream hs = new HStream(HStream.State.half_closed_remote,h2,1);
 		byte[] magic = input.readNBytes(24);
 		if(!Arrays.equals(magic,HydarH2.MAGIC)) {
 			sendError("400",Optional.of(hs));
-			close();
+			close(); 
 			return null;
 		} 
 		Frame.parse(input,h2);
