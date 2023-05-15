@@ -42,7 +42,6 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -168,19 +167,6 @@ public class HydarUtil {
 		}
 		return allFiles;
 	}
-	public static <E> Iterable<E> lazyConcat(Collection<E> list1,Collection<E> list2){
-		return Stream.concat(list1.stream(),list2.stream())::iterator;
-	}
-	@SafeVarargs
-	public static <E> Iterable<E> lazyConcat(Collection<E>... list1){
-		return Arrays.stream(list1).flatMap(Collection::stream)::iterator;
-	}
-	public static <E> Iterable<E> iter(Stream<E> stream){
-		return stream::iterator;
-	}
-	public static Iterable<String> lines(Path path) throws IOException{
-		return Files.lines(path)::iterator;
-	}
 	public static String noise(int length) {
 		char[] id = new char[length];
 		id[0]='h';id[1]='y';id[2]='d';id[length-1]='r';
@@ -191,22 +177,6 @@ public class HydarUtil {
 			}
 		return new String(id);
 	}
-	//gives the length of the error document, so we dont have to recompute it
-	public static String memory() {
-		int mb = 1024 * 1024;
-		// get Runtime instance
-		Runtime instance = Runtime.getRuntime();
-		String usage = "";
-		// available memory
-		usage+=(", Threads: " +Thread.activeCount()+"\n");
-		// used memory
-		usage+=("Used Memory: "
-				+ (instance.totalMemory() - instance.freeMemory()) / mb+" MB, ");
-		// Maximum available memory
-		usage+="Allocated: " + instance.totalMemory() / mb+" MB";
-		usage+=("\nMax Memory: " + instance.maxMemory() / mb+" MB");
-		return usage;
-		}
 	public static byte[] compress(byte[] data,Encoding enc){
 		try(BAOS out1= new BAOS(data.length/5); 
 			var out = enc.defOS(out1);){
@@ -236,14 +206,6 @@ public class HydarUtil {
 			is.transferTo(baos);
 		}
 		return baos.buf();
-	}
-	public static int write16Stream(OutputStream dest,InputStream src, byte[] buffer, int length) throws IOException{
-		int len = Math.min(buffer.length,length);
-		int l=src.read(buffer,0,len);
-		if(l>0){
-			dest.write(buffer,0,l);
-		}
-		return l;
 	}
 
 	public static String httpInfo(String status){
@@ -666,7 +628,6 @@ class BufferedDIS extends BufferedInputStream{
 		String result=input.toString();
 		System.out.println(result.length());
 		System.out.println(result1.equals(result));
-		System.out.println(HydarUtil.memory());
 		System.out.println(Duration.ofMillis(System.currentTimeMillis()-ms));
 	}
 }

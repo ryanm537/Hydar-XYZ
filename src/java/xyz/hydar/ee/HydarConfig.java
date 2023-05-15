@@ -18,9 +18,14 @@ import javax.naming.InitialContext;
 import javax.naming.NamingException;
 import javax.naming.spi.NamingManager;
 
-/**TODO:dynamic config*/
-/**TODO:replace @categories with Context.[thing] etc*/
+/**
+ * Uses reflection to turn hydar.properties file into
+ * easier to access static fields.
+ * See 'default.properties' for all the possible settings.
+ * */
 class Config{
+	/**TODO:dynamic config*/
+	/**TODO:replace @categories with Context.[thing] etc*/
 	public static Map<String,String> config = new HashMap<>();
 	public static Map<String,String> macros = new HashMap<>();
 	public static int PORT = 8080;
@@ -192,7 +197,7 @@ class Config{
 			//cfg.removeIf(s->(s.startsWith("#")||s.trim().length()==0));
 			int state=0;
 			Map<String,Map<String,String>> rsrc = new HashMap<>();
-			for(String s:HydarUtil.lines(Path.of(configPath))){
+			for(String s:Files.readAllLines(Path.of(configPath))){
 				if(s.startsWith("#")||s.trim().length()==0)
 					continue;
 				switch (s.trim()) {
