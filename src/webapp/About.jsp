@@ -209,6 +209,8 @@
 		The Hydar Project
 		<div class = "welcome2">
 			Public chat, voice channels, direct messages,<br> screen sharing, bots, and anonymous support!
+			<br>
+			Everything is open source at our <a href = 'https://github.com/ryanm537/Hydar-XYZ' style = "color:rgb(120,130,220)">github repository</a>
 		</div>
 	</div>
 
@@ -274,6 +276,7 @@
 				And finally, this web app is completely <b>anonymous</b>! That means you don't need an account to access the site or use any of it's features.
 				Pressing the button to create an <b>anonymous account</b> will allow you to use the site, and no personal information (including email) is required.
 				It is also possible to access the site under a <b>guest</b> account, with reduced privledges.
+				
 		</div>
 		<div class = "img6">
 			<img src = "images/anonymous-creation.png", width = 500px>

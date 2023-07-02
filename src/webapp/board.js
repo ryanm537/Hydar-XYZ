@@ -653,7 +653,6 @@ function updateTimestamps(){
 			let element=e.getRootNode().getElementById("three_"+id);
 			element.textContent=tString;
 			element.title=new Date(message.time).toLocaleString();
-			e.getRootNode().getElementById("three_"+id).textContent=tString;
 		}catch(e1893){
 			
 		}
