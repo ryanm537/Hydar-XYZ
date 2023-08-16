@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
+import java.util.stream.IntStream;
 
 /**Stores context for a single HTTP/2 connection. 
  * Requires an associated ServerThread(for now)
@@ -29,7 +30,7 @@ public class HydarH2{
 	public int minStream;
 	public int maxStream;
 	public int expects = -1;
-	public int[] remoteSettings = new int[]{
+	public int[] remoteSettings = {
 		0,//unused
 		4096,//SETTINGS_HEADER_TABLE_SIZE 
 		0,//SETTINGS_ENABLE_PUSH
@@ -38,7 +39,7 @@ public class HydarH2{
 		16384,//SETTINGS_MAX_FRAME_SIZE
 		8192//SETTINGS_MAX_HEADER_LIST_SIZE
 	};
-	public int[] localSettings = new int[]{
+	public int[] localSettings = {
 		0,//unused
 		Config.H2_HEADER_TABLE_SIZE,//SETTINGS_HEADER_TABLE_SIZE 
 		0,//SETTINGS_ENABLE_PUSH
@@ -50,7 +51,7 @@ public class HydarH2{
 	public volatile int localWindow = localSettings[Setting.SETTINGS_INITIAL_WINDOW_SIZE];
 	//longadder might be better but this saves memory
 	public final AtomicInteger remoteWindow = new AtomicInteger(remoteSettings[Setting.SETTINGS_INITIAL_WINDOW_SIZE]);
-	private volatile ByteBuffer input=ByteBuffer.allocate(0);
+	volatile ByteBuffer input=ByteBuffer.allocate(0);
 	volatile ByteBuffer output=ByteBuffer.allocate(32);
 	public static final Frame SETTINGS_ACK=Frame.of(Frame.SETTINGS).ackFlag();
 	public HydarH2(ServerThread thread) throws IOException {
@@ -163,6 +164,9 @@ class HStream{
 	};
 	private BAOS block=EMPTY_BAOS;
 	private BAOS dataBlock=EMPTY_BAOS;
+	private static final byte[][] CLOSE_REASONS=IntStream.range(0,20)
+		.mapToObj(x->ByteBuffer.allocate(4).putInt(x).array())
+		.toArray(byte[][]::new);
 	static enum State{
 		idle,reserved_local,reserved_remote,open,half_closed_remote,half_closed_local,closed
 	}
@@ -185,13 +189,8 @@ class HStream{
 		if(reason<0)return;
 		h2.streams.remove(this.number);
 			Frame.of(Frame.RST_STREAM, this)
-				.withData(new byte[]{
-						(byte)((reason>>24)&0xff),
-						(byte)((reason>>16)&0xff),
-						(byte)((reason>>8)&0xff),
-						(byte)((reason)&0xff)
-				}).writeToH2(h2, true);
-		
+				.withData(CLOSE_REASONS[reason])
+				.writeToH2(h2, true);
 	}
 	//wait for window to allow sending
 	public int controlFlow(){
@@ -229,10 +228,16 @@ class HStream{
 	 * permitted as described below.
 	 */
 	public boolean canReceive(){
-		return this.state==State.idle||this.state==State.reserved_remote||this.state==State.open||this.state==State.half_closed_local;
+		return switch(this.state) {
+			case idle, reserved_remote, open, half_closed_local -> true;
+			default -> false;
+		};
 	}
 	public boolean canSend(){
-		return this.state==State.idle||this.state==State.reserved_local||this.state==State.open||this.state==State.half_closed_remote;
+		return switch(this.state) {
+			case idle, reserved_local, open, half_closed_remote -> true;
+			default -> false;
+		};
 	}
 	public void recv(Frame frame, ByteBuffer dis, InputStream more) throws IOException{
 		
@@ -347,28 +352,25 @@ class HStream{
 			
 			Limiter limiter = h2.thread.limiter;
 			boolean concurrent = h2.streams.size()<=1+h2.localSettings[Setting.SETTINGS_MAX_CONCURRENT_STREAMS];
-			Runnable cleanup = ()->{
-				block = dataBlock = EMPTY_BAOS;
-				limiter.release(Token.PERMANENT_STATE, Config.TC_PERMANENT_H2_STREAM);
-				h2.maxStream=Math.max(this.number,h2.maxStream);
+			Runnable streamTask = ()->{
+				try{
+					if(!limiter.acquire(Token.FAST_API,Config.TC_FAST_HTTP_REQUEST)) {
+						close(0xb);//enhance_your_calm
+						return;
+					}
+					h2.thread.hparse(heads,Optional.of(this),dataBlock.buf(),dataBlock.size());
+				}catch(IOException e){
+					
+				}finally {
+					block = dataBlock = EMPTY_BAOS;
+					limiter.release(Token.PERMANENT_STATE, Config.TC_PERMANENT_H2_STREAM);
+					h2.maxStream=Math.max(this.number,h2.maxStream);
+				}
 			};
 			if(limiter.acquire(Token.PERMANENT_STATE, Config.TC_PERMANENT_H2_STREAM) && concurrent)
-				HydarUtil.TFAC.newThread(()->{
-					try{
-						if(!limiter.acquire(Token.FAST_API,Config.TC_FAST_HTTP_REQUEST)) {
-							close(0xb);//enhance_your_calm
-							return;
-						}
-						h2.thread.hparse(heads,Optional.of(this),dataBlock.buf(),dataBlock.size());
-					}catch(IOException e){
-						
-					}finally {
-						cleanup.run();
-					}
-				}).start();
+				HydarUtil.TFAC.newThread(streamTask).start();
 			else {
-				h2.thread.hparse(heads,Optional.of(this),dataBlock.buf(),dataBlock.size());
-				cleanup.run();
+				streamTask.run();
 			}
 			this.padLength=0;
 			if(this.state!=State.open){
