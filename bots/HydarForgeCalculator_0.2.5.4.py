@@ -27,7 +27,7 @@ def refresh():
     auctions = []
     for i in range(data['totalPages']):
         e = json.loads(urllib.request.urlopen("https://api.hypixel.net/skyblock/auctions?page="+str(i)).read().decode())
-        ms = time.time_ns() // 1_000_000
+        ms = int(time.time()*1000)
         for auction in e['auctions']: 
             if "water hydra" in auction['item_name'].lower():
                 for x in rare:
@@ -160,7 +160,7 @@ def bzsell(id):
     return v
 # example usages of the functions
 # recommended use of refresh(runs every time the calc is run, but not if used in last 5 min)
-if (not os.path.exists('auctions.txt')) or (((time.time_ns() // 1_000_000_000)-os.path.getmtime("auctions.txt"))>3600*24):
+if (not os.path.exists('auctions.txt')) or (((int(time.time()))-os.path.getmtime("auctions.txt"))>3600*24):
     refresh()
     
 
