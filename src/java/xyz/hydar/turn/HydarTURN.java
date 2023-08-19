@@ -1394,7 +1394,7 @@ public class HydarTURN implements AutoCloseable{
 					boolean failed=false;
 					for(var xorPeer:s.xorPeers){
 						Client xor=fromXor(xorPeer, s);
-						if (!myAlloc.createPerm(xor)) {
+						if (xor == null || !myAlloc.createPerm(xor)) {
 							failed=true;
 							break;
 						}
