@@ -390,14 +390,23 @@ class BAOS extends ByteArrayOutputStream {
 		return buf;
 	}
 }
-class BufferedDIS extends BufferedInputStream{
-	Limiter limiter;
+/**
+ * Buffered input stream with special support for CRLF line reading.
+ * */
+class BufferedDIS extends InputStream{
+	final InputStream in;
+	final Limiter limiter;
+	protected byte[] buf;
+	protected int pos;
+	protected int count;
 	public BufferedDIS(InputStream in, Limiter limiter) {
-		super(in);
+		this.in=in;
+		buf=new byte[16384];
 		this.limiter=limiter;
 	}
 	public BufferedDIS(InputStream in, Limiter limiter, int i) {
-		super(in,i);
+		this.in=in;
+		buf=new byte[i];
 		this.limiter=limiter;
 	}
 	boolean skipLF=false;
@@ -412,7 +421,7 @@ class BufferedDIS extends BufferedInputStream{
                being skipped, do not bother to copy the characters into the
                local buffer.  In this way buffered streams will cascade
                harmlessly. */
-            if (len >= buf.length && markpos <= -1 && !skipLF) {
+            if (len >= buf.length  && !skipLF) {
                 return in.read(cbuf, off, len);
             }
             fill2();
@@ -473,20 +482,22 @@ class BufferedDIS extends BufferedInputStream{
             return buf[pos++]&0xff;
         }
 	}
-	private void fill2() throws IOException{
-
-		limiter.forceBuffer(buf.length);
-		mark(1);
-        super.read();
-        reset();
-	}
+	private void fill2() throws IOException {
+        byte[] buffer = buf;
+        pos = 0;
+        count = pos;
+        int n = in.read(buffer, pos, buffer.length - pos);
+        limiter.force(Token.IN,n);
+        if (n > 0)
+            count = n + pos;
+    }
 	public String readLineCRLFLatin1() throws IOException{
 		return readCRLFLine(ISO_8859_1);
 
 	}
 	public String readCRLFLine(Charset ch) throws IOException{
 		String line= readCRLFLineImpl(ch);
-		if(line!=null && !limiter.acquire(Token.IN,line.length())) {
+		if(line!=null && !limiter.checkBuffer(line.length())) {
 			line=null;
 		}
 		return line;
@@ -584,6 +595,7 @@ class BufferedDIS extends BufferedInputStream{
 			//counter+=
 			for(int i=0;i<1000;i++)
 			counter+=reader.read();
+			reader.close();
 		}
 
 		System.out.println(Duration.ofMillis(System.currentTimeMillis()-ms));
@@ -607,6 +619,7 @@ class BufferedDIS extends BufferedInputStream{
 			while((line=bdis.readCRLFLine(ISO_8859_1))!=null) {
 				input.write(line);
 			}
+			bdis.close();
 		}
 		String result1=input.toString();
 		input=new StringWriter(10000);
