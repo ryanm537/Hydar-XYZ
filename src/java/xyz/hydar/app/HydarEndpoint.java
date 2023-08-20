@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
@@ -277,23 +278,24 @@ class Board{
 	private static final String BITS = "Getting bits data...";
 	private static final String FORGE = "Getting forge data...";
 	
+	private final ScheduledFuture<?> sf;
 	public static AtomicInteger lastId = new AtomicInteger();
 	public static final ReentrantLock lock = new ReentrantLock();
-	private final Runnable UPDATE=()->{
-		if(alive)
-			this.apiRefresh();
-		//alive state may change
-		if(alive)
-			timer.schedule(this.UPDATE,REFRESH_TIMER,TimeUnit.MILLISECONDS);
-	};
 	public Board(int id){//, String apiStr
 		this.boardId=id;
 		this.name="";
 		//parseApi(apiStr);//drop on error?? probably not needed
 		//add users to api
-		timer.schedule(UPDATE,5000,TimeUnit.MILLISECONDS);
+		sf=timer.scheduleAtFixedRate((Runnable)this::update,5000,REFRESH_TIMER,TimeUnit.MILLISECONDS);
 	}
-	
+
+	private void update(){
+		if(alive)
+			this.apiRefresh();
+		//alive state may change
+		if(!alive)
+			sf.cancel(false);
+	};
 	public void addUser(HydarEndpoint user) throws IOException{
 		lock.lock();
 		try{
@@ -494,14 +496,15 @@ class Board{
 	public String processInput(String inputText, int uid, HydarEE.HttpSession session){
 		String[] msg = inputText.split(",",3);
 		int transaction=parseInt(msg[0]);
-		String toReply=msg[1];
+		int toReply=parseInt(msg[1]);
 		inputText=msg[2];
 		//maybe?
 		//inputText = inputText.replace("\n", "");
 		//inputText = inputText.replace("\r", "");
 		Member u =members.get(uid);
-		if(inputText.length()>=3000)
-			inputText=new StringBuilder(3000).append(inputText,0,2997).append("...").toString();
+		int max=toReply>0?2700:3000;
+		if(inputText.length()>=max)
+			inputText=new StringBuilder(max).append(inputText,0,max-3).append("...").toString();
 		if(u==null)
 			return null;
 		if(channelOf != -1 && readOnly == 1 && !u.owner){
@@ -577,20 +580,20 @@ class Board{
 		int newID=newMessage(inputText,u,toReply,transaction,session,false);
 		if(this.hasRaye && inputText.length()>5 && inputText.startsWith("raye ")){
 			//newMessage(inputText,u,toReply,transaction, true);
-			TasqueManager.add(new PythonBot(this,new String[]{HydarEndpoint.PYTHON_PATH,"./bots/raye.py", inputText.substring(5)},null,""+newID,0,true));
+			TasqueManager.add(new PythonBot(this,new String[]{HydarEndpoint.PYTHON_PATH,"./bots/raye.py", inputText.substring(5)},null,newID,0,true));
 		}
 		//direct comparison(==) to ensure it was actually triggered by the command
 		//(so typing "Getting bits data..." won't actually do it)
 		else if(inputText==FORGE){
-			TasqueManager.add(new PythonBot(this,new String[]{HydarEndpoint.PYTHON_PATH,"./bots/HydarForgeCalculator_0.2.5.4.py"},u,""+newID,0,false));
+			TasqueManager.add(new PythonBot(this,new String[]{HydarEndpoint.PYTHON_PATH,"./bots/HydarForgeCalculator_0.2.5.4.py"},u,newID,0,false));
 		}else if(inputText==BITS){
-			TasqueManager.add(new PythonBot(this,new String[]{HydarEndpoint.PYTHON_PATH,"./bots/HydarBitsCalculator.py"},u,""+newID,0,false));
+			TasqueManager.add(new PythonBot(this,new String[]{HydarEndpoint.PYTHON_PATH,"./bots/HydarBitsCalculator.py"},u,newID,0,false));
 		}else if(inputText.equals("/bloons")) {
-			TasqueManager.add(new IframeBot(this,u,""+newID,"bloons.html",0));
+			TasqueManager.add(new IframeBot(this,u,newID,"bloons.html",0));
 		}
 		return null;
 	}
-	public String processCommand(String inputText, Member u, String toReply, HydarEE.HttpSession session, int transaction){
+	public String processCommand(String inputText, Member u, int toReply, HydarEE.HttpSession session, int transaction){
 		int done=0;
 		if(inputText.startsWith("/")&& isDm == 0){
 			//TODO: minor note - most of these dont check if jsp succeeds
@@ -774,7 +777,7 @@ class Board{
 					int kickedUser=-1;
 					if(cmd.length==2) {
 						if(cmd[1].equals("message")) {
-							cmd[1]=toReply;
+							cmd[1]=""+toReply;
 							bantype="message";
 						}else {
 							done=1;
@@ -817,21 +820,21 @@ class Board{
 		RAYE.setMaxInactiveInterval(Integer.MAX_VALUE);
 		RAYE.setAttribute("userid",2);
 	}
-	public int newMessage(String inputText, Member u, String toReply, int transaction){
+	public int newMessage(String inputText, Member u, int toReply, int transaction){
 		return newMessage(inputText, u, toReply, transaction,null, false);
 	}
-	public int newMessage(String inputText, Member u, String toReply,HttpSession session, int transaction){
+	public int newMessage(String inputText, Member u, int toReply,HttpSession session, int transaction){
 		return newMessage(inputText, u, toReply, transaction,session, false);
 	}
-	public int newRayeMessage(String inputText, Member u, String toReply, int transaction){
+	public int newRayeMessage(String inputText, Member u, int toReply, int transaction){
 		return newMessage(inputText, u, toReply, transaction,null, true);
 	}
-	public int newMessage(String inputText, Member u, String toReply, int transaction, HttpSession session, boolean raye){
+	public int newMessage(String inputText, Member u, int toReply, int transaction, HttpSession session, boolean raye){
 		//add reply header
 		if(!members.containsKey(u.id))
 			return -1;
-		if(parseInt(toReply)>0){
-			int idOfPost = parseInt(toReply);
+		if(toReply>0){
+			int idOfPost = toReply;
 			
 			Message op =messages.get(idOfPost);
 			String replyContents = op.message;
@@ -850,15 +853,18 @@ class Board{
 				replyContents = " ";
 				replyLength=1;
 			}
+			if(replyContents.length()>64)
+				replyContents=new StringBuilder(67).append(replyContents,0,64).append("...").toString();
 			String actualContents = inputText.substring(14+replyName.length()+replyContents.length());
 			//System.out.println(actualContents);
-			String trimmed=actualContents.trim();
+			String trimmed;
 			if(u.perms.equals("water_hydar")
-					&&(trimmed.startsWith("/ipban")
+					&&(((trimmed=actualContents.trim()).startsWith("/ipban"))
 					||trimmed.startsWith("/ban")
 					||trimmed.startsWith("/unban")
 					)
-				) {
+				)
+				{
 				inputText=processCommand(trimmed,u,toReply,session,transaction);
 			}else {
 				int lessThan=actualContents.indexOf("<");
@@ -1010,11 +1016,11 @@ class PythonBot implements Tasque{
 	private Board board;
 	private Member u;
 	private String[] command;
-	protected String toReply;
+	protected int toReply;
 	private int transaction;
 	private boolean raye;
 	protected String output;
-	public PythonBot(Board b, String[] command, Member u, String toReply, int transaction, boolean raye){
+	public PythonBot(Board b, String[] command, Member u, int toReply, int transaction, boolean raye){
 		this.board=b;
 		this.command=command;
 		this.u=u;
@@ -1042,7 +1048,7 @@ class PythonBot implements Tasque{
 	}
 	@Override
 	public void success(){
-		int idOfPost=Integer.parseInt(toReply);
+		int idOfPost=toReply;
 		if(idOfPost>0&&board.messages.get(idOfPost)!=null){
 			Message m=board.messages.get(idOfPost);
 			String replyHeader="";
@@ -1063,8 +1069,8 @@ class PythonBot implements Tasque{
 	@Override
 	public void fail(){
 		if(raye)
-			board.newRayeMessage("hydar??????",u,"-1",transaction);
-		else board.newMessage("Interaction failed.",u,"-1",transaction);
+			board.newRayeMessage("hydar??????",u,-1,transaction);
+		else board.newMessage("Interaction failed.",u,-1,transaction);
 	}
 }
 
@@ -1081,8 +1087,8 @@ interface Tasque extends Runnable{
 			return null;
 		}
 		String inputText = p.inputReader().lines().collect(joining("<br>"));
-		if(inputText.length()>3000)
-			inputText=inputText.substring(0,2997)+"...";
+		if(inputText.length()>2750)
+			inputText=inputText.substring(0,2747)+"...";
 		p.getErrorStream().transferTo(System.err);
 		return inputText;
 	}
@@ -1090,7 +1096,7 @@ interface Tasque extends Runnable{
 //TODO: common subclass
 class IframeBot extends PythonBot{
 	final String url;
-	public IframeBot(Board b, Member u, String toReply, String url, int transaction) {
+	public IframeBot(Board b, Member u, int toReply, String url, int transaction) {
 		super(b, null, u, toReply, transaction, false);
 		this.url=url;
 	}

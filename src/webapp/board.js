@@ -256,9 +256,12 @@ function insertMessage(m){//given message object, add a new element
 			
 		}
 	}
+	if(toReply.length>64)
+		toReply=toReply.substring(0,64)+"...";
 	document.getElementById("reply_button"+m.id).addEventListener('click',()=>{
 		document.getElementById("input_text").focus();
-		document.getElementById("input_text").value = "Replying to "+repliedName+" "+toReply+": "+document.getElementById("input_text").value;
+		if(replyID!=repliedID)
+			document.getElementById("input_text").value = "Replying to "+repliedName+" "+toReply+": "+document.getElementById("input_text").value;
 		replyID=repliedID;
 	});
 	let rectangle = false;
