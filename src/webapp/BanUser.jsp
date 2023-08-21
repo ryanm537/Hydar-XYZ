@@ -68,6 +68,8 @@ try(Connection conn=dataSource.getConnection()){
 			var rs=ps.executeQuery();
 			if(rs.next()){
 				byte[] ip = rs.getBytes(1);
+				if(ip.length==0)
+					throw new RuntimeException("Not anonymous");
 				InetAddress addr=InetAddress.getByAddress(ip);
 				if(!addr.isLoopbackAddress()){
 					ps=conn.prepareStatement(ban2);
