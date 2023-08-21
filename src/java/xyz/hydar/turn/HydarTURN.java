@@ -30,9 +30,11 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.IntUnaryOperator;
 import java.util.function.UnaryOperator;
 import java.util.zip.CRC32;
 
@@ -184,7 +186,7 @@ public class HydarTURN implements AutoCloseable{
 	public void close() {
 		udp_instance.alive=false;
 		tcp_instance.alive=false;
-		Expireable.timer.shutdownNow();
+		Expirable.timer.shutdownNow();
 	}
 	/**Launches an instance on localhost:3478 with authenticator x->"password"*/
 	public static void main(String[] args) throws InterruptedException {
@@ -643,19 +645,45 @@ public class HydarTURN implements AutoCloseable{
 	 * Channels, allocations, permissions, and nonces
 	 * are all expired by a global timer encapsulated here.
 	 * */
-	abstract class Expireable{
+	static abstract class Expirable{
 		//private static Set<Expireable> set = null;
 		public static final ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
 		
-		public final AtomicInteger ttl;
 		public volatile boolean alive;
-		public Expireable(int ttl) {
-			timer.schedule(new TURNUpdateTask(this), 1000,TimeUnit.MILLISECONDS);
-			this.ttl = new AtomicInteger(ttl);
+		private volatile ScheduledFuture<?> ttl;
+		private final ReentrantLock lock=new ReentrantLock();
+		public Expirable(int ttl) {
+			this.ttl=timer.schedule(()->this.setTTL(-1), ttl, TimeUnit.SECONDS);
 			alive = true;
 		}
-		public void set(int ttl) {
-			timer.schedule(new TURNUpdateTask(this,ttl), 250,TimeUnit.MILLISECONDS);
+		public int getTTL() {
+			lock.lock();
+			try {
+				return (int)ttl.getDelay(TimeUnit.SECONDS);
+			}finally {
+				lock.unlock();
+			}
+		}
+		public void updateTTL(IntUnaryOperator update) {
+			lock.lock();
+			try {
+				int ttl = update.applyAsInt(getTTL());
+				if(ttl==-1) {
+					alive=false;
+				}
+				if(alive){
+					this.ttl.cancel(false);
+					this.ttl = timer.schedule(()->this.setTTL(-1), ttl, TimeUnit.SECONDS);
+				}else {
+					kill();
+					System.out.println("Expiring "+getClass().getCanonicalName());
+				}
+			}finally {
+				lock.unlock();
+			}
+		}
+		public void setTTL(int ttl) {
+			updateTTL(x->ttl);
 		}
 		/**Cleanup operations for this expireable.*/
 		public abstract void kill();
@@ -667,7 +695,7 @@ public class HydarTURN implements AutoCloseable{
 	 * It also stores Channels and Permissions.
 	 * https://www.rfc-editor.org/rfc/rfc5766#page-19
 	 * */
-	class Allocation extends HydarTURN.Expireable{
+	class Allocation extends HydarTURN.Expirable{
 		// 5-tuple
 		public final Client client;
 		
@@ -708,7 +736,7 @@ public class HydarTURN implements AutoCloseable{
 				if(!channels.get(num).peer.equals(c))
 					return false;
 				else {
-					channels.get(num).ttl.set(600);
+					channels.get(num).setTTL(600);
 					Client.alloc.get(c).createPerm(this.client);
 					this.createPerm(c);
 					return true;
@@ -720,7 +748,7 @@ public class HydarTURN implements AutoCloseable{
 					if(ch.number!=num)
 						failed++;
 					else {
-						ch.ttl.set(600);
+						ch.setTTL(600);
 						this.createPerm(c);
 						Client.alloc.get(c).createPerm(this.client);
 						failed=-999;
@@ -746,38 +774,41 @@ public class HydarTURN implements AutoCloseable{
 		 * https://www.rfc-editor.org/rfc/rfc5766#page-19
 		 * */
 		public boolean createPerm(Client peer) {
-			System.out.println("Creating perm "+client+" -> "+peer);
 			//System.out.println(permissions);
-			this.ttl.getAndUpdate((x)->Math.min(3600,x+300));
-			if(permissions.get(peer)!=null) {
-				
-				permissions.get(peer).ttl.set(300);
+			this.updateTTL(x->Math.min(3600,x+300));
+			var oldPerm=permissions.get(peer);
+			if(oldPerm!=null) {
+				oldPerm.setTTL(300);
 				return true;
 			}
 			if(Client.alloc.get(peer)==null)
 				return false;
 			Permission perm = new Permission(client, peer);
 			permissions.put(peer, perm);
+			System.out.println("Creating perm "+client+" -> "+peer);
 			return true;
 		}
 		@Override
 		public void kill() {
 			if(client!=null) {
 				Client.alloc.remove(client);
+				var nonce=Client.nonces.get(client);
+				if(nonce!=null)
+					nonce.setTTL(-1);
 				client.allocation=null;
 			}else System.out.println(Client.alloc);
 			this.alive=false;
 			for(Permission s:permissions.values())
-				s.ttl.set(0);
+				s.setTTL(-1);
 			for(TURNChannel c:channels.values())
-				c.ttl.set(0);
+				c.setTTL(-1);
 		}
 	}
 	/**
 	 * A TURN permission.
 	 * See https://www.rfc-editor.org/rfc/rfc5766#page-19
 	 * */
-	class Permission extends HydarTURN.Expireable{
+	class Permission extends HydarTURN.Expirable{
 		public final Client peer;
 		public final Client client;
 		public Permission(Client client, Client peer) {
@@ -793,14 +824,14 @@ public class HydarTURN implements AutoCloseable{
 		}
 		@Override
 		public String toString() {
-			return (""+client+"->"+peer+"["+ttl+"]");
+			return (""+client+"->"+peer+"["+getTTL()+"]");
 		}
 	}
 	/**
 	 * A TURN nonce.
 	 * See https://www.rfc-editor.org/rfc/rfc5766#page-19
 	 * */
-	class Nonce extends HydarTURN.Expireable{
+	class Nonce extends HydarTURN.Expirable{
 		public final Client client;
 		public final byte[] nonce;
 		private static final SecureRandom gen=new SecureRandom();
@@ -824,45 +855,11 @@ public class HydarTURN implements AutoCloseable{
 		}
 	}
 	/**
-	 * Expires or renews Expireables depending on the given ttl.
-	 * TODO: use scheduledfutures/cancelling to reduce the amount of times
-	 * this is created
-	 * */
-	class TURNUpdateTask implements Runnable{
-		final HydarTURN.Expireable e;
-		final int ttl;
-		public TURNUpdateTask(HydarTURN.Expireable e) {
-			this(e,-1);
-		}
-		public TURNUpdateTask(HydarTURN.Expireable e, int ttl) {
-			this.e=e;
-			this.ttl=ttl;
-		}
-		@Override
-		public void run() {
-			//System.out.println(""+e.getClass().getCanonicalName()+"\t"+e.ttl.get());
-			if(ttl==-1) {
-				e.ttl.decrementAndGet();
-			}else e.set(ttl);
-			if(e.ttl.get()<=0) {
-				e.alive=false;
-			}
-			
-			if(e.alive){
-				if(ttl==-1)
-					Expireable.timer.schedule(this, 1000,TimeUnit.MILLISECONDS);
-			}else {
-				e.kill();
-				System.out.println("Expiring "+e.getClass().getCanonicalName());
-			}
-		}
-	}
-	/**
 	 * A TURN channel. These will probably be used
 	 * in sessions by Chromium browsers
 	 * See https://www.rfc-editor.org/rfc/rfc5766#page-19
 	 * */
-	class TURNChannel extends HydarTURN.Expireable{
+	class TURNChannel extends HydarTURN.Expirable{
 		public final short number;
 		public final Client peer;
 		public final Client client;
@@ -910,8 +907,9 @@ public class HydarTURN implements AutoCloseable{
 		}
 		@Override
 		public void kill() {
-			if(Client.alloc.get(client)!=null)
-				Client.alloc.get(client).channels.remove(number);
+			var alloc=Client.alloc.get(client);
+			if(alloc!=null)
+				alloc.channels.remove(number);
 			this.alive=false;
 		}
 	}
@@ -1256,7 +1254,7 @@ public class HydarTURN implements AutoCloseable{
 					response.setAttribute(Attr.NONCE, Client.nonces.get(c).nonce);
 					response.copy(s, Attr.USERNAME);
 					// reservation token whatever that is
-					response.setAttribute(Attr.LIFETIME, Packet.wrapInt(a.ttl.get()));
+					response.setAttribute(Attr.LIFETIME, Packet.wrapInt(a.getTTL()));
 					response.setAttribute(Attr.XOR_RELAYED_ADDRESS, c.xorRelay(s));
 					response.setAttribute(Attr.XOR_MAPPED_ADDRESS, c.xor(s));
 	
@@ -1355,7 +1353,7 @@ public class HydarTURN implements AutoCloseable{
 				}
 				break;
 			case Packet.REFRESH:
-				if (Client.alloc.get(c) == null || Client.alloc.get(c).ttl.get() <= 0) {
+				if (Client.alloc.get(c) == null || Client.alloc.get(c).getTTL() <= 0) {
 					response = new Packet(Packet.ERROR, Packet.REFRESH, s.transaction);
 					response.setAttribute(Attr.ERROR_CODE, Packet.wrapError(437));
 					response.setAttribute(Attr.REALM, "hydar".getBytes());
@@ -1370,7 +1368,7 @@ public class HydarTURN implements AutoCloseable{
 						ttl = 3600;
 					else
 						ttl = Packet.getInt(s.getAttribute(Attr.LIFETIME));
-					Client.alloc.get(c).ttl.set(Math.min(ttl, 3600));
+					Client.alloc.get(c).setTTL(Math.min(ttl, 3600));
 					response = new Packet(Packet.RESPONSE, Packet.REFRESH, s.transaction);
 					response.setAttribute(Attr.REALM, "hydar".getBytes());
 					response.setAttribute(Attr.NONCE, Client.nonces.get(c).nonce);
