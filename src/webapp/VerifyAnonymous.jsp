@@ -5,6 +5,9 @@
     pageEncoding="ISO-8859-1"%>
 <%@ page import="java.io.*,java.util.*,java.sql.*"%>
 <%@ page import="javax.servlet.http.*,javax.servlet.*"%>
+<%!
+static volatile long lastSweep=0;
+%>
 <%
 //for reverse proxies
 /**String ip = request.getHeader("X-Forwarded-For");  
@@ -48,9 +51,10 @@ try(Connection conn=dataSource.getConnection()){
 				if(rs.next())throw new Exception();	
 			}
 		}
-		try(PreparedStatement addUser = conn.prepareStatement("INSERT INTO user(`username`, `password`, `pfp`, `permission_level`, `pings`, `volume`, `pingvolume`, `vcvolume`, `addr`) "
-		+ " VALUES(\"Anonymous\", \"sfj67\", \"images/hydar2.png\", \"yeti\", 0, 50, 50, 50, ?)",Statement.RETURN_GENERATED_KEYS)){
-			addUser.setBytes(1,addr);
+		try(PreparedStatement addUser = conn.prepareStatement("INSERT INTO user(`username`, `password`, `pfp`, `permission_level`, `created_date`, `pings`, `volume`, `pingvolume`, `vcvolume`, `addr`) "
+		+ " VALUES(\"Anonymous\", \"sfj67\", \"images/hydar2.png\", \"yeti\",?, 0, 50, 50, 50, ?)",Statement.RETURN_GENERATED_KEYS)){
+			addUser.setLong(1,System.currentTimeMillis());
+			addUser.setBytes(2,addr);
 			addUser.executeUpdate();
 			ResultSet keys = addUser.getGeneratedKeys();
 			if(keys.next())
@@ -69,13 +73,24 @@ try(Connection conn=dataSource.getConnection()){
 		session.removeAttribute("ip");
 		session.setMaxInactiveInterval(2600000);
 	}
+	long now=System.currentTimeMillis();
+	if(now-lastSweep > 7*24*60*3600l){
+		lastSweep=now;
+		var stmt = conn.prepareStatement("""
+			DELETE FROM user WHERE 
+			(SELECT MAX(lastVisited) FROM isin WHERE user.id=isin.user) < ? 
+			AND user.permission_level='yeti'
+		""");
+		stmt.setLong(1,now-24*60*3600*30l);//30 days ago
+		stmt.executeUpdate();
+	}
+	
 	//redirect to homepage
 	out.print("<form action=\"targetServlet\">");
 	response.sendRedirect(response.encodeURL("MainMenu.jsp"));
 	out.print("</form>");
 	
 	
-	conn.close();
 } catch (Exception e){
 	out.print("<style> body{color:rgb(255,255,255); font-family:calibri, arial; text-align:center; font-size:20px;}</style>");
 	out.print("A known error has occurred\n");

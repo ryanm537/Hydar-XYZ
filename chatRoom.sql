@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS `user` (
   `addr` varbinary(16) not null DEFAULT x'7f000001',
   `pfp` varchar(100) not null,
   `permission_level` enum("water_hydar","great_white","yeti","skeleton","reserved2") not null,
+  `created_date` bigint not null default 0,
   `pings` tinyint not null,
   `volume` tinyint not null,
   `pingvolume` tinyint not null,

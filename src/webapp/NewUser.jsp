@@ -60,11 +60,12 @@ try(Connection conn=dataSource.getConnection()){
 		byte[] encodedhash = digest.digest(
 		  encP.getBytes(StandardCharsets.UTF_8));
 		
-		try(PreparedStatement addUser = conn.prepareStatement("INSERT INTO user(`username`, `password`, `pfp`, `permission_level`, `pings`, `volume`, `pingvolume`, `vcvolume`, `addr`) "
-			+ " VALUES(?, ?, \"images/hydar2.png\", \"great_white\", 0, 50, 50, 50, ?)",Statement.RETURN_GENERATED_KEYS)){
+		try(PreparedStatement addUser = conn.prepareStatement("INSERT INTO user(`username`, `password`, `pfp`, `permission_level`, `created_date`, `pings`, `volume`, `pingvolume`, `vcvolume`, `addr`) "
+			+ " VALUES(?, ?, \"images/hydar2.png\", \"great_white\", ?, 0, 50, 50, 50, ?)",Statement.RETURN_GENERATED_KEYS)){
 			addUser.setString(1,newUser);	
 			addUser.setBytes(2,encodedhash);
-			addUser.setBytes(3,new byte[0]);
+			addUser.setLong(3,System.currentTimeMillis());
+			addUser.setBytes(4,new byte[0]);
 				addUser.executeUpdate();
 				ResultSet keys = addUser.getGeneratedKeys();
 				if(!keys.next() || keys.getInt(1)!=newID){
