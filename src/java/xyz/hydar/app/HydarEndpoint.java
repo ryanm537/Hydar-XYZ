@@ -511,7 +511,7 @@ class Board{
 			return null;
 		}
 		inputText = inputText.replace("<", "&lt;");
-		if(u.perms.equals("great_white") || u.perms.equals("water_hydar")){
+		if(u.perms.equals("water_hydar")){
 			//whitelisted html
 			inputText=inputText.replace("&lt;img", "<img")
 				.replace("&lt;br>", "<br>");
