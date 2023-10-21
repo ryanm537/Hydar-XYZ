@@ -9,7 +9,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -256,7 +255,7 @@ record Channel(int id, String name){
 /**todo: scale or something*/
 class Board{
 	public final List<HydarEndpoint> users= new CopyOnWriteArrayList<>();
-	public final Map<Integer,Member> members = new  ConcurrentHashMap<>();
+	public final Map<Integer,Member> members = new ConcurrentHashMap<>();
 	public final Map<Integer,Message> messages = new ConcurrentHashMap<>(25);
 	public final List<Channel> channels = new ArrayList<>();
 	public volatile static long REFRESH_TIMER=-1;
@@ -272,7 +271,7 @@ class Board{
 	public volatile boolean hasRaye=false;
 	public volatile boolean alive=true;
 	//hashes of last updates
-	private volatile byte[][] lastUpdates=new byte[][]{null,null,null,null};
+	private volatile byte[][] lastUpdates = {null,null,null,null};
 	public static final ScheduledExecutorService timer=Executors.newSingleThreadScheduledExecutor();
 	
 	private static final String BITS = "Getting bits data...";
@@ -1058,7 +1057,9 @@ class PythonBot implements Tasque{
 					String repliedText = m.message;
 					if(repliedText.contains("<iframe") || repliedText.contains("<a href") || repliedText.contains("<img src"))
 						repliedText=" ";
-					replyHeader = "Replying to "+URLDecoder.decode(u.username,StandardCharsets.UTF_8)+" "+repliedText+": ";
+					else if(repliedText.length()>64)
+						repliedText=repliedText.substring(0,64)+"...";
+					replyHeader = "Replying to "+URLDecoder.decode(u.username,UTF_8)+" "+repliedText+": ";
 				}
 				
 			}
