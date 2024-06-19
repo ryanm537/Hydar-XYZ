@@ -747,8 +747,9 @@ public class HydarEE{
 		}
 		public void setBufferSize(int size) {
 			if(size>baos.buf().length) {
-				baos=new BAOS(size);
-				baos.write(baos.buf(),0,baos.size());
+				var tmp=new BAOS(size);
+				tmp.write(baos.buf(),0,baos.size());
+				baos = tmp;
 			}
 		}
 		private Response commit() {
