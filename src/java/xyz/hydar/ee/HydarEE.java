@@ -102,6 +102,8 @@ public class HydarEE{
 	 * */
 	public static void lazyCompile(Path p) {
 		String e=Hydar.dir.relativize(p).normalize().toString().replace("\\","/");
+		if(Config.LOWERCASE_URLS)
+			e=e.toLowerCase();
 		String n=e.substring(0,e.length()-4);
 		servlets.put(n,new EmptyServlet(p));
 	}
@@ -208,6 +210,9 @@ public class HydarEE{
 			}
 			String x_="";
 			String e=Hydar.dir.relativize(p).normalize().toString().replace("\\","/");
+			if(Config.LOWERCASE_URLS) {
+				e=e.toLowerCase();
+			}
 			String n=e.substring(0,e.length()-4);
 			String o="";
 			String v="";
@@ -219,6 +224,7 @@ public class HydarEE{
 			String r_="";
 			String t="";
 			String a__="";
+			
 			List<String> html = new ArrayList<String>();
 			int end=0;
 			
@@ -425,6 +431,8 @@ public class HydarEE{
 		String name=request.path.endsWith(".jsp")?
 			request.path.substring(0,request.path.lastIndexOf(".")):
 			request.path;
+		if(Config.LOWERCASE_URLS)
+			name=name.toLowerCase();
 		Average avg=estLength.computeIfAbsent(name,x->new Average());
 		var resp = new HttpServletResponse(new Response(200), avg.avg());
 		resp.withRequest(request);

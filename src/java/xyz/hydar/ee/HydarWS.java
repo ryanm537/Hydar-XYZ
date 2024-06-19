@@ -327,12 +327,16 @@ public class HydarWS extends OutputStream{
 	/**Endpoint builders can be used to convert JSPs into websocket endpoints. See the example*/
 	public static void registerEndpoint(String path,EndpointBuilder builder){
 		recompileEndpoint(path);
+		if(Config.LOWERCASE_URLS)
+			path=path.toLowerCase();
 		endpoints.put(path,builder);
 		
 	}
 	/**Provide an endpoint class, if state that a builder can't handle is needed*/
 	public static void registerEndpoint(String path,Class<? extends Endpoint> classObject){
 		recompileEndpoint(path);
+		if(Config.LOWERCASE_URLS)
+			path=path.toLowerCase();
 		endpoints.put(path,classObject);
 	}
 	/**Called when a websocket is opened.*/

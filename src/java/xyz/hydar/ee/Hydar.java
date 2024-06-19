@@ -294,6 +294,8 @@ class ServerThread implements Runnable {
 	public void hparse(Map<String,String> headers, Optional<HStream> hstream, byte[] body,int bodyLength) throws IOException{
 		String method = headers.get(":method");
 		String path = headers.get(":path");
+		if(Config.LOWERCASE_URLS)
+			path=path.toLowerCase();
 		//Presence of an hstream indicates h2.
 		//(We could also use this.h2==null, but this might be in a separate class eventually)
 		String host = hstream.map(x->headers.get(":authority")).orElse(headers.get("host"));
@@ -337,6 +339,13 @@ class ServerThread implements Runnable {
 		//Also sends 403/404 for invalid resources.
 		path=path.startsWith("/")?path.substring(1):path;
 		Resource r = Hydar.resources.get(path);
+		for(String ext:Config.AUTO_APPEND_URLS) {
+			if(r==null) {
+				r=Hydar.resources.get(path+ext);
+				if(r!=null)
+					path+=ext;
+			}else break;
+		}
 		if(r==null){
 			//Don't use filter() since 'path' isn't final
 			if(!Config.FORBIDDEN_SILENT && Config.FORBIDDEN_REGEX.isPresent()
@@ -1261,7 +1270,10 @@ class Resource{
 			p=parent.resolve(p).normalize();
 		}
 		Path q =p.normalize();
-		String e=root.relativize(q).toString().replace("\\","/");
+		String e_=root.relativize(q).toString().replace("\\","/");
+		if(Config.LOWERCASE_URLS)
+			e_=e_.toLowerCase();
+		String e=e_;
 		Resource r=null;
 		long fmodif=0;
 		try {
@@ -1303,7 +1315,7 @@ class Resource{
 					fmodif = delta<0?now:fmodif;
 				}
 			}
-		}catch(IOException e_) {
+		}catch(IOException e__) {
 			Hydar.resources.remove(e);
 			HydarEE.servlets.remove(e+".jsp");
 			System.out.println("Failed to verify "+e+" - removing");
@@ -1521,7 +1533,8 @@ public class Hydar {
 						
 					}
 					long fmodif=0;
-					resources.put(pathStr, new Resource(path,
+					resources.put(Config.LOWERCASE_URLS?pathStr.toLowerCase():pathStr, 
+						new Resource(path,
 							!Config.USE_WATCH_SERVICE?
 							(fmodif=Files.getLastModifiedTime(path).toMillis()):
 							startTime,

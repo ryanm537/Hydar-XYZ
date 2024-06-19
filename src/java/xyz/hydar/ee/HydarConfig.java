@@ -59,6 +59,8 @@ class Config{
 	public static List<String> COMPILER_OPTIONS = new ArrayList<>();
 	public static boolean PARALLEL_COMPILE=false;
 	public static boolean COMPILE_IN_MEMORY=true;
+	public static boolean LOWERCASE_URLS=true;
+	public static List<String> AUTO_APPEND_URLS= List.of(".jsp",".html");
 	
 	public static boolean H2_ENABLED=true;
 	public static int H2_WINDOW_ATTEMPTS=8;
