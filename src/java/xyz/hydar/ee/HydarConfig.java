@@ -26,92 +26,96 @@ import javax.naming.spi.NamingManager;
 class Config{
 	/**TODO:dynamic config*/
 	/**TODO:replace @categories with Context.[thing] etc*/
-	public static Map<String,String> config = new HashMap<>();
-	public static Map<String,String> macros = new HashMap<>();
-	public static int PORT = 8080;
-	private static String CACHE_DIR_PATH = "./HydarCompilerCache";
-	public static String IMPORTANT_PATH = "./bots/Amogus.jar";
-	public static boolean SSL_ENABLED = false;
-	public static String SSL_TRUST_STORE_PATH="", SSL_TRUST_STORE_PASSPHRASE="", SSL_KEY_STORE_PATH, SSL_KEY_STORE_PASSPHRASE;
-	public static String SSL_CONTEXT_NAME = "TLS";
-	public static List<String> CLASSPATH=new ArrayList<>(List.of(System.getProperty("java.class.path")));
-	public static String[] SSL_ENABLED_PROTOCOLS = new String[]{"TLSv1.2","TLSv1.3"};
-	public static boolean TURN_ENABLED=false;
-	public static int TURN_PORT=3478;
-	public static int SSL_REDIRECT_FROM=-1;
-	public static boolean CREATE_JAVA_FILES=false;
-	public static int REFRESH_TIMER=2000;
-	public static int MAX_THREADS=256;
-	public static boolean USE_WATCH_SERVICE=true;
-	public static boolean FORBIDDEN_SILENT=true;
-	public static int CACHE_MAX=1024000;
-	public static Optional<Pattern> HOST=Optional.empty();//empty=anything allowed
-	public static Optional<Pattern> FORBIDDEN_REGEX=Optional.empty();//empty=anything allowed
-	public static Optional<Pattern> CACHE_REGEX=Optional.of(Pattern.compile(".*"));//empty=anything allowed 
-	public static boolean CACHE_ENABLED=true;
-	public static List<String> ZIP_ALGS=List.of("gzip","deflate");
-	public static Set<String> ZIP_MIMES = Set.of("text/html", "text/css", "text/plain", "text/xml", "text/x-component",
+	public Map<String,String> config = new HashMap<>();
+	public Map<String,String> macros = new HashMap<>();
+	public int PORT = 8080;
+	private String CACHE_DIR_PATH = "./HydarCompilerCache";
+	public String IMPORTANT_PATH = "./bots/Amogus.jar";
+	public boolean SSL_ENABLED = false;
+	public String SSL_TRUST_STORE_PATH="", SSL_TRUST_STORE_PASSPHRASE="", SSL_KEY_STORE_PATH, SSL_KEY_STORE_PASSPHRASE;
+	public String SSL_CONTEXT_NAME = "TLS";
+	public List<String> CLASSPATH=new ArrayList<>(List.of(System.getProperty("java.class.path")));
+	public String[] SSL_ENABLED_PROTOCOLS = new String[]{"TLSv1.2","TLSv1.3"};
+	public boolean TURN_ENABLED=false;
+	public int TURN_PORT=3478;
+	public int SSL_REDIRECT_FROM=-1;
+	public boolean CREATE_JAVA_FILES=false;
+	public int REFRESH_TIMER=2000;
+	public int MAX_THREADS=256;
+	public boolean USE_WATCH_SERVICE=true;
+	public boolean FORBIDDEN_SILENT=true;
+	public int CACHE_MAX=1024000;
+	public Optional<Pattern> HOST=Optional.empty();//empty=anything allowed
+	public Optional<Pattern> FORBIDDEN_REGEX=Optional.empty();//empty=anything allowed
+	public Optional<Pattern> CACHE_REGEX=Optional.of(Pattern.compile(".*"));//empty=anything allowed 
+	public boolean CACHE_ENABLED=true;
+	public List<String> ZIP_ALGS=List.of("gzip","deflate");
+	public Set<String> ZIP_MIMES = Set.of("text/html", "text/css", "text/plain", "text/xml", "text/x-component",
 			"text/javascript", "application/x-javascript", "application/javascript", "application/json",
 			"application/manifest,json", "application/vnd.api,json", "application/xml", "application/xhtml,xml",
 			"application/rss,xml", "application/atom,xml", "application/vnd.ms-fontobject", "application/x-font-ttf",
 			"application/x-font-opentype", "application/x-font-truetype", "image/svg,xml", "image/x-icon",
 			"image/vnd.microsoft.icon", "font/ttf", "font/eot", "font/otf", "font/opentype");
-	public static List<String> COMPILER_OPTIONS = new ArrayList<>();
-	public static boolean PARALLEL_COMPILE=false;
-	public static boolean COMPILE_IN_MEMORY=true;
-	public static boolean LOWERCASE_URLS=true;
-	public static List<String> AUTO_APPEND_URLS= List.of(".jsp",".html");
-	public static boolean PERSIST_SESSIONS=true;
+	public List<String> COMPILER_OPTIONS = new ArrayList<>();
+	public boolean PARALLEL_COMPILE=false;
+	public boolean COMPILE_IN_MEMORY=true;
+	public boolean LOWERCASE_URLS=true;
+	public List<String> AUTO_APPEND_URLS= List.of(".jsp",".html");
+	public boolean PERSIST_SESSIONS=true;
 	
-	public static boolean H2_ENABLED=true;
-	public static int H2_WINDOW_ATTEMPTS=8;
-	public static int H2_WINDOW_TIMER=1000;
-	public static int H2_HEADER_TABLE_SIZE=4096;
-	public static int H2_MAX_CONCURRENT_STREAMS=256;
-	public static int H2_MAX_FRAME_SIZE=16384;
-	public static int H2_MAX_HEADER_LIST_SIZE=8192;
+	public boolean H2_ENABLED=true;
+	public int H2_WINDOW_ATTEMPTS=8;
+	public int H2_WINDOW_TIMER=1000;
+	public int H2_HEADER_TABLE_SIZE=4096;
+	public int H2_MAX_CONCURRENT_STREAMS=256;
+	public int H2_MAX_FRAME_SIZE=16384;
+	public int H2_MAX_HEADER_LIST_SIZE=8192;
 	
-	public static int HTTP_LIFETIME=5000;
+	public int HTTP_LIFETIME=5000;
 	
-	public static boolean SEND_ETAG=true;
-	public static boolean SEND_DATE=true;
-	public static boolean RANGE_JSP = false;
-	public static boolean RANGE_NO_JSP = true;
-	public static boolean LASTMODIFIED_FROM_FILE = false;
-	public static boolean RECEIVE_ETAGS=true;
-	public static String HOMEPAGE="/index.html";
+	public boolean SEND_ETAG=true;
+	public boolean SEND_DATE=true;
+	public boolean RANGE_JSP = false;
+	public boolean RANGE_NO_JSP = true;
+	public boolean LASTMODIFIED_FROM_FILE = false;
+	public boolean RECEIVE_ETAGS=true;
+	public String HOMEPAGE="/index.html";
 	
-	public static boolean WS_ENABLED=true;
-	public static boolean WS_DEFLATE=true;
-	public static String SERVER_HEADER="Large_Hydar/2.0";
-	public static boolean SSL_HSTS=true;
+	public boolean WS_ENABLED=true;
+	public boolean WS_DEFLATE=true;
+	public String SERVER_HEADER="Large_Hydar/2.0";
+	public boolean SSL_HSTS=true;
 	
-	public static String CACHE_CONTROL_JSP="no-cache";
-	public static String CACHE_CONTROL_NO_JSP="public, max-age=604800, must-revalidate";
+	public String CACHE_CONTROL_JSP="no-cache";
+	public String CACHE_CONTROL_NO_JSP="public, max-age=604800, must-revalidate";
 
-	public static boolean TC_ENABLED=false;
-	public static Map<String,String> links = new HashMap<>();
+	public boolean TC_ENABLED=false;
+	public Map<String,String> links = new HashMap<>();
 	
-	public static int H2_LIFETIME=30000;
-	public static String H2_HPACK_TREE_STRATEGY="MAP";
-	public static String H2_HPACK_TABLE_STRATEGY="MAP";
-	public static int WS_LIFETIME=15000;
+	public int H2_LIFETIME=30000;
+	public String H2_HPACK_TREE_STRATEGY="MAP";
+	public String H2_HPACK_TABLE_STRATEGY="MAP";
+	public int WS_LIFETIME=15000;
 	
-	public static int TC_FAST_HTTP_REQUEST=50;
-	public static int TC_FAST_WS_MESSAGE=100;
-	public static int TC_FAST_H2_FRAME=5;
-	public static int TC_PERMANENT_THREAD=100;
-	public static int TC_PERMANENT_H2_STREAM=10;
-	public static int TC_MAX_BUFFER=1024 * 1024;
-	public static int TC_SLOW_JSP_INVOKE=100;
+	public int TC_FAST_HTTP_REQUEST=50;
+	public int TC_FAST_WS_MESSAGE=100;
+	public int TC_FAST_H2_FRAME=5;
+	public int TC_PERMANENT_THREAD=100;
+	public int TC_PERMANENT_H2_STREAM=10;
+	public int TC_MAX_BUFFER=1024 * 1024;
+	public int TC_SLOW_JSP_INVOKE=100;
 	
-	public static String TC_PERMANENT_STATE, TC_IN, TC_OUT, TC_SLOW_API, TC_FAST_API;
+	public String TC_PERMANENT_STATE, TC_IN, TC_OUT, TC_SLOW_API, TC_FAST_API;
 	
-	public static String WEB_ROOT = ".";
-	public static boolean LAZY_COMPILE=false;
-	public static boolean LAZY_FILES=false;
-	public static boolean TRY_UNSAFE_WATCH_SERVICE=true;
-	public static Map<String,String> errorPages=new HashMap<>();
+	public String WEB_ROOT = ".";
+	public boolean LAZY_COMPILE=false;
+	public boolean LAZY_FILES=false;
+	public boolean TRY_UNSAFE_WATCH_SERVICE=true;
+	public Map<String,String> errorPages=new HashMap<>();
+	public final Hydar hydar;
+	public Config(Hydar hydar) {
+		this.hydar=hydar;
+	}
 	private static String[] multi(String input){
 		List<String> ret = new ArrayList<>();
 		for(String e:input.split(",")){
@@ -127,7 +131,7 @@ class Config{
 		}
 		return ret.toArray(new String[0]);
 	}
-	public static void link(String k, String v){
+	public void link(String k, String v){
 		links.put(k,v);
 	}
 	private static Map<Long,Long> tasks(String s){
@@ -194,7 +198,7 @@ class Config{
 		};
 		NamingManager.setInitialContextFactoryBuilder(env1->env2->init);
 	}
-	public static void load(String configPath) {
+	public void load(String configPath) {
 		try{
 			System.out.println("Loading config from "+configPath+"...");
 			//cfg.removeIf(s->(s.startsWith("#")||s.trim().length()==0));
@@ -224,7 +228,7 @@ class Config{
 				if(state==2&&(split=s.split("=>",2)).length==2){
 					k=split[0].trim();
 					v=split[1].trim();
-					Config.link(k,v);
+					link(k,v);
 				}else if(state==3) {
 					String[] val=k.split("\\.",2);
 					if(val.length==2) {
@@ -236,24 +240,24 @@ class Config{
 				else if(state==4) {
 					if(v.startsWith("\"")&&v.length()>1) {
 						v=v.toLowerCase().substring(1,v.lastIndexOf("\""));
-						Config.errorPages.put(k,v);
+						errorPages.put(k,v);
 					}else {
 						var dir = Path.of(config.getOrDefault("Hydar.WEB_ROOT","."));
 						Path resolved=!v.startsWith("/") ? 
 								dir.resolve("./"+v)
 								:dir.resolve("."+v);
-						Config.errorPages.put(k,Files.readString(resolved));
+						errorPages.put(k,Files.readString(resolved));
 					}
 				}
 				else if(state<=1)
 					(state==1?macros:config).put(k,v);
 			}
-			Config.errorPages.putIfAbsent("default","A known error has occurred.");
+			errorPages.putIfAbsent("default","A known error has occurred.");
 			
-			Config.set(config);
+			set(config);
 			if(!rsrc.isEmpty())
 				try {
-					Config.loadResources(rsrc);
+					loadResources(rsrc);
 				} catch (NamingException e) {
 					e.printStackTrace();
 				}
@@ -304,21 +308,21 @@ class Config{
 	private static Optional<Pattern> p(String s){
 		return (s==null || s.length()==0)? Optional.empty() : Optional.of(Pattern.compile(s));
 	}
-	public static void set(Map<String,String> cfg){
+	public void set(Map<String,String> cfg){
 		cfg.forEach((k_,v)->{
 			String k=k_.replace(".","_").toUpperCase().split("HYDAR.")[1];
 			try {
 				Field field = Config.class.getDeclaredField(k);
 				switch(k) {
 					case "ZIP_ALGS":
-					field.set(null,Arrays.stream(multi(v))
+					field.set(this,Arrays.stream(multi(v))
 							.filter(x->Arrays.stream(Encoding.values())
 									.map(y->y.toString())
 									.anyMatch(x::equals))
 							.toList());
 					return;
 					case "ZIP_MIMES":
-					field.set(null,Set.of(Arrays.stream(v.split(";"))
+					field.set(this,Set.of(Arrays.stream(v.split(";"))
 							.map(String::trim)
 							.map(x->x.replace("\"",""))
 							.toArray(String[]::new))
@@ -344,7 +348,7 @@ class Config{
 						field.set(null,cp);
 					return;*/
 					case "COMPILER_OPTIONS":
-						field.set(null,List.of(multi(v)));
+						field.set(this,List.of(multi(v)));
 					return;
 					case "HOST":
 						try {
@@ -363,19 +367,19 @@ class Config{
 				}
 				switch(field.getType().getCanonicalName()) {
 					case "java.lang.String":
-						field.set(null, v);
+						field.set(this, v);
 						break;
 					case "java.lang.String[]":
-						field.set(null, multi(v));
+						field.set(this, multi(v));
 						break;
 					case "java.util.Optional":
-						field.set(null,p(v));
+						field.set(this,p(v));
 						break;
 					case "int":
-						field.setInt(null, k.contains("TIME")?m(v):i(v));
+						field.setInt(this, k.contains("TIME")?m(v):i(v));
 						break;
 					case "boolean":
-						field.setBoolean(null, b(v));
+						field.setBoolean(this, b(v));
 						break;
 					default:
 						System.out.println("Unknown type: "+k);	
@@ -391,12 +395,17 @@ class Config{
 		Token.FAST_API.setTasks(tasks(TC_FAST_API));
 		Token.IN.setTasks(tasks(TC_IN));
 		Token.OUT.setTasks(tasks(TC_OUT));
-		Hydar.dir=Path.of(WEB_ROOT);
-		Hydar.cache=Path.of(CACHE_DIR_PATH);
+		hydar.config=this;
+		hydar.dir=Path.of(WEB_ROOT);
+		hydar.cache=Path.of(CACHE_DIR_PATH);
 		if(TC_ENABLED) {
 			int mbuf=TC_MAX_BUFFER;
 			HydarLimiter.maxBuffer=(mbuf<0?Integer.MAX_VALUE:mbuf);
 		}
-		HydarEE.HttpServletRequest.CONTEXT.init = Map.copyOf(macros);
+	}
+	/**Return an appopriate error page, backed by HydarConfig.*/
+	public String getErrorPage(String code) {
+		//TODO:429 is almost never sent
+		return errorPages.getOrDefault(code,errorPages.get("default"));
 	}
 }

@@ -35,6 +35,7 @@ public class HydarWS extends OutputStream{
 	
 	//endpoint params
 	public final ServerThread thread;
+	public final Config config;
 	private final String search;
 	private final String path;
 	private final Endpoint endpoint;
@@ -52,11 +53,15 @@ public class HydarWS extends OutputStream{
 	private BAOS deflate_baos;
 	private DeflaterOutputStream deflate_dos;
 	static final LongBuffer empty=LongBuffer.allocate(0);
+	public final Hydar hydar;
+	
 	/**Initialize this context and its endpoint, if one is available.*/
 	public HydarWS(ServerThread thread, String path,String search,boolean deflate) throws IOException{
 		
 		this.thread=thread;
-		thread.client.setSoTimeout(Config.WS_LIFETIME);
+		this.hydar=thread.hydar;
+		this.config=thread.config;
+		thread.client.setSoTimeout(config.WS_LIFETIME);
 		this.path=path;
 		this.search=search;
 		this.deflate=deflate;
@@ -68,7 +73,7 @@ public class HydarWS extends OutputStream{
 		}
 		input=new byte[1024];
 		if(!hasEndpoint(path)) {
-			HydarEE.jsp_invoke(path.substring(0,path.indexOf(".jsp")),thread.session,search);
+			hydar.ee.jsp_invoke(path.substring(0,path.indexOf(".jsp")),thread.session,search);
 		}
 		endpoint=constructEndpoint(path,this);
 		if(endpoint==null) {
@@ -222,7 +227,7 @@ public class HydarWS extends OutputStream{
 		if(offset>0){
 			ping=8;
 			payloadSize=0;
-			if(!thread.limiter.acquire(Token.FAST_API, Config.TC_FAST_WS_MESSAGE)) {
+			if(!thread.limiter.acquire(Token.FAST_API, config.TC_FAST_WS_MESSAGE)) {
 				close();
 				return;
 			}//empty
@@ -281,7 +286,7 @@ public class HydarWS extends OutputStream{
 				}
 				line = new String(pl,0,(int)length,StandardCharsets.UTF_8);
 				//on session expire, end the connection
-				if(thread.session==null || thread.session!=HydarEE.HttpSession.get(thread.client_addr, thread.session.id)) {
+				if(thread.session==null || thread.session!=hydar.ee.get(thread.client_addr, thread.session.id)) {
 					thread.session=null;
 					close();
 					return;
@@ -313,8 +318,8 @@ public class HydarWS extends OutputStream{
 		endpoints.remove(endpoint);
 	}
 	/**Used locally for managing endpoints*/
-	private static void recompileEndpoint(String path) {
-		HydarEE.addCompileListener((file)->{
+	private static void recompileEndpoint(Hydar hydar, String path) {
+		hydar.ee.addCompileListener((file)->{
 			String path2=file.toString().replace("\\","/");
 			String n=path2.substring(path2.lastIndexOf("./")+2);
 			if(n.equals(path)) {
@@ -326,21 +331,29 @@ public class HydarWS extends OutputStream{
 	}
 	/**Endpoint builders can be used to convert JSPs into websocket endpoints. See the example*/
 	public static void registerEndpoint(String path,EndpointBuilder builder){
-		recompileEndpoint(path);
-		if(Config.LOWERCASE_URLS)
-			path=path.toLowerCase();
-		endpoints.put(path,builder);
+		for(Hydar hydar:Hydar.hydars) {
+			if(hydar.ee == hydar.ee.lastToCompile) {
+				recompileEndpoint(hydar,path);
+				if(hydar.config.LOWERCASE_URLS)
+					path=path.toLowerCase();
+				endpoints.put(path,builder);
+			}else throw new IllegalStateException("This must be called at compile time of a JSP.");
+		}
 		
 	}
 	/**Provide an endpoint class, if state that a builder can't handle is needed*/
 	public static void registerEndpoint(String path,Class<? extends Endpoint> classObject){
-		recompileEndpoint(path);
-		if(Config.LOWERCASE_URLS)
-			path=path.toLowerCase();
-		endpoints.put(path,classObject);
+		for(Hydar hydar:Hydar.hydars) {
+			if(hydar.ee == hydar.ee.lastToCompile) {
+				recompileEndpoint(hydar,path);
+				if(hydar.config.LOWERCASE_URLS)
+					path=path.toLowerCase();
+				endpoints.put(path,classObject);
+			}else throw new IllegalStateException("This must be called at compile time of a JSP.");
+		}
 	}
 	/**Called when a websocket is opened.*/
-	public static Endpoint constructEndpoint(String path, HydarWS websocket){
+	public Endpoint constructEndpoint(String path, HydarWS websocket){
 			Object endpoint = endpoints.get(path);
 			if(endpoint==null)
 				return null;

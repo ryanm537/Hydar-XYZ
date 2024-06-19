@@ -22,6 +22,7 @@ public class HydarH2{
 	/**TODO: server push - load deps based on rates, store in cookie(2 b64/etag?)*/
 	public static final byte[] MAGIC="PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n".getBytes(ISO_8859_1);
 	public final ServerThread thread;
+	public final Config config;
 	public final Map<Integer,HStream> streams= new HashMap<>();
 	public final HydarHP compressor;
 	public final HydarHP decompressor;
@@ -39,16 +40,8 @@ public class HydarH2{
 		16384,//SETTINGS_MAX_FRAME_SIZE
 		8192//SETTINGS_MAX_HEADER_LIST_SIZE
 	};
-	public int[] localSettings = {
-		0,//unused
-		Config.H2_HEADER_TABLE_SIZE,//SETTINGS_HEADER_TABLE_SIZE 
-		0,//SETTINGS_ENABLE_PUSH
-		Config.H2_MAX_CONCURRENT_STREAMS,//SETTINGS_MAX_CONCURRENT_STREAMS 
-		65535,//SETTINGS_INITIAL_WINDOW_SIZE
-		Config.H2_MAX_FRAME_SIZE,//SETTINGS_MAX_FRAME_SIZE
-		Config.H2_MAX_HEADER_LIST_SIZE//SETTINGS_MAX_HEADER_LIST_SIZE
-	};
-	public volatile int localWindow = localSettings[Setting.SETTINGS_INITIAL_WINDOW_SIZE];
+	public int[] localSettings;
+	public volatile int localWindow;
 	//longadder might be better but this saves memory
 	public final AtomicInteger remoteWindow = new AtomicInteger(remoteSettings[Setting.SETTINGS_INITIAL_WINDOW_SIZE]);
 	volatile ByteBuffer input=ByteBuffer.allocate(0);
@@ -56,9 +49,20 @@ public class HydarH2{
 	public static final Frame SETTINGS_ACK=Frame.of(Frame.SETTINGS).ackFlag();
 	public HydarH2(ServerThread thread) throws IOException {
 		this.thread=thread;
+		this.config=thread.config;
+		localSettings=new int[]{
+			0,//unused
+			config.H2_HEADER_TABLE_SIZE,//SETTINGS_HEADER_TABLE_SIZE 
+			0,//SETTINGS_ENABLE_PUSH
+			config.H2_MAX_CONCURRENT_STREAMS,//SETTINGS_MAX_CONCURRENT_STREAMS 
+			65535,//SETTINGS_INITIAL_WINDOW_SIZE
+			config.H2_MAX_FRAME_SIZE,//SETTINGS_MAX_FRAME_SIZE
+			config.H2_MAX_HEADER_LIST_SIZE//SETTINGS_MAX_HEADER_LIST_SIZE
+		};
+		localWindow= localSettings[Setting.SETTINGS_INITIAL_WINDOW_SIZE];
 		compressor = new HydarHP.Compressor(localSettings[Setting.SETTINGS_HEADER_TABLE_SIZE]);
 		decompressor = new HydarHP.Decompressor(remoteSettings[Setting.SETTINGS_HEADER_TABLE_SIZE]);
-		thread.client.setSoTimeout(Config.H2_LIFETIME);
+		thread.client.setSoTimeout(config.H2_LIFETIME);
 		incoming.limiter(thread.limiter);
 		sendSettings();
 	}
@@ -194,7 +198,7 @@ class HStream{
 	}
 	//wait for window to allow sending
 	public int controlFlow(){
-		long time=0,timer=Config.H2_WINDOW_TIMER,max=Config.H2_WINDOW_TIMER;
+		long time=0,timer=h2.config.H2_WINDOW_TIMER,max=h2.config.H2_WINDOW_TIMER;
 		while(canSend()&&time<max){
 			
 			//System.out.println(""+time+":"+remoteWindow+":"+h2.remoteWindow);
@@ -354,7 +358,7 @@ class HStream{
 			boolean concurrent = h2.streams.size()<=1+h2.localSettings[Setting.SETTINGS_MAX_CONCURRENT_STREAMS];
 			Runnable streamTask = ()->{
 				try{
-					if(!limiter.acquire(Token.FAST_API,Config.TC_FAST_HTTP_REQUEST)) {
+					if(!limiter.acquire(Token.FAST_API,h2.config.TC_FAST_HTTP_REQUEST)) {
 						close(0xb);//enhance_your_calm
 						return;
 					}
@@ -363,11 +367,11 @@ class HStream{
 					
 				}finally {
 					block = dataBlock = EMPTY_BAOS;
-					limiter.release(Token.PERMANENT_STATE, Config.TC_PERMANENT_H2_STREAM);
+					limiter.release(Token.PERMANENT_STATE, h2.config.TC_PERMANENT_H2_STREAM);
 					h2.maxStream=Math.max(this.number,h2.maxStream);
 				}
 			};
-			if(limiter.acquire(Token.PERMANENT_STATE, Config.TC_PERMANENT_H2_STREAM) && concurrent)
+			if(limiter.acquire(Token.PERMANENT_STATE, h2.config.TC_PERMANENT_H2_STREAM) && concurrent)
 				HydarUtil.TFAC.newThread(streamTask).start();
 			else {
 				streamTask.run();
@@ -606,7 +610,7 @@ class Frame{
 	public static void parse(InputStream is, HydarH2 h2) throws IOException{
 		//int length = new BigInteger(dis.readNBytes(3)).intValue();
 		ServerThread t = h2.thread;
-		t.limiter.force(Token.FAST_API, Config.TC_FAST_H2_FRAME);
+		t.limiter.force(Token.FAST_API, h2.config.TC_FAST_H2_FRAME);
 		//use a byte buffer(avoid eofexception)
 		ByteBuffer h = h2.input(9).position(0);
 		if(is.readNBytes(h.array(), 0, 9)<9) {

@@ -171,7 +171,8 @@ abstract class H{
 	public final int sym;
 	public final int length;
 	static {
-		var fac=HTree.factory(Config.H2_HPACK_TREE_STRATEGY);
+		var fac=HTree.factory(HydarHP.H2_HPACK_TREE_STRATEGY);
+		
 		if(fac==null) {
 			System.out.println("HydarHP init: Invalid htree strategy: "+fac);
 			System.out.println("Invalid htree strategy: "+fac);
@@ -299,6 +300,8 @@ public class HydarHP {
 	private int maxTableSize;
 	private int tableSizeLimit=65536;
 	protected Lock lock;
+	static final String H2_HPACK_TREE_STRATEGY="ARRAY";
+	static final String H2_HPACK_TABLE_STRATEGY="MAP";
 	public HydarHP() {
 		this(65536);
 	}
@@ -313,14 +316,14 @@ public class HydarHP {
 			@Override
 			public void unlock() {}
 		};
-		table=QueueTable.doubleAccess(Config.H2_HPACK_TABLE_STRATEGY);
+		table=QueueTable.doubleAccess(HydarHP.H2_HPACK_TREE_STRATEGY);
 		//System.arraycopy(STATIC_TABLE,0,table,0,STATIC_TABLE.length);
 	}
 	private HydarHP(int tableSizeLimit, boolean compress) {
 		this(tableSizeLimit);
 		table=compress?
-				QueueTable.eAccess(Config.H2_HPACK_TABLE_STRATEGY)
-				:QueueTable.intAccess(Config.H2_HPACK_TABLE_STRATEGY);
+				QueueTable.eAccess(HydarHP.H2_HPACK_TABLE_STRATEGY)
+				:QueueTable.intAccess(HydarHP.H2_HPACK_TABLE_STRATEGY);
 		//System.arraycopy(STATIC_TABLE,0,table,0,STATIC_TABLE.length);
 	} 
 	private Entry get(int index) {

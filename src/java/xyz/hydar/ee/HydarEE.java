@@ -63,6 +63,7 @@ import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
 
+
 /**
  * Implements the JSP compiler module,
  * and provides excecution of servlet code.
@@ -70,22 +71,29 @@ import javax.xml.stream.events.XMLEvent;
  * */
 public class HydarEE{
 	//executes when a JSP is compiled. Used primarily by HydarWS.
-	private static Set<Predicate<Path>> compileListeners=new HashSet<>();
+	private Set<Predicate<Path>> compileListeners=new HashSet<>();
 	
 	//class name => Servlet
-	public static Map<String,HttpServlet> servlets = new ConcurrentHashMap<>();
-	
+	public Map<String,HttpServlet> servlets = new ConcurrentHashMap<>();
+	//session attributes
+	public Map<String,HttpSession> sessions= new ConcurrentHashMap<>();
 	//get compiler and file managers for JSP compilation
 	private static final JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
 	private static final StandardJavaFileManager standard = compiler.getStandardFileManager(null, null, null);
-	private static final HydarFileManager manager = new HydarFileManager(standard);
-	private static final Map<String,Average> estLength=new ConcurrentHashMap<>();
+	private final HydarFileManager manager = new HydarFileManager(standard);
+	private final Map<String,Average> estLength=new ConcurrentHashMap<>();
+	public final Context ctx;
+	public final Hydar hydar;
+	public final Config config;
+	public volatile HydarEE lastToCompile = null;
 	/**
 	 * Use a ServiceLoader to find and load implementations of xyz.hydar.ee.HttpServlet.
 	 * Overriding RESOURCE_LOCATION() is currently the only way to provide paths for these
 	 * (note that we can map path params or change the urls later in hydar.properties)
 	 * */
-	static {
+	/**Static only, for now.*/
+	@SuppressWarnings("unchecked")
+	public HydarEE(Hydar hydar) {
 		ServiceLoader<HttpServlet> loader = ServiceLoader.load(HttpServlet.class);
 		for(HttpServlet l:loader) {
 			String url=l.RESOURCE_LOCATION();
@@ -93,19 +101,48 @@ public class HydarEE{
 			servlets.put(url,l);
 			System.out.println("Loaded servlet "+l.getClass().getCanonicalName()+" with target url "+url);
 		}
+		
+		this.hydar=hydar;
+		config=hydar.config;
+		ctx = new Context(hydar);
+		ctx.init = Map.copyOf(config.macros);
+		Path sessions = Path.of("sessions.bin");
+		try {
+			if(config.PERSIST_SESSIONS) {
+				Runtime.getRuntime().addShutdownHook(new Thread(()->{
+					try {
+						var baos = new ByteArrayOutputStream();
+						var oos = new ObjectOutputStream(baos);
+						oos.writeObject(sessions);
+						baos.writeTo(Files.newOutputStream(sessions));
+						System.out.println("Saved session data.");
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}));
+				if(Files.exists(sessions)) {
+						var ois = new ObjectInputStream(Files.newInputStream(sessions));
+						this.sessions = (Map<String, HttpSession>) ois.readObject();
+						Files.delete(sessions);
+					
+				}
+			}else {
+				Files.deleteIfExists(sessions);
+			}
+		} catch (ClassNotFoundException | IOException e) {
+			throw new RuntimeException(e);
+		}
 		System.out.println("Service loader finished.");
 	}
-	/**Static only, for now.*/
-	private HydarEE() {}
 	/**
 	 * With lazy compilation enabled, JSPs will only be compiled
 	 * when loaded for the first time(or modified). An EmptyServlet
 	 * takes their place until then.
 	 * This reduces start times.
 	 * */
-	public static void lazyCompile(Path p) {
-		String e=Hydar.dir.relativize(p).normalize().toString().replace("\\","/");
-		if(Config.LOWERCASE_URLS)
+	public void lazyCompile(Path p) {
+		String e=hydar.dir.relativize(p).normalize().toString().replace("\\","/");
+		if(config.LOWERCASE_URLS)
 			e=e.toLowerCase();
 		String n=e.substring(0,e.length()-4);
 		servlets.put(n,new EmptyServlet(p));
@@ -114,7 +151,7 @@ public class HydarEE{
 	 * A 'compile listener' executes when a JSP is compiled. Used primarily by HydarWS.
 	 * If it returns true, it is removed, otherwise it stays and might be executed again.
 	 * */
-	public static void addCompileListener(Predicate<Path> action) {
+	public void addCompileListener(Predicate<Path> action) {
 		compileListeners.add(action);
 	}
 	/**Utility to escape quotes at the end of a string. This is needed in text blocks.*/
@@ -136,7 +173,7 @@ public class HydarEE{
 	 * @param the file path for the jsp
 	 * @return -1 if any errors, otherwise # of warnings.
 	 */
-	public static int compile(Path p){
+	public int compile(Path p){
 		try{
 			compileListeners.removeIf(x->x.test(p));
 			String path=p.toString().replace("\\","/");
@@ -190,11 +227,11 @@ public class HydarEE{
 								if(!"file".equals(key))break;
 								Path includePath;
 								if(value.startsWith("/")||value.startsWith("\\"))
-									includePath=Hydar.dir.resolve(Path.of("."+value));
+									includePath=hydar.dir.resolve(Path.of("."+value));
 								else if(Path.of(value).getParent()==null)
-									includePath=Hydar.dir.resolve(Path.of("./"+value));
+									includePath=hydar.dir.resolve(Path.of("./"+value));
 								else
-									includePath=Hydar.dir.resolve(p.getParent()).resolve("./"+value).normalize();
+									includePath=hydar.dir.resolve(p.getParent()).resolve("./"+value).normalize();
 								String included=Files.readString(includePath);
 								replacement.append(included);
 								break;
@@ -212,8 +249,8 @@ public class HydarEE{
 				
 			}
 			String x_="";
-			String e=Hydar.dir.relativize(p).normalize().toString().replace("\\","/");
-			if(Config.LOWERCASE_URLS) {
+			String e=hydar.dir.relativize(p).normalize().toString().replace("\\","/");
+			if(config.LOWERCASE_URLS) {
 				e=e.toLowerCase();
 			}
 			String n=e.substring(0,e.length()-4);
@@ -310,31 +347,36 @@ public class HydarEE{
 			options.add("-cp");
 			List<String> cp = new ArrayList<>();
 			cp.add(System.getProperty("java.class.path"));
-			if(!Config.COMPILE_IN_MEMORY)
-				cp.add(Hydar.cache.toString());
+			if(!config.COMPILE_IN_MEMORY)
+				cp.add(hydar.cache.toString());
 			
 			options.add(String.join(File.pathSeparator,cp));
-			options.addAll(Config.COMPILER_OPTIONS.stream().filter(x->!x.isBlank()).toList());
+			options.addAll(config.COMPILER_OPTIONS.stream().filter(x->!x.isBlank()).toList());
 			URLClassLoader ucl;
-			if(Config.COMPILE_IN_MEMORY) {
+			if(config.COMPILE_IN_MEMORY) {
 				//Synchronize since lazy compilation allows this to run concurrently
+				
 				synchronized(compiler) {
+					lastToCompile = this;
 					ucl=manager.getClassLoader(null);
+					lastToCompile = null;
 				}
 			}else {
 				//Generate .class files, if in-memory compilation is disabled
-				Path targetPath = Hydar.cache.resolve(q+".class");
+				Path targetPath = hydar.cache.resolve(q+".class");
 				Files.deleteIfExists(targetPath);
 				Path parent=targetPath.getParent();
 				HydarUtil.mkOptDirs(parent);
 				synchronized(compiler) {
-					standard.setLocation(StandardLocation.CLASS_OUTPUT, List.of(Hydar.cache.toFile()));
-					ucl= new URLClassLoader(new URL[] {Hydar.cache.toUri().toURL()},HydarEE.class.getClassLoader());
+					lastToCompile = this;
+					standard.setLocation(StandardLocation.CLASS_OUTPUT, List.of(hydar.cache.toFile()));
+					ucl= new URLClassLoader(new URL[] {hydar.cache.toUri().toURL()},HydarEE.class.getClassLoader());
+					lastToCompile = null;
 				}
 			}
 			//Create java files for debugging, if enabled.
-			if(Config.CREATE_JAVA_FILES){
-				Path targetPath = Hydar.cache.resolve(q+".java");
+			if(config.CREATE_JAVA_FILES){
+				Path targetPath = hydar.cache.resolve(q+".java");
 				HydarUtil.mkOptDirs(targetPath.getParent());
 				try{
 					Files.writeString(targetPath,fullSource);//creates the java file(not needed, but useful)
@@ -348,9 +390,11 @@ public class HydarEE{
 			DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
 			List<Diagnostic<? extends JavaFileObject>> diagList=null;
 			synchronized(compiler) {
+				lastToCompile=this;
 				var task = compiler.getTask(null, manager, diagnostics, options, null, compilationUnits);
 				success = task.call();
 				diagList=new ArrayList<>(diagnostics.getDiagnostics());
+				lastToCompile = null;
 			}
 			
 			//If an error is present, don't print warnings.
@@ -388,6 +432,7 @@ public class HydarEE{
 			//Final step: load the class, create an instance, and store it so it becomes executable.
 			try{
 				synchronized(compiler) {
+					lastToCompile = this;
 					if(success){
 						//load class and update hash table
 						Class<?> c= ucl.loadClass(q);
@@ -409,7 +454,8 @@ public class HydarEE{
 					}
 				}
 			}finally{
-				if(Config.COMPILE_IN_MEMORY)
+				lastToCompile=null;
+				if(config.COMPILE_IN_MEMORY)
 					ucl.close();
 			}
 		}catch(Exception e){
@@ -420,24 +466,24 @@ public class HydarEE{
 		
 	}
 	/**Invoke a JSP with the given name and query string.*/
-	public static HydarEE.HttpServletResponse jsp_invoke(String name, String query) {
+	public HydarEE.HttpServletResponse jsp_invoke(String name, String query) {
 		return jsp_invoke(new HttpServletRequest(name,query));
 	}
 	/**Invoke a JSP with the given name, session, and query string.*/
-	public static HydarEE.HttpServletResponse jsp_invoke(String name, HttpSession session, String query) {
+	public HydarEE.HttpServletResponse jsp_invoke(String name, HttpSession session, String query) {
 		var request=new HttpServletRequest(name,query);
 		request.withSession(session, true);
 		return jsp_invoke(request);
 	}
 	/**Invoke a JSP with the given HttpServletRequest.*/
-	public static HydarEE.HttpServletResponse jsp_invoke(HttpServletRequest request){
+	public HydarEE.HttpServletResponse jsp_invoke(HttpServletRequest request){
 		String name=request.path.endsWith(".jsp")?
 			request.path.substring(0,request.path.lastIndexOf(".")):
 			request.path;
-		if(Config.LOWERCASE_URLS)
+		if(config.LOWERCASE_URLS)
 			name=name.toLowerCase();
 		Average avg=estLength.computeIfAbsent(name,x->new Average());
-		var resp = new HttpServletResponse(new Response(200), avg.avg());
+		var resp = new HttpServletResponse(hydar.new Response(200), avg.avg());
 		resp.withRequest(request);
 		jsp_dispatch(name, request, resp);
 		return resp;
@@ -446,13 +492,13 @@ public class HydarEE{
 	 * Return whether sessions are enabled in the JSP directives.
 	 * TODO: hide this(possible with request handler obj probably)
 	 * */
-	public static boolean jsp_needsSession(String servletName) {
+	public boolean jsp_needsSession(String servletName) {
 		return ((JspServlet)servlets.get(servletName)).doesSessions;
 	}
 	/**
 	 * Execute a JSP with the given servletName, with a request and already-provided response.
 	 * */
-	public static void jsp_dispatch(String servletName, HttpServletRequest request, HttpServletResponse response){
+	public void jsp_dispatch(String servletName, HttpServletRequest request, HttpServletResponse response){
 		var name=servletName;
 		var resp=response;
 		resp.request=request;
@@ -460,11 +506,51 @@ public class HydarEE{
 		if(meth instanceof EmptyServlet lazy) {
 			synchronized(meth) {
 				compile(lazy.getPath());
-				meth=(JspServlet)HydarEE.servlets.get(name);
+				meth=(JspServlet)servlets.get(name);
 			}
 		}
 		meth._jspService(request, resp); 
 		estLength.computeIfAbsent(name,x->new Average()).update(resp.baos.size());
+	}
+	
+	public HttpSession create(InetAddress addr) {
+		return new HttpSession(hydar,addr);
+	}
+	public HttpSession get(InetAddress addr, String id) {
+		HttpSession ret=sessions.get(id);
+		if(ret!=null && (!ret.addr.isLoopbackAddress()||addr.isLoopbackAddress())) {
+			ret.isNew=false;
+			ret.lastUsed=System.currentTimeMillis();
+			return ret;
+		}else return null;
+	}
+
+	public void cleanSessions() {
+		long now=System.currentTimeMillis();
+		for(HttpSession v:sessions.values()) {
+			if(v.ttl>0 && now-v.lastUsed>v.ttl) {
+				v.invalidate();
+			}
+		}
+		sessions.values().stream().collect(Collectors.groupingBy(x->x.addr))
+			.values().stream().filter(x->x.size()>64).forEach(x->
+				x.stream().sorted(Comparator.comparingLong(s->s.lastUsed))
+					.limit(x.size()-64)
+					.toList()//prevent concurrent mod
+					.forEach(HttpSession::invalidate)
+			);
+	}
+	//new TURN credential
+	String tc(){
+		return HydarUtil.noise(16);
+	}
+	//new session ID
+	String id(){
+		String id;
+		do{
+			id=HydarUtil.noise(32);
+		}while(sessions.containsKey(id));
+		return id;
 	}
 	/**Holds a place for a jspservlet that hasn't been compiled yet.*/
 	public static class EmptyServlet extends JspServlet{
@@ -531,7 +617,6 @@ public class HydarEE{
 		private static final InetSocketAddress LOOPBACK=new InetSocketAddress(InetAddress.getLoopbackAddress(),0);
 		private InetSocketAddress addr=LOOPBACK;
 		//private Map<String,Cookie> cookies=new HashMap<String,Cookie>();
-		static final Context CONTEXT = new Context();
 		static final byte[] EMPTY=new byte[0];
 		public HttpServletRequest(String servlet, String query){
 			this(new HashMap<String,String>(Map.of(":path",servlet)),EMPTY,query);
@@ -614,7 +699,7 @@ public class HydarEE{
 			return session!=null && session.valid;
 		}
 		public Context getServletContext(){
-			return CONTEXT;
+			return session !=null ? null : session.hydar.ee.ctx;
 		}
 		public HttpServletRequest withAddr(InetSocketAddress addr) {
 			this.addr=addr;
@@ -662,31 +747,31 @@ public class HydarEE{
 	public static class HttpServletResponse{
 		public final PrintWriter out;
 		public BAOS baos;
-		public Response builder;
+		public Hydar.Response builder;
 		private String contentType="text/html";
 		private String characterEncoding="UTF-8";
 		private int sc=200;
 		public boolean committed=false;
 		public boolean scc=false;
-		Supplier<Response> onReset;
+		Supplier<Hydar.Response> onReset;
 		private HttpServletRequest request;
-		public HttpServletResponse(Response builder) {
+		public HttpServletResponse(Hydar.Response builder) {
 			this(builder, 1024);
 		}
-		public HttpServletResponse(Response builder, int estLength){
+		public HttpServletResponse(Hydar.Response builder, int estLength){
 			baos = new BAOS(estLength);
 			out=new PrintWriter(baos,false,Charset.forName(characterEncoding));
 			this.builder=builder;
 			setDefaults();
 		}
-		public void onReset(Supplier<Response> s) {
+		public void onReset(Supplier<Hydar.Response> s) {
 			onReset=s;
 		}
 		private void setDefaults() {
 			sc=builder.getHeader(":status")==null?200:Integer.parseInt(builder.getHeader(":status"));
 			setHeader("Content-Type",contentType);
 			setHeader("Expires","Thu, 01 Dec 1999 16:00:00 GMT");
-			String cc=Config.CACHE_CONTROL_JSP;
+			String cc=builder.hydar.config.CACHE_CONTROL_JSP;
 			if(cc.length()>0){
 				setHeader("Cache-Control",cc);
 			}
@@ -694,15 +779,16 @@ public class HydarEE{
 		}
 		public HttpServletResponse withRequest(HttpServletRequest request) {
 			this.request=request;
+			var config = builder.hydar.config;
 			if(request.method!=null && request.method.equals("HEAD"))
 				builder.disableData().disableLength();
 			HttpSession session;
 			if((session=request.getSession())!=null) {
 				String cookieAge=session.cookieTtl>=0?";Max-Age="+(session.cookieTtl/1000):"";
-				builder.header("Set-Cookie","HYDAR_sessionID="+session.id+";Path=/;SameSite=Strict;"+(Config.SSL_ENABLED?"Secure":"")+cookieAge);
-				if(Config.TURN_ENABLED){
-					builder.header("Set-Cookie","HYDAR_turnUser="+session.id.substring(15,24)+";Path=/;SameSite=Strict;"+(Config.SSL_ENABLED?"Secure":"")+cookieAge);
-					builder.header("Set-Cookie","HYDAR_turnCred="+session.tc+";Path=/;SameSite=Strict;"+(Config.SSL_ENABLED?"Secure":"")+cookieAge);
+				builder.header("Set-Cookie","HYDAR_sessionID="+session.id+";Path=/;SameSite=Strict;"+(config.SSL_ENABLED?"Secure":"")+cookieAge);
+				if(config.TURN_ENABLED){
+					builder.header("Set-Cookie","HYDAR_turnUser="+session.id.substring(15,24)+";Path=/;SameSite=Strict;"+(config.SSL_ENABLED?"Secure":"")+cookieAge);
+					builder.header("Set-Cookie","HYDAR_turnCred="+session.tc+";Path=/;SameSite=Strict;"+(config.SSL_ENABLED?"Secure":"")+cookieAge);
 				}
 			}
 			return this;
@@ -752,10 +838,10 @@ public class HydarEE{
 				baos = tmp;
 			}
 		}
-		private Response commit() {
+		private Hydar.Response commit() {
 			if(!committed) {
 				builder.status(sc);
-				if(!Config.ZIP_MIMES.contains(getContentType().split(";")[0].trim()))
+				if(!builder.hydar.config.ZIP_MIMES.contains(getContentType().split(";")[0].trim()))
 					builder.enc(Encoding.identity);
 			}
 			committed=true;
@@ -774,7 +860,7 @@ public class HydarEE{
 		}
 		//called to receive the actual response
 		//[or last chunk] => flush can never return a last chunk
-		public Response toHTTP() {
+		public Hydar.Response toHTTP() {
 			if(committed)
 				builder.lastChunk();
 			return commit();
@@ -785,7 +871,7 @@ public class HydarEE{
 		public void reset() {
 			resetBuffer();
 			if(onReset!=null)builder=onReset.get();
-			else builder=new Response(200);
+			else builder=builder.hydar.new Response(200);
 			sc=200;
 			setDefaults();
 		}
@@ -838,85 +924,25 @@ public class HydarEE{
 	/**
 	 * Implements most of jakarta.servlet.http.HttpSession.
 	 * */
-	@SuppressWarnings("unchecked")
 	public static class HttpSession implements Serializable{
-		private static final long serialVersionUID = -1061821602699032332L;
-		public static Map<String,HttpSession> map= new ConcurrentHashMap<>();
+		private static final long serialVersionUID = -1061821602699032333L;
 		private final Map<String,Object> attr= new ConcurrentHashMap<>();
-		public final String id=id();
+		public final String id;
 		public volatile boolean isNew=true;
 		public volatile long ttl=2_592_000_000l;//server sided lifetime
 		public volatile long cookieTtl=-1;//cookie lifetime, -1=session
 		public volatile long lastUsed=System.currentTimeMillis();
-		public final String tc = Config.TURN_ENABLED?tc():null;
+		public final String tc;
 		public volatile boolean valid=true;
+		public final Hydar hydar;
 		private final InetAddress addr;
-		static {
-			Path sessions = Path.of("sessions.bin");
-			try {
-				if(Config.PERSIST_SESSIONS) {
-					Runtime.getRuntime().addShutdownHook(new Thread(()->{
-						try {
-							var baos = new ByteArrayOutputStream();
-							var oos = new ObjectOutputStream(baos);
-							oos.writeObject(HydarEE.HttpSession.map);
-							baos.writeTo(Files.newOutputStream(sessions));
-							System.out.println("Saved session data.");
-						} catch (IOException e) {
-							e.printStackTrace();
-						}
-					}));
-					if(Files.exists(sessions)) {
-							var ois = new ObjectInputStream(Files.newInputStream(sessions));
-							HydarEE.HttpSession.map = (Map<String, HttpSession>) ois.readObject();
-							Files.delete(sessions);
-						
-					}
-				}else {
-					Files.deleteIfExists(sessions);
-				}
-			} catch (ClassNotFoundException | IOException e) {
-				throw new RuntimeException(e);
-			}
-		}
-		static String tc(){
-			return HydarUtil.noise(16);
-		}
-		static String id(){
-			String id;
-			do{
-				id=HydarUtil.noise(32);
-			}while(map.containsKey(id));
-			return id;
-		}
-		public static void clean() {
-			long now=System.currentTimeMillis();
-			for(HttpSession v:map.values()) {
-				if(v.ttl>0 && now-v.lastUsed>v.ttl) {
-					v.invalidate();
-				}
-			}
-			map.values().stream().collect(Collectors.groupingBy(x->x.addr))
-				.values().stream().filter(x->x.size()>64).forEach(x->
-					x.stream().sorted(Comparator.comparingLong(s->s.lastUsed))
-						.limit(x.size()-64)
-						.toList()//prevent concurrent mod
-						.forEach(HttpSession::invalidate)
-				);
-		}
 		public String getId() {
 			lastUsed=System.currentTimeMillis();
 			return id;
 		}
-		public static String tcAuth(String user) {
-			for(String key:map.keySet()){
-				if(key.substring(15,24).equals(user))
-					return map.get(key).tc;
-			}
-			return null;
-		}
+		
 		public Context getServletContext() {
-			return HttpServletRequest.CONTEXT;
+			return hydar.ee.ctx;
 		}
 		public Object getAttribute(String k) {
 			lastUsed=System.currentTimeMillis();
@@ -934,7 +960,7 @@ public class HydarEE{
 			//System.out.println("Invalidating "+id);
 			
 			valid=false;
-			map.remove(id);
+			hydar.ee.sessions.remove(id);
 		}
 		public int getMaxInactiveInterval() {
 			lastUsed=System.currentTimeMillis();
@@ -945,25 +971,14 @@ public class HydarEE{
 			cookieTtl=interval*1000l;
 			ttl=interval<0?2592000000l:interval*1000l;
 		}
-		public static HttpSession get(String id) {
-			
-			return get(InetAddress.getLoopbackAddress(),id);
-		}
-		public static HttpSession create(InetAddress addr) {
-			return new HttpSession(addr);
-		}
-		public static HttpSession get(InetAddress addr, String id) {
-			HttpSession ret=map.get(id);
-			if(ret!=null && (!ret.addr.isLoopbackAddress()||addr.isLoopbackAddress())) {
-				ret.isNew=false;
-				ret.lastUsed=System.currentTimeMillis();
-				return ret;
-			}else return null;
-		}
-		private HttpSession(InetAddress addr) {
+		
+		private HttpSession(Hydar hydar, InetAddress addr) {
 			//count.computeIfAbsent()
 			this.addr=addr;
-			map.put(id,this);
+			this.hydar=hydar;
+			tc= hydar.config.TURN_ENABLED?hydar.ee.tc():null;
+			id=hydar.ee.id();
+			hydar.ee.sessions.put(id,this);
 		}
 	}
 	/**
@@ -973,7 +988,9 @@ public class HydarEE{
 	public static class Context{
 		private Map<String,Object> attr;
 		Map<String,String> init;
-		Context(){
+		public Hydar hydar;
+		Context(Hydar hydar){
+			this.hydar=hydar;
 			attr=new ConcurrentHashMap<String,Object>();
 		}
 		public void setAttribute(String k, Object v){
@@ -986,7 +1003,7 @@ public class HydarEE{
 		}
 		public String getRealPath(String path) {
 			return !path.startsWith("/") ? null :
-				Hydar.dir.resolve("."+path).normalize().toString();
+				hydar.dir.resolve("."+path).normalize().toString();
 		}
 		public String getInitParameter(String name) {
 			return init.get(name);
@@ -994,7 +1011,7 @@ public class HydarEE{
 		public InputStream getResourceAsStream(String path){
 			try {
 				return !path.startsWith("/") ? null :
-					Files.newInputStream(Hydar.dir.resolve("."+path));
+					Files.newInputStream(hydar.dir.resolve("."+path));
 			} catch (IOException e) {
 				return null;
 			}
@@ -1002,11 +1019,11 @@ public class HydarEE{
 		public URL getResource(String path) throws MalformedURLException {
 			if(!path.startsWith("/"))
 				throw new MalformedURLException("must start with '/'");
-			return Hydar.dir.resolve("."+path).normalize().toFile().toURI().toURL();
+			return hydar.dir.resolve("."+path).normalize().toFile().toURI().toURL();
 		}
 		public Set<String> getResourcePaths(String path) {
 			if(!path.startsWith("/"))return null;
-			try(var files=Files.walk(Hydar.dir.resolve("."+path),1)){
+			try(var files=Files.walk(hydar.dir.resolve("."+path),1)){
 				return files.map(Path::normalize)
 						.map(x->x.toFile().isDirectory()?x+"/":x)
 						.map(x->"/"+x.toString().replace("\\","/"))
@@ -1022,7 +1039,7 @@ public class HydarEE{
 	 * If in-memory compilation is disabled, or the requested class
 	 * is not from a JSP, the standard file manager is used.
 	 * */
-	private static class HydarFileManager extends ForwardingJavaFileManager<StandardJavaFileManager>{
+	private class HydarFileManager extends ForwardingJavaFileManager<StandardJavaFileManager>{
 		private static Map<String,BAOS> classes=new ConcurrentHashMap<>();
 		private final StandardJavaFileManager standard;
 		
@@ -1081,7 +1098,7 @@ public class HydarEE{
 		public JavaFileObject getJavaFileForOutput(
 		JavaFileManager.Location location, String className, Kind kind, FileObject sibling) throws IOException{
 			//Load the class or java file normally
-			if(kind!=Kind.CLASS||!Config.COMPILE_IN_MEMORY){
+			if(kind!=Kind.CLASS||!config.COMPILE_IN_MEMORY){
 				return standard.getJavaFileForOutput(location,className,kind,sibling);
 			}
 			//Create a new byte array-based class object

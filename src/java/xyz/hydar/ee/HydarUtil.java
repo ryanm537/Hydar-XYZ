@@ -110,42 +110,42 @@ public class HydarUtil {
 		}
 		UNSAFE_MODIFIER=modif_;
 	}
-	public static WatchEvent.Modifier getUnsafe() {
-		return Config.TRY_UNSAFE_WATCH_SERVICE?UNSAFE_MODIFIER:null;
+	public static WatchEvent.Modifier getUnsafe(Hydar hydar) {
+		return hydar.config.TRY_UNSAFE_WATCH_SERVICE?UNSAFE_MODIFIER:null;
 	}
 	private static final SecureRandom rng = new SecureRandom();
-	public static boolean addKey(Path dir, Path root) throws IOException {
-		if(getUnsafe()!=null&&root.equals(dir)) {
-			WatchKey key = dir.register(Hydar.watcher,
+	public static boolean addKey(Hydar hydar, Path dir, Path root) throws IOException {
+		if(getUnsafe(hydar)!=null&&root.equals(dir)) {
+			WatchKey key = dir.register(hydar.watcher,
 					new WatchEvent.Kind<?>[] {ENTRY_CREATE,
 				ENTRY_DELETE,
-	            ENTRY_MODIFY},getUnsafe());
+	            ENTRY_MODIFY},getUnsafe(hydar));
 			
-			Hydar.KEYS.put(dir,key);
+			hydar.KEYS.put(dir,key);
 			return true;
-		}else if(getUnsafe()==null){
-			Hydar.KEYS.put(dir,dir.register(Hydar.watcher,ENTRY_CREATE,
+		}else if(getUnsafe(hydar)==null){
+			hydar.KEYS.put(dir,dir.register(hydar.watcher,ENTRY_CREATE,
 				ENTRY_DELETE,
 	            ENTRY_MODIFY));
 			return true;
 		}
 		return false;
 	}
-	public static List<Path> getFiles(Path root){
+	public static List<Path> getFiles(Config config, Path root){
 		List<Path> allFiles=new ArrayList<>();
 		try {
 			Files.walkFileTree(root, new SimpleFileVisitor<Path>() {
 				@Override
 				public FileVisitResult preVisitDirectory(Path dir,
 						BasicFileAttributes attrs) throws IOException {
-					if(!Config.FORBIDDEN_REGEX
-							.filter(x->x.matcher(Hydar.dir.relativize(dir).toString().replace("\\","/")+"/")
+					if(!config.FORBIDDEN_REGEX
+							.filter(x->x.matcher(config.hydar.dir.relativize(dir).toString().replace("\\","/")+"/")
 									.find()
 								)
 							.isPresent()
 							) {
-						if(Config.USE_WATCH_SERVICE) {
-							addKey(dir,root);
+						if(config.USE_WATCH_SERVICE) {
+							addKey(config.hydar,dir,root);
 						}
 						return FileVisitResult.CONTINUE;
 					}else{
@@ -155,8 +155,8 @@ public class HydarUtil {
 				}
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-					if(!Config.FORBIDDEN_REGEX
-							.filter(x->x.matcher(Hydar.dir.relativize(file).toString()).find())
+					if(!config.FORBIDDEN_REGEX
+							.filter(x->x.matcher(config.hydar.dir.relativize(file).toString()).find())
 							.isPresent())
 						allFiles.add(file);
 					return FileVisitResult.CONTINUE;
