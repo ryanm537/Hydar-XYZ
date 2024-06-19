@@ -52,17 +52,17 @@ public class HydarH2{
 		this.config=thread.config;
 		localSettings=new int[]{
 			0,//unused
-			config.H2_HEADER_TABLE_SIZE,//SETTINGS_HEADER_TABLE_SIZE 
+			Config.H2_HEADER_TABLE_SIZE,//SETTINGS_HEADER_TABLE_SIZE 
 			0,//SETTINGS_ENABLE_PUSH
-			config.H2_MAX_CONCURRENT_STREAMS,//SETTINGS_MAX_CONCURRENT_STREAMS 
+			Config.H2_MAX_CONCURRENT_STREAMS,//SETTINGS_MAX_CONCURRENT_STREAMS 
 			65535,//SETTINGS_INITIAL_WINDOW_SIZE
-			config.H2_MAX_FRAME_SIZE,//SETTINGS_MAX_FRAME_SIZE
-			config.H2_MAX_HEADER_LIST_SIZE//SETTINGS_MAX_HEADER_LIST_SIZE
+			Config.H2_MAX_FRAME_SIZE,//SETTINGS_MAX_FRAME_SIZE
+			Config.H2_MAX_HEADER_LIST_SIZE//SETTINGS_MAX_HEADER_LIST_SIZE
 		};
 		localWindow= localSettings[Setting.SETTINGS_INITIAL_WINDOW_SIZE];
 		compressor = new HydarHP.Compressor(localSettings[Setting.SETTINGS_HEADER_TABLE_SIZE]);
 		decompressor = new HydarHP.Decompressor(remoteSettings[Setting.SETTINGS_HEADER_TABLE_SIZE]);
-		thread.client.setSoTimeout(config.H2_LIFETIME);
+		thread.client.setSoTimeout(Config.H2_LIFETIME);
 		incoming.limiter(thread.limiter);
 		sendSettings();
 	}
@@ -198,7 +198,7 @@ class HStream{
 	}
 	//wait for window to allow sending
 	public int controlFlow(){
-		long time=0,timer=h2.config.H2_WINDOW_TIMER,max=h2.config.H2_WINDOW_TIMER;
+		long time=0,timer=Config.H2_WINDOW_TIMER,max=Config.H2_WINDOW_TIMER;
 		while(canSend()&&time<max){
 			
 			//System.out.println(""+time+":"+remoteWindow+":"+h2.remoteWindow);

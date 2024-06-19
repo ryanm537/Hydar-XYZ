@@ -699,7 +699,7 @@ public class HydarEE{
 			return session!=null && session.valid;
 		}
 		public Context getServletContext(){
-			return session !=null ? null : session.hydar.ee.ctx;
+			return session ==null ? null : session.hydar.ee.ctx;
 		}
 		public HttpServletRequest withAddr(InetSocketAddress addr) {
 			this.addr=addr;
@@ -785,10 +785,10 @@ public class HydarEE{
 			HttpSession session;
 			if((session=request.getSession())!=null) {
 				String cookieAge=session.cookieTtl>=0?";Max-Age="+(session.cookieTtl/1000):"";
-				builder.header("Set-Cookie","HYDAR_sessionID="+session.id+";Path=/;SameSite=Strict;"+(config.SSL_ENABLED?"Secure":"")+cookieAge);
+				builder.header("Set-Cookie","HYDAR_sessionID="+session.id+";Path="+config.SERVLET_PATH+";SameSite=Strict;"+(Config.SSL_ENABLED?"Secure":"")+cookieAge);
 				if(config.TURN_ENABLED){
-					builder.header("Set-Cookie","HYDAR_turnUser="+session.id.substring(15,24)+";Path=/;SameSite=Strict;"+(config.SSL_ENABLED?"Secure":"")+cookieAge);
-					builder.header("Set-Cookie","HYDAR_turnCred="+session.tc+";Path=/;SameSite=Strict;"+(config.SSL_ENABLED?"Secure":"")+cookieAge);
+					builder.header("Set-Cookie","HYDAR_turnUser="+session.id.substring(15,24)+";Path="+config.SERVLET_PATH+";SameSite=Strict;"+(Config.SSL_ENABLED?"Secure":"")+cookieAge);
+					builder.header("Set-Cookie","HYDAR_turnCred="+session.tc+";Path="+config.SERVLET_PATH+";SameSite=Strict;"+(Config.SSL_ENABLED?"Secure":"")+cookieAge);
 				}
 			}
 			return this;

@@ -29,6 +29,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import xyz.hydar.ee.Hydar;
 import xyz.hydar.ee.HydarEE;
 import xyz.hydar.ee.HydarWS;
 import xyz.hydar.ee.HydarEE.HttpServletRequest;
@@ -42,9 +43,16 @@ public class HydarEndpoint extends HydarWS.Endpoint{
 	public static Map<Integer,Board> boards = new ConcurrentHashMap<>();//board id => board
 	static volatile String PYTHON_PATH=null;
 	boolean vc=false;
+	public final Hydar hydar;
+	public static volatile HydarEE.HttpSession RAYE;
 	public HydarEndpoint(HydarWS websocket) {
 		super(websocket);
-		
+		hydar=websocket.hydar;
+		if(RAYE==null) {
+			RAYE=hydar.ee.create(InetAddress.getLoopbackAddress());
+			RAYE.setMaxInactiveInterval(Integer.MAX_VALUE);
+			RAYE.setAttribute("userid",2);
+		}
 	}
 	@Override
 	public void onOpen() throws IOException{
@@ -66,7 +74,7 @@ public class HydarEndpoint extends HydarWS.Endpoint{
 		HttpServletRequest req = new HttpServletRequest("PermCheck", search+"&last_id=0")
 				.withAddr(new InetSocketAddress(getRemoteAddress(),0))
 				.withSession(this.session,true);
-		HydarEE.HttpServletResponse ret = HydarEE.jsp_invoke(req);
+		HydarEE.HttpServletResponse ret = hydar.ee.jsp_invoke(req);
 		//only guests have ip attr
 		if(tmp==3) {
 			session.setAttribute("ip",getRemoteAddress());
@@ -91,7 +99,7 @@ public class HydarEndpoint extends HydarWS.Endpoint{
 	public void onClose() {
 		if(board!=null) {
 			board.dropUser(this, false);//already being closed
-			HydarEE.jsp_invoke("OnClose",session,"board="+board.boardId);
+			hydar.ee.jsp_invoke("OnClose",session,"board="+board.boardId);
 		}
 	}
 
@@ -319,7 +327,7 @@ class Board{
 		try{
 			if(!alive)return;
 			for(HydarEndpoint t:users){
-				var hResponse = HydarEE.jsp_invoke("MsgApi",t.session,"board="+this.boardId+"&last_id="+0);
+				var hResponse = t.hydar.ee.jsp_invoke("MsgApi",t.session,"board="+this.boardId+"&last_id="+0);
 				if(hResponse.getStatus()>=300)
 					continue;
 				String h=hResponse.getBuffer().toString(UTF_8);
@@ -602,7 +610,7 @@ class Board{
 				done = 1;
 			}else if(inputText.equals("/leave")){
 				inputText = "Leaving board...";
-				if(HydarEE.jsp_invoke("LeaveBoard",session,"board_num="+this.boardId).getStatus()<400) {
+				if(session.hydar.ee.jsp_invoke("LeaveBoard",session,"board_num="+this.boardId).getStatus()<400) {
 					members.remove(u.id);
 					dropAll(u.id);
 					updateVc();
@@ -638,7 +646,7 @@ class Board{
 					if(cmd.equals("/invite")){
 						int invitedUser = parseInt(inputText.substring(inputText.indexOf(" ") + 1));
 						inputText = "Sent invite to user #" + invitedUser;
-						HydarEE.jsp_invoke("InviteUser",session,"invitedID="+invitedUser + "&board_num="+this.boardId);
+						session.hydar.ee.jsp_invoke("InviteUser",session,"invitedID="+invitedUser + "&board_num="+this.boardId);
 						if(invitedUser==2) {
 							hasRaye=true;
 							apiRefresh();
@@ -649,7 +657,7 @@ class Board{
 					else if(cmd.equals("/kick")){
 						int kickedUser = parseInt(inputText.substring(inputText.indexOf(" ") + 1));
 						inputText = "Removed user #" + kickedUser;
-						var ret=HydarEE.jsp_invoke("KickUser",session,"kickID="+kickedUser + "&board_num="+this.boardId);
+						var ret=session.hydar.ee.jsp_invoke("KickUser",session,"kickID="+kickedUser + "&board_num="+this.boardId);
 						if(ret.getStatus()<400) {
 							members.remove(kickedUser);
 							dropAll(kickedUser);
@@ -667,13 +675,13 @@ class Board{
 							isPublic=0;
 							image="misc.png";
 							inputText = "Invite only has been switched to ON (users must have an invite to join this board)";
-							HydarEE.jsp_invoke("EditBoardSettings",session,"inviteonly=on&board_num="+this.boardId);
+							session.hydar.ee.jsp_invoke("EditBoardSettings",session,"inviteonly=on&board_num="+this.boardId);
 						}
 						if(onOff.equalsIgnoreCase("off")){
 							isPublic=1;
 							image="PublicBoard.png";
 							inputText = "Invite only has been switched to OFF (anyone with the board ID can join this board now)";
-							HydarEE.jsp_invoke("EditBoardSettings",session,"inviteonly=off&board_num="+this.boardId);
+							session.hydar.ee.jsp_invoke("EditBoardSettings",session,"inviteonly=off&board_num="+this.boardId);
 						}
 						done = 1;
 						updateSettings();
@@ -686,12 +694,12 @@ class Board{
 							//update & updateAll()
 							readOnly=1;
 							inputText = "Read only has been switched to ON (Only the board admin can post)";
-							HydarEE.jsp_invoke("EditBoardSettings",session,"readonly=on&board_num="+this.boardId);
+							session.hydar.ee.jsp_invoke("EditBoardSettings",session,"readonly=on&board_num="+this.boardId);
 						}
 						if(onOff.equalsIgnoreCase("off")){
 							readOnly=0;
 							inputText = "Read only has been switched to OFF (All users can post)";
-							HydarEE.jsp_invoke("EditBoardSettings",session,"readonly=off&board_num="+this.boardId);
+							session.hydar.ee.jsp_invoke("EditBoardSettings",session,"readonly=off&board_num="+this.boardId);
 						}
 						done = 1;
 						updateSettings();
@@ -703,7 +711,7 @@ class Board{
 						inputText = "Renamed board to " + newname;
 						newname=URLEncoder.encode(newname,UTF_8);
 						this.name=newname;
-						HydarEE.jsp_invoke("EditBoardSettings",session,"newName=" + newname + "&board_num="+this.boardId);
+						session.hydar.ee.jsp_invoke("EditBoardSettings",session,"newName=" + newname + "&board_num="+this.boardId);
 						done = 1;
 						updateSettings();
 					}
@@ -716,9 +724,9 @@ class Board{
 						channelName=URLEncoder.encode(channelName,UTF_8);
 						HttpServletResponse ret;
 						if(channelOf == -1){
-							ret=HydarEE.jsp_invoke("CreateBoard",session,"input_create="+ channelName +"&channelof=" + this.boardId);
+							ret=session.hydar.ee.jsp_invoke("CreateBoard",session,"input_create="+ channelName +"&channelof=" + this.boardId);
 						}else{
-							ret=HydarEE.jsp_invoke("CreateBoard",session,"input_create="+ channelName +"&channelof=" + this.channelOf);
+							ret=session.hydar.ee.jsp_invoke("CreateBoard",session,"input_create="+ channelName +"&channelof=" + this.channelOf);
 						}
 						if(ret.getStatus()<400) {
 							String resp=ret.getBuffer().toString();
@@ -763,7 +771,7 @@ class Board{
 						return "Requires 2 args: /... [uid]";
 					}try {
 						int kickedUser=parseInt(cmd[1]);
-						HydarEE.jsp_invoke("BanUser",session,"kickID="+kickedUser+"&ip=no");
+						session.hydar.ee.jsp_invoke("BanUser",session,"kickID="+kickedUser+"&ip=no");
 						
 						dropAll(kickedUser);
 					}catch(NumberFormatException nfe) {
@@ -794,7 +802,7 @@ class Board{
 							kickedUser = parseInt(cmd[2]);
 						}else bantype=cmd[2];
 					}
-					HydarEE.jsp_invoke("BanUser",session,"kickID="+kickedUser+"&ip="+URLEncoder.encode(bantype,ISO_8859_1)+"&unban="+unban);
+					session.hydar.ee.jsp_invoke("BanUser",session,"kickID="+kickedUser+"&ip="+URLEncoder.encode(bantype,ISO_8859_1)+"&unban="+unban);
 					if(bantype.equals("user"))
 						dropAll(kickedUser);
 					else dropAll(3);
@@ -808,17 +816,13 @@ class Board{
 		}
 		if(done == 0 && inputText.equals("Deleting board...")){
 			inputText=null;
-			HydarEE.jsp_invoke("DeleteBoard",session,"board_num="+this.boardId);
+			session.hydar.ee.jsp_invoke("DeleteBoard",session,"board_num="+this.boardId);
 			writeAll(">,"+(channelOf<0?0:channelOf));
 			kill();
 		}
 		return inputText;
 	}
-	static final HydarEE.HttpSession RAYE = HydarEE.HttpSession.create(InetAddress.getLoopbackAddress());
-	static {
-		RAYE.setMaxInactiveInterval(Integer.MAX_VALUE);
-		RAYE.setAttribute("userid",2);
-	}
+	
 	public int newMessage(String inputText, Member u, int toReply, int transaction){
 		return newMessage(inputText, u, toReply, transaction,null, false);
 	}
@@ -901,7 +905,7 @@ class Board{
 			if(newID>=25)
 				messages.remove(newID-25);
 			
-			HydarEE.HttpSession s=raye?RAYE:t.session;
+			HydarEE.HttpSession s=raye?HydarEndpoint.RAYE:t.session;
 			//avoid re-URLencode
 			var req=new HydarEE.HttpServletRequest("SubmitPost",Map.of(
 					"replyID",""+toReply,
@@ -910,7 +914,7 @@ class Board{
 					)
 				).withSession(s,true);
 			req.setAttribute("HYDAR_TIMESTAMP",messages.get(newID).time);
-			var resp = HydarEE.jsp_invoke(req);
+			var resp = s.hydar.ee.jsp_invoke(req);
 			if(resp.getStatus()>=400) {
 				dropAll(u.id);
 				lastId.decrementAndGet();

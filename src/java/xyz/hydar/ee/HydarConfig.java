@@ -28,20 +28,21 @@ class Config{
 	/**TODO:replace @categories with Context.[thing] etc*/
 	public Map<String,String> config = new HashMap<>();
 	public Map<String,String> macros = new HashMap<>();
-	public int PORT = 8080;
+	public static int PORT = 8080;
 	private String CACHE_DIR_PATH = "./HydarCompilerCache";
 	public String IMPORTANT_PATH = "./bots/Amogus.jar";
-	public boolean SSL_ENABLED = false;
-	public String SSL_TRUST_STORE_PATH="", SSL_TRUST_STORE_PASSPHRASE="", SSL_KEY_STORE_PATH, SSL_KEY_STORE_PASSPHRASE;
-	public String SSL_CONTEXT_NAME = "TLS";
+	public String SERVLET_PATH = "";
+	public static boolean SSL_ENABLED = false;
+	public static String SSL_TRUST_STORE_PATH="", SSL_TRUST_STORE_PASSPHRASE="", SSL_KEY_STORE_PATH, SSL_KEY_STORE_PASSPHRASE;
+	public static String SSL_CONTEXT_NAME = "TLS";
 	public List<String> CLASSPATH=new ArrayList<>(List.of(System.getProperty("java.class.path")));
-	public String[] SSL_ENABLED_PROTOCOLS = new String[]{"TLSv1.2","TLSv1.3"};
+	public static String[] SSL_ENABLED_PROTOCOLS = new String[]{"TLSv1.2","TLSv1.3"};
 	public boolean TURN_ENABLED=false;
 	public int TURN_PORT=3478;
-	public int SSL_REDIRECT_FROM=-1;
+	public static int SSL_REDIRECT_FROM=-1;
 	public boolean CREATE_JAVA_FILES=false;
 	public int REFRESH_TIMER=2000;
-	public int MAX_THREADS=256;
+	public static int MAX_THREADS=256;
 	public boolean USE_WATCH_SERVICE=true;
 	public boolean FORBIDDEN_SILENT=true;
 	public int CACHE_MAX=1024000;
@@ -63,15 +64,15 @@ class Config{
 	public List<String> AUTO_APPEND_URLS= List.of(".jsp",".html");
 	public boolean PERSIST_SESSIONS=true;
 	
-	public boolean H2_ENABLED=true;
-	public int H2_WINDOW_ATTEMPTS=8;
-	public int H2_WINDOW_TIMER=1000;
-	public int H2_HEADER_TABLE_SIZE=4096;
-	public int H2_MAX_CONCURRENT_STREAMS=256;
-	public int H2_MAX_FRAME_SIZE=16384;
-	public int H2_MAX_HEADER_LIST_SIZE=8192;
+	public static boolean H2_ENABLED=true;
+	public static int H2_WINDOW_ATTEMPTS=8;
+	public static int H2_WINDOW_TIMER=1000;
+	public static int H2_HEADER_TABLE_SIZE=4096;
+	public static int H2_MAX_CONCURRENT_STREAMS=256;
+	public static int H2_MAX_FRAME_SIZE=16384;
+	public static int H2_MAX_HEADER_LIST_SIZE=8192;
 	
-	public int HTTP_LIFETIME=5000;
+	public static int HTTP_LIFETIME=5000;
 	
 	public boolean SEND_ETAG=true;
 	public boolean SEND_DATE=true;
@@ -84,7 +85,7 @@ class Config{
 	public boolean WS_ENABLED=true;
 	public boolean WS_DEFLATE=true;
 	public String SERVER_HEADER="Large_Hydar/2.0";
-	public boolean SSL_HSTS=true;
+	public static boolean SSL_HSTS=true;
 	
 	public String CACHE_CONTROL_JSP="no-cache";
 	public String CACHE_CONTROL_NO_JSP="public, max-age=604800, must-revalidate";
@@ -92,15 +93,15 @@ class Config{
 	public boolean TC_ENABLED=false;
 	public Map<String,String> links = new HashMap<>();
 	
-	public int H2_LIFETIME=30000;
-	public String H2_HPACK_TREE_STRATEGY="MAP";
-	public String H2_HPACK_TABLE_STRATEGY="MAP";
+	public static int H2_LIFETIME=30000;
+	public static String H2_HPACK_TREE_STRATEGY="ARRAY";
+	public static String H2_HPACK_TABLE_STRATEGY="MAP";
 	public int WS_LIFETIME=15000;
 	
 	public int TC_FAST_HTTP_REQUEST=50;
 	public int TC_FAST_WS_MESSAGE=100;
 	public int TC_FAST_H2_FRAME=5;
-	public int TC_PERMANENT_THREAD=100;
+	public static int TC_PERMANENT_THREAD=100;
 	public int TC_PERMANENT_H2_STREAM=10;
 	public int TC_MAX_BUFFER=1024 * 1024;
 	public int TC_SLOW_JSP_INVOKE=100;
@@ -313,6 +314,15 @@ class Config{
 			String k=k_.replace(".","_").toUpperCase().split("HYDAR.")[1];
 			try {
 				Field field = Config.class.getDeclaredField(k);
+				try {
+					field.get(null);
+					System.out.println("Static "+k);
+					if(Hydar.hydars.size()>1) {
+						throw new RuntimeException("Invalid setting "+k+". This settings is global and can only be changed on the first servlet. Please remove it from all other properties files.");
+					}
+				}catch(NullPointerException e) {
+					
+				}
 				switch(k) {
 					case "ZIP_ALGS":
 					field.set(this,Arrays.stream(multi(v))
