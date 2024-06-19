@@ -1497,11 +1497,16 @@ public class Hydar {
 	 * Hydar can only be used from CLI(main()) as of now, as many useful features are static.
 	 * This will hopefully change eventually.
 	 * */
-	public static void main(String[] args) throws IOException, NamingException, InterruptedException{
+	public static void main(String[] args) throws IOException, NamingException, InterruptedException, ClassNotFoundException{
 		//System.setProperty("java.class.path")
 		System.setOut(new PrintStream(new BufferedOutputStream(System.out, 1024)));
 		String configPath=args.length>0?String.join(" ",args):"./hydar.properties";
 		Config.load(configPath);
+		try {
+			Class.forName("xyz.hydar.ee.HydarEE$HttpSession");
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException(e);
+		}
 		final ExecutorService ee;
 		AtomicBoolean loaded=new AtomicBoolean(false);
 		ee = Config.PARALLEL_COMPILE ? newCachedThreadPool() : newSingleThreadExecutor();

@@ -7,9 +7,12 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Reader;
+import java.io.Serializable;
 import java.io.StringReader;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -834,8 +837,10 @@ public class HydarEE{
 	/**
 	 * Implements most of jakarta.servlet.http.HttpSession.
 	 * */
-	public static class HttpSession{
-		public static final Map<String,HttpSession> map= new ConcurrentHashMap<>();
+	@SuppressWarnings("unchecked")
+	public static class HttpSession implements Serializable{
+		private static final long serialVersionUID = -1061821602699032332L;
+		public static Map<String,HttpSession> map= new ConcurrentHashMap<>();
 		private final Map<String,Object> attr= new ConcurrentHashMap<>();
 		public final String id=id();
 		public volatile boolean isNew=true;
@@ -845,7 +850,34 @@ public class HydarEE{
 		public final String tc = Config.TURN_ENABLED?tc():null;
 		public volatile boolean valid=true;
 		private final InetAddress addr;
-
+		static {
+			Path sessions = Path.of("sessions.bin");
+			try {
+				if(Config.PERSIST_SESSIONS) {
+					Runtime.getRuntime().addShutdownHook(new Thread(()->{
+						try {
+							var baos = new ByteArrayOutputStream();
+							var oos = new ObjectOutputStream(baos);
+							oos.writeObject(HydarEE.HttpSession.map);
+							baos.writeTo(Files.newOutputStream(sessions));
+							System.out.println("Saved session data.");
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}));
+					if(Files.exists(sessions)) {
+							var ois = new ObjectInputStream(Files.newInputStream(sessions));
+							HydarEE.HttpSession.map = (Map<String, HttpSession>) ois.readObject();
+							Files.delete(sessions);
+						
+					}
+				}else {
+					Files.deleteIfExists(sessions);
+				}
+			} catch (ClassNotFoundException | IOException e) {
+				throw new RuntimeException(e);
+			}
+		}
 		static String tc(){
 			return HydarUtil.noise(16);
 		}
