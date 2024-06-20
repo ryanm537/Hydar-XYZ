@@ -413,7 +413,7 @@ class Config{
 		Token.OUT.setTasks(tasks(TC_OUT));
 		hydar.config=this;
 		hydar.dir=Path.of(configPath).resolveSibling(WEB_ROOT);
-		hydar.cache=Path.of(CACHE_DIR_PATH);
+		hydar.cache=Path.of(configPath).resolveSibling(CACHE_DIR_PATH);
 		if(TC_ENABLED) {
 			int mbuf=TC_MAX_BUFFER;
 			HydarLimiter.maxBuffer=(mbuf<0?Integer.MAX_VALUE:mbuf);
