@@ -873,7 +873,9 @@ public class Hydar {
 	//Watch keys for directories. Might contain 1 recursive key(windows) or 0(polling in use).
 	public final Map<Path,WatchKey> KEYS = new HashMap<>();
 	public static final List<Hydar> hydars = new CopyOnWriteArrayList<>();
-	public static boolean alive=true;
+	public static volatile boolean alive=true;
+	public static volatile boolean refreshed=false;//if just refreshed, skip sleep before accept
+	private volatile static ServerSocket server;
 	//Temporary java and class files for JSPs go here.
 	public Path cache=Path.of("./HydarCompilerCache");
 	public final HydarEE ee;
@@ -1255,6 +1257,12 @@ public class Hydar {
 						break;
 					}
 				}
+				if(cmd.equals("refresh")) {
+					System.out.println("Remaking socket(socket closed error is normal)...");
+					refreshed=true;
+					server.close();
+					server=makeSocket();
+				}
 			}
 		}catch(IOException e) {
 			
@@ -1278,8 +1286,8 @@ public class Hydar {
 		}
 		Thread.currentThread().setPriority(Thread.NORM_PRIORITY+1);
 		System.gc();
-		try(ServerSocket server = makeSocket()) {
-			//server loop(only ends on ctrl-c)
+		Hydar.server = makeSocket();
+		try {
 			if(Config.SSL_ENABLED && Config.SSL_REDIRECT_FROM>=0) {
 				start301();
 			}
@@ -1291,6 +1299,7 @@ public class Hydar {
 					System.out.println("HydarLimiter module not found.");
 				}
 			}
+			//server loop
 			while (alive) {
 				for(Hydar hydar: hydars) {
 					hydar.updateOnTimer();
@@ -1303,12 +1312,16 @@ public class Hydar {
 					HydarUtil.TFAC.newThread(connection).start();
 				} catch(SocketTimeoutException ste) {}
 				catch(Exception e) {
-					e.printStackTrace();
-					Thread.sleep(5000);
+					if(!refreshed) {
+						e.printStackTrace();
+						Thread.sleep(5000);
+					}
 				}
-				
+				refreshed=false;
 				System.out.flush();
 			}
+		}finally {
+			Hydar.server.close();
 		}
 	}
 	public class Response{
