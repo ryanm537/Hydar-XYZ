@@ -108,7 +108,7 @@ public class HydarEE{
 		config=hydar.config;
 		ctx = new Context(hydar);
 		ctx.init = Map.copyOf(config.macros);
-		Path sessionsPath = Path.of(config.configPath).resolveSibling("sessions.bin");
+		Path sessionsPath = Path.of(config.configPath+".sessions.bin");
 		try {
 			if(config.PERSIST_SESSIONS) {
 				Runtime.getRuntime().addShutdownHook(new Thread(this::persistSessions));
@@ -134,7 +134,7 @@ public class HydarEE{
 	public void persistSessions() {
 		if(persisted || !config.PERSIST_SESSIONS)
 			return;
-		Path sessionsPath = Path.of(config.configPath).resolveSibling("sessions.bin");
+		Path sessionsPath = Path.of(config.configPath+".sessions.bin");;
 		try {
 			var baos = new ByteArrayOutputStream();
 			var oos = new ObjectOutputStream(baos);
