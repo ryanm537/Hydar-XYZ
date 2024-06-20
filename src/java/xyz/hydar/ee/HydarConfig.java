@@ -7,10 +7,12 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -30,7 +32,7 @@ class Config{
 	public Map<String,String> macros = new HashMap<>();
 	public static int PORT = 8080;
 	private String CACHE_DIR_PATH = "./HydarCompilerCache";
-	public String IMPORTANT_PATH = "./bots/Amogus.jar";
+	public static String IMPORTANT_PATH = "./bots/Amogus.jar";
 	public String SERVLET_PATH = "";
 	public static boolean SSL_ENABLED = false;
 	public static String SSL_TRUST_STORE_PATH="", SSL_TRUST_STORE_PASSPHRASE="", SSL_KEY_STORE_PATH, SSL_KEY_STORE_PASSPHRASE;
@@ -90,7 +92,7 @@ class Config{
 	public String CACHE_CONTROL_JSP="no-cache";
 	public String CACHE_CONTROL_NO_JSP="public, max-age=604800, must-revalidate";
 
-	public boolean TC_ENABLED=false;
+	public static boolean TC_ENABLED=false;
 	public Map<String,String> links = new HashMap<>();
 	
 	public static int H2_LIFETIME=30000;
@@ -98,14 +100,15 @@ class Config{
 	public static String H2_HPACK_TABLE_STRATEGY="MAP";
 	public int WS_LIFETIME=15000;
 	
-	public int TC_FAST_HTTP_REQUEST=50;
-	public int TC_FAST_WS_MESSAGE=100;
-	public int TC_FAST_H2_FRAME=5;
+	public static int TC_FAST_HTTP_REQUEST=50;
+	public static int TC_FAST_WS_MESSAGE=100;
+	public static int TC_FAST_H2_FRAME=5;
 	public static int TC_PERMANENT_THREAD=100;
-	public int TC_PERMANENT_H2_STREAM=10;
-	public int TC_MAX_BUFFER=1024 * 1024;
-	public int TC_SLOW_JSP_INVOKE=100;
-	
+	public static int TC_PERMANENT_H2_STREAM=10;
+	public static int TC_MAX_BUFFER=1024 * 1024;
+	public static int TC_SLOW_JSP_INVOKE=100;
+	public static Set<String> alreadySet = new HashSet<>();
+	public String configPath = "";
 	public String TC_PERMANENT_STATE, TC_IN, TC_OUT, TC_SLOW_API, TC_FAST_API;
 	
 	public String WEB_ROOT = ".";
@@ -113,6 +116,7 @@ class Config{
 	public boolean LAZY_FILES=false;
 	public boolean TRY_UNSAFE_WATCH_SERVICE=true;
 	public Map<String,String> errorPages=new HashMap<>();
+	private static final Map<String,Object> jndi = new ConcurrentHashMap<>();
 	public final Hydar hydar;
 	public Config(Hydar hydar) {
 		this.hydar=hydar;
@@ -147,7 +151,6 @@ class Config{
 		return values;
 	}
 	public static void loadResources(Map<String,Map<String,String>> origin) throws NamingException {
-		Map<String,Object> finals=new HashMap<>();
 		origin.forEach((k,v)->{
 			String name=k;
 			if(v.get("name")!=null)
@@ -172,17 +175,16 @@ class Config{
 				if(ds!=null) {
 					System.out.println("Resource loader: Loaded "+name+" of type "+ds.getClass());
 					System.out.println("to load:\n[type] hydar = ([type])new InitialContext().lookup(\"java:comp/env/"+name+"\");");
-					finals.put(name,ds);
+					jndi.put(name,ds);
 				}
 			} catch (Exception e1) {
 				e1.printStackTrace();
 			}
 		});
 		var comp=new InitialContext() {
-			final Map<String,Object> lookup=Map.copyOf(finals);
 			@Override
 			public Object lookup(String name) throws NamingException{
-				return lookup.get(name);
+				return jndi.get(name);
 			}
 		};
 	
@@ -197,11 +199,16 @@ class Config{
 				return null;
 			}
 		};
-		NamingManager.setInitialContextFactoryBuilder(env1->env2->init);
+		try {
+			NamingManager.setInitialContextFactoryBuilder(env1->env2->init);
+		}catch(IllegalStateException ise) {
+			//already initialized
+		}
 	}
 	public void load(String configPath) {
 		try{
 			System.out.println("Loading config from "+configPath+"...");
+			this.configPath=configPath;
 			//cfg.removeIf(s->(s.startsWith("#")||s.trim().length()==0));
 			int state=0;
 			Map<String,Map<String,String>> rsrc = new HashMap<>();
@@ -316,9 +323,9 @@ class Config{
 				Field field = Config.class.getDeclaredField(k);
 				try {
 					field.get(null);
-					System.out.println("Static "+k);
-					if(Hydar.hydars.size()>1) {
-						throw new RuntimeException("Invalid setting "+k+". This settings is global and can only be changed on the first servlet. Please remove it from all other properties files.");
+					if(!alreadySet.add(k)) {
+						System.out.println("Repeat global setting "+k+". This setting is global and can only be changed once. Please ensure it only occurs in one properties files.");
+						return;
 					}
 				}catch(NullPointerException e) {
 					
@@ -364,7 +371,6 @@ class Config{
 						try {
 							if(InetAddress.getByName(v.split(":")[0].trim()).isLoopbackAddress()) {
 								HOST=null;
-								System.out.println("Binding to loopback. Set Hydar.HOST to change this.");
 							}
 						} catch (Exception e) {}
 						Pattern HOST_p=null;
@@ -406,7 +412,7 @@ class Config{
 		Token.IN.setTasks(tasks(TC_IN));
 		Token.OUT.setTasks(tasks(TC_OUT));
 		hydar.config=this;
-		hydar.dir=Path.of(WEB_ROOT);
+		hydar.dir=Path.of(configPath).resolveSibling(WEB_ROOT);
 		hydar.cache=Path.of(CACHE_DIR_PATH);
 		if(TC_ENABLED) {
 			int mbuf=TC_MAX_BUFFER;

@@ -358,7 +358,7 @@ class HStream{
 			boolean concurrent = h2.streams.size()<=1+h2.localSettings[Setting.SETTINGS_MAX_CONCURRENT_STREAMS];
 			Runnable streamTask = ()->{
 				try{
-					if(!limiter.acquire(Token.FAST_API,h2.config.TC_FAST_HTTP_REQUEST)) {
+					if(!limiter.acquire(Token.FAST_API,Config.TC_FAST_HTTP_REQUEST)) {
 						close(0xb);//enhance_your_calm
 						return;
 					}
@@ -367,11 +367,11 @@ class HStream{
 					
 				}finally {
 					block = dataBlock = EMPTY_BAOS;
-					limiter.release(Token.PERMANENT_STATE, h2.config.TC_PERMANENT_H2_STREAM);
+					limiter.release(Token.PERMANENT_STATE, Config.TC_PERMANENT_H2_STREAM);
 					h2.maxStream=Math.max(this.number,h2.maxStream);
 				}
 			};
-			if(limiter.acquire(Token.PERMANENT_STATE, h2.config.TC_PERMANENT_H2_STREAM) && concurrent)
+			if(limiter.acquire(Token.PERMANENT_STATE, Config.TC_PERMANENT_H2_STREAM) && concurrent)
 				HydarUtil.TFAC.newThread(streamTask).start();
 			else {
 				streamTask.run();
@@ -610,7 +610,7 @@ class Frame{
 	public static void parse(InputStream is, HydarH2 h2) throws IOException{
 		//int length = new BigInteger(dis.readNBytes(3)).intValue();
 		ServerThread t = h2.thread;
-		t.limiter.force(Token.FAST_API, h2.config.TC_FAST_H2_FRAME);
+		t.limiter.force(Token.FAST_API, Config.TC_FAST_H2_FRAME);
 		//use a byte buffer(avoid eofexception)
 		ByteBuffer h = h2.input(9).position(0);
 		if(is.readNBytes(h.array(), 0, 9)<9) {

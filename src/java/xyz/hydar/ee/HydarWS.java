@@ -227,7 +227,7 @@ public class HydarWS extends OutputStream{
 		if(offset>0){
 			ping=8;
 			payloadSize=0;
-			if(!thread.limiter.acquire(Token.FAST_API, config.TC_FAST_WS_MESSAGE)) {
+			if(!thread.limiter.acquire(Token.FAST_API, Config.TC_FAST_WS_MESSAGE)) {
 				close();
 				return;
 			}//empty
@@ -349,8 +349,10 @@ public class HydarWS extends OutputStream{
 				if(hydar.config.LOWERCASE_URLS)
 					path=path.toLowerCase();
 				endpoints.put(path,classObject);
-			}else throw new IllegalStateException("This must be called at compile time of a JSP.");
+				return;
+			}
 		}
+		throw new IllegalStateException("This must be called at compile time of a JSP.");
 	}
 	/**Called when a websocket is opened.*/
 	public Endpoint constructEndpoint(String path, HydarWS websocket){

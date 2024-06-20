@@ -160,7 +160,7 @@ class ServerThread implements Runnable {
 	 */
 	public void h1Tick() throws IOException{
 		Map<String,String> headers=new HashMap<>();
-		if(!limiter.acquire(Token.FAST_API,config.TC_FAST_HTTP_REQUEST)) {
+		if(!limiter.acquire(Token.FAST_API,Config.TC_FAST_HTTP_REQUEST)) {
 			sendError("429",Optional.empty());
 			close();
 			return;
@@ -405,7 +405,7 @@ class ServerThread implements Runnable {
 				if(x.length==2){
 					String name = x[0].trim();
 					String value = x[1].trim();
-					if(name.equals("HYDAR_sessionID")){
+					if(name.equals("HYDAR_sessionID") && (sessionID==null || hydar.ee.get(client_addr,sessionID)==null)){
 						sessionID=value;
 					}
 					cookies.put(name,value);
@@ -548,7 +548,7 @@ class ServerThread implements Runnable {
 				
 				var rs= newResponse(200,hstream).enc(enc);
 				var ret = new HydarEE.HttpServletResponse(rs);
-				if(!limiter.acquire(Token.SLOW_API, config.TC_SLOW_JSP_INVOKE)) {
+				if(!limiter.acquire(Token.SLOW_API, Config.TC_SLOW_JSP_INVOKE)) {
 					sendError("429",hstream);
 					close();
 					return;
@@ -884,169 +884,39 @@ public class Hydar {
 	
 	//Maps file names to resources. These do not start with /
 	public Map<String,Resource> resources = new ConcurrentHashMap<>();
+	//Used to control file reading and session data updates.
+	private long lastUpdate = System.currentTimeMillis();
+	private long lastSClean = lastUpdate;
+	private final long scInterval=600_000;
+	private AtomicBoolean loaded=new AtomicBoolean(false);
 	public Config config;
 	
-	
-	//Used for TURN authentication.
-	//TODO: hashing or something at least.
-	public String authenticate(String user){
-		for(String key:ee.sessions.keySet()){
-			if(key.substring(15,24).equals(user))
-				return ee.sessions.get(key).tc;
-		}
-		return null;
-	}
-	/**
-	 * Check a socket against the associated Limiter.
-	 * This is probably unnecessary and should be done in iptables instead.
-	 * */
-	static boolean verifySocket(Socket client) throws IOException{
-		Limiter limiter=Limiter.from(client);
-		if(threadCount.get()>Config.MAX_THREADS){
-			sendErrorNow(client,limiter,"503");
-			return false;
-		}else if(!limiter.acquire(Token.PERMANENT_STATE, Config.TC_PERMANENT_THREAD)) {
-			limiter.release(Token.PERMANENT_STATE, Config.TC_PERMANENT_THREAD); 
-			sendErrorNow(client,limiter,"429");
-			return false;
-		}
-		return true;
-	}
-	/**
-	 * Start a server that redirects HTTP to HTTPS from a separate port.
-	 * */
-	void start301() {
-		//TODO: request dispatcher objects should make this less verbose
-		HydarUtil.TFAC.newThread(()->{
-			Thread.currentThread().setPriority(Thread.NORM_PRIORITY+1);
-			try(ServerSocket server301=new ServerSocket(Config.SSL_REDIRECT_FROM)){
-				System.out.println("Upgrading HTTP requests from port "+server301.getLocalPort());
-				while(alive) {
-					try {
-					Socket client = server301.accept();
-					if(!verifySocket(client))continue;
-					ServerThread connection = new ServerThread(client) {
-						@Override
-						public void hparse(Map<String,String> headers, Optional<HStream> hstream, byte[] body, int bodyLength) throws IOException {
-							String path = headers.get(":path");
-							String host = hstream.isPresent() ? headers.get(":authority") : headers.get("host");
-							if(host==null) {
-								sendError("400",hstream);
-								close();
-								return;
-							}
-							String location="https://"+host.split(":",2)[0];
-							if(Config.PORT!=443)
-								location+=":"+Config.PORT;
-							location+=path;
-							
-							this.newResponse(301,hstream)
-								.header("Location",location)
-								.data(location.getBytes())
-								.write();
-							close();
-						}
-					};
-					threadCount.incrementAndGet();
-					HydarUtil.TFAC.newThread(connection).start();
-					}catch(Exception e) {}
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-				System.out.println("SSL upgrading server not started");
-				return;
-			}
-		}).start();
-	}
-	/**Send an error in a non-blocking way.*/
-	private static void sendErrorNow(Socket client,Limiter limiter,String code) throws IOException{
-		if(limiter.acquireNow(Token.OUT,hydars.get(0).config.getErrorPage(code).length()))
-			HydarUtil.TFAC.newThread(()->{
-				try(client;OutputStream output = client.getOutputStream()){
-					hydars.get(0).new Response(code).output(output).write();
-				}catch(IOException e) {
-					return;
-				}
-			}).start();
-	}
-	/**Make the server socket, including SSL initialization if applicable.*/
-	ServerSocket makeSocket() throws IOException {
-		ServerSocket server=null;
-		try {//ssl initialization
-			if(Config.SSL_ENABLED){
-				KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
-				TrustManager[] tms=null;
-				if(!Config.SSL_TRUST_STORE_PATH.isBlank()){
-					InputStream tstore = Files.newInputStream(Path.of(Config.SSL_TRUST_STORE_PATH));
-					trustStore.load(tstore, Config.SSL_TRUST_STORE_PASSPHRASE.toCharArray());
-					tstore.close();
-					TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-					tmf.init(trustStore);
-					tms= tmf.getTrustManagers();
-				}
-				KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
-				InputStream kstore = Files.newInputStream(Path.of(Config.SSL_KEY_STORE_PATH));
-				keyStore.load(kstore, Config.SSL_KEY_STORE_PASSPHRASE.toCharArray());
-				kstore.close();
-				KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-				kmf.init(keyStore, Config.SSL_KEY_STORE_PASSPHRASE.toCharArray());
-				SSLContext ctx = SSLContext.getInstance(Config.SSL_CONTEXT_NAME);
-				try{
-					ctx.init(kmf.getKeyManagers(), tms, SecureRandom.getInstance("NativePRNGNonBlocking"));
-				}catch(NoSuchAlgorithmException e){
-					ctx.init(kmf.getKeyManagers(), tms, SecureRandom.getInstanceStrong());
-				}
-				SSLServerSocketFactory factory = ctx.getServerSocketFactory();
-				server = (config.HOST==null)
-					? factory.createServerSocket(Config.PORT,256,InetAddress.getLoopbackAddress())
-					: factory.createServerSocket(Config.PORT,256);
-				//server.setNeedClientAuth(true);
-				((SSLServerSocket)server).setEnabledProtocols(Config.SSL_ENABLED_PROTOCOLS);
-				if(Config.H2_ENABLED){
-					SSLParameters j=((SSLServerSocket)server).getSSLParameters();
-					j.setApplicationProtocols(new String[]{"h2","http/1.1"});
-					System.out.println("TLS ALPN Enabled Protocols: "+Arrays.asList(j.getApplicationProtocols()));
-					((SSLServerSocket)server).setSSLParameters(j);
-				}
-			}else{
-				server = (config.HOST==null)
-					? new ServerSocket(Config.PORT,256,InetAddress.getLoopbackAddress())
-					: new ServerSocket(Config.PORT,256);
-			}
-			server.setSoTimeout(1000);
-		} catch (Exception f) {
-			f.printStackTrace();
-			System.out.println("Cannot open port " + Config.PORT);
-			if(server!=null)server.close();
-		}
-		return server;
-	}
-	public static void main(String[] args) throws ClassNotFoundException, IOException, NamingException, InterruptedException {
-		new Hydar(args);
-	}
-	/**
-	 * Hydar can only be used from CLI(main()) as of now, as many useful features are static.
-	 * This will hopefully change eventually.
-	 * */
+	/**Creates a Hydar instance.*/
 	public Hydar(String[] args) throws IOException, NamingException, InterruptedException, ClassNotFoundException{
 		//System.setProperty("java.class.path")
-		hydars.add(this);
 		System.setOut(new PrintStream(new BufferedOutputStream(System.out, 1024)));
 		String configPath=args.length>0?String.join(" ",args):"./hydar.properties";
+		System.out.println("Initializing servlet from "+configPath+"...");
 		config = new Config(this);
 		config.load(configPath);
 		ee = new HydarEE(this);
-		try {
-			Class.forName("xyz.hydar.ee.HydarEE$HttpSession");
-		} catch (ClassNotFoundException e) {
-			throw new RuntimeException(e);
+		if(config.TURN_ENABLED){
+			try {
+				Class<?> clazz=Class.forName("xyz.hydar.turn.HydarTURN");
+				UnaryOperator<String> auth=this::authenticate;
+				int port =config.TURN_PORT;
+				clazz.getConstructor(UnaryOperator.class,int.class)
+					.newInstance(auth,port);
+			}catch(Exception e) {
+				e.printStackTrace();
+				System.out.println("TURN module not found.");
+			}
 		}
 		final ExecutorService exec;
-		AtomicBoolean loaded=new AtomicBoolean(false);
 		exec = config.PARALLEL_COMPILE ? newCachedThreadPool() : newSingleThreadExecutor();
 		watcher = dir.getFileSystem().newWatchService();
 		try{//read files(compile if jsp) to memory
-
+	
 			Files.createDirectories(cache);
 			if(Files.isDirectory(cache)){
 				Files.walk(cache).sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete);
@@ -1102,7 +972,7 @@ public class Hydar {
 			}
 			int errors=errors_.get();
 			int diag=diag_.get();
-			Path hydr = Path.of(config.IMPORTANT_PATH);
+			Path hydr = Path.of(Config.IMPORTANT_PATH);
 			
 			if(errors==0){
 				Files.copy(hydr,System.out);
@@ -1119,88 +989,177 @@ public class Hydar {
 			return;	
 		}
 		
-		ServerSocket server = makeSocket();
-		
-		if(config.TURN_ENABLED){
-			try {
-				Class<?> clazz=Class.forName("xyz.hydar.turn.HydarTURN");
-				UnaryOperator<String> auth=this::authenticate;
-				int port =config.TURN_PORT;
-				clazz.getConstructor(UnaryOperator.class,int.class)
-					.newInstance(auth,port);
-			}catch(Exception e) {
-				e.printStackTrace();
-				System.out.println("TURN module not found.");
-			}
+	}
+	/**
+	 * Check a socket against the associated Limiter.
+	 * This is probably unnecessary and should be done in iptables instead.
+	 * */
+	static boolean verifySocket(Socket client) throws IOException{
+		Limiter limiter=Limiter.from(client);
+		if(threadCount.get()>Config.MAX_THREADS){
+			sendErrorNow(client,limiter,"503");
+			return false;
+		}else if(!limiter.acquire(Token.PERMANENT_STATE, Config.TC_PERMANENT_THREAD)) {
+			limiter.release(Token.PERMANENT_STATE, Config.TC_PERMANENT_THREAD); 
+			sendErrorNow(client,limiter,"429");
+			return false;
 		}
-		if(config.TC_ENABLED){
-			try {
-				Class.forName("xyz.hydar.ee.HydarLimiter");
-			}catch(ClassNotFoundException e) {
-				System.out.println("HydarLimiter module not found.");
-			}
-		}
-		//server loop(only ends on ctrl-c)
-		long lastUpdate = System.currentTimeMillis();
-		long lastSClean = lastUpdate;
-		final long scInterval=600_000;
-		Thread.currentThread().setPriority(Thread.NORM_PRIORITY+1);
-		System.gc();
-		if(Config.SSL_ENABLED && Config.SSL_REDIRECT_FROM>=0) {
-			start301();
-		}
-		while (alive) {
-			long newTime=System.currentTimeMillis();
-			if(newTime-lastSClean>scInterval) {
-				ee.cleanSessions();
-				lastSClean=newTime;
-			}
-			if(newTime-lastUpdate>config.REFRESH_TIMER && loaded.get()){
-				//check files(recompile as needed)
-				lastUpdate = newTime;
-				if(config.USE_WATCH_SERVICE) {
-					KEYS.entrySet().stream()
-						.flatMap(x->x.getValue().pollEvents().stream().map(y->Map.entry(x,y)))
-						.collect(groupingBy(x->x.getValue().context()))
-						.forEach((path, entries)->{
-							var entry = entries.get(entries.size()-1);
-							var evt = entry.getValue();
-							update((Path)path,entry.getKey().getKey(),dir,evt.kind(),newTime);
-						});
-
-					for(var k:KEYS.entrySet()) {
-						if(!k.getValue().isValid()) {
-							HydarUtil.addKey(this,k.getKey(),dir);
-							System.out.println("Invalid key for "+k.getKey()+" recreated");
+		return true;
+	}
+	/**
+	 * Start a server that redirects HTTP to HTTPS from a separate port.
+	 * */
+	static void start301() {
+		//TODO: request dispatcher objects should make this less verbose
+		HydarUtil.TFAC.newThread(()->{
+			Thread.currentThread().setPriority(Thread.NORM_PRIORITY+1);
+			try(ServerSocket server301=new ServerSocket(Config.SSL_REDIRECT_FROM)){
+				System.out.println("Upgrading HTTP requests from port "+server301.getLocalPort());
+				while(alive) {
+					try {
+					Socket client = server301.accept();
+					if(!verifySocket(client))continue;
+					ServerThread connection = new ServerThread(client) {
+						@Override
+						public void hparse(Map<String,String> headers, Optional<HStream> hstream, byte[] body, int bodyLength) throws IOException {
+							String path = headers.get(":path");
+							String host = hstream.isPresent() ? headers.get(":authority") : headers.get("host");
+							if(host==null) {
+								sendError("400",hstream);
+								close();
+								return;
+							}
+							String location="https://"+host.split(":",2)[0];
+							if(Config.PORT!=443)
+								location+=":"+Config.PORT;
+							location+=path;
+							
+							this.newResponse(301,hstream)
+								.header("Location",location)
+								.data(location.getBytes())
+								.write();
+							close();
 						}
-					}
+					};
+					threadCount.incrementAndGet();
+					HydarUtil.TFAC.newThread(connection).start();
+					}catch(Exception e) {}
 				}
-				else {
-					Set<Resource> found = new HashSet<>();
-					for(Path p:HydarUtil.getFiles(config,dir)) {
-						found.add(update(p,null,dir,null,newTime));
-					}
-					if(resources.values().retainAll(found)) {
-						ee.servlets.keySet().removeIf(x->!resources.containsKey(x+".jsp"));
-						System.out.println("A file was removed from the server directory.");
-					}
-				}
-			}
-			try{
-				Socket client = server.accept();
-				if(!verifySocket(client))continue;
-				ServerThread connection = new ServerThread(client);
-				threadCount.incrementAndGet();
-				HydarUtil.TFAC.newThread(connection).start();
-			} catch(SocketTimeoutException ste) {}
-			catch(Exception e) {
+			} catch (IOException e) {
 				e.printStackTrace();
-				Thread.sleep(5000);
+				System.out.println("SSL upgrading server not started");
+				return;
 			}
-			System.out.flush();
+		}).start();
+	}
+	/**Send an error in a non-blocking way.*/
+	private static void sendErrorNow(Socket client,Limiter limiter,String code) throws IOException{
+		if(limiter.acquireNow(Token.OUT,hydars.get(0).config.getErrorPage(code).length()))
+			HydarUtil.TFAC.newThread(()->{
+				try(client;OutputStream output = client.getOutputStream()){
+					hydars.get(0).new Response(code).output(output).write();
+				}catch(IOException e) {
+					return;
+				}
+			}).start();
+	}
+	/**Make the server socket, including SSL initialization if applicable.*/
+	static ServerSocket makeSocket() throws IOException {
+		ServerSocket server=null;
+		boolean loopback = hydars.stream().allMatch(x->x.config.HOST==null);
+		if (loopback)
+			System.out.println("Binding to loopback. Set Hydar.HOST to change this.");
+		try {//ssl initialization
+			if(Config.SSL_ENABLED){
+				KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+				TrustManager[] tms=null;
+				if(!Config.SSL_TRUST_STORE_PATH.isBlank()){
+					InputStream tstore = Files.newInputStream(Path.of(Config.SSL_TRUST_STORE_PATH));
+					trustStore.load(tstore, Config.SSL_TRUST_STORE_PASSPHRASE.toCharArray());
+					tstore.close();
+					TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+					tmf.init(trustStore);
+					tms= tmf.getTrustManagers();
+				}
+				KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+				InputStream kstore = Files.newInputStream(Path.of(Config.SSL_KEY_STORE_PATH));
+				keyStore.load(kstore, Config.SSL_KEY_STORE_PASSPHRASE.toCharArray());
+				kstore.close();
+				KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+				kmf.init(keyStore, Config.SSL_KEY_STORE_PASSPHRASE.toCharArray());
+				SSLContext ctx = SSLContext.getInstance(Config.SSL_CONTEXT_NAME);
+				try{
+					ctx.init(kmf.getKeyManagers(), tms, SecureRandom.getInstance("NativePRNGNonBlocking"));
+				}catch(NoSuchAlgorithmException e){
+					ctx.init(kmf.getKeyManagers(), tms, SecureRandom.getInstanceStrong());
+				}
+				SSLServerSocketFactory factory = ctx.getServerSocketFactory();
+				server = (loopback)
+					? factory.createServerSocket(Config.PORT,256,InetAddress.getLoopbackAddress())
+					: factory.createServerSocket(Config.PORT,256);
+				//server.setNeedClientAuth(true);
+				((SSLServerSocket)server).setEnabledProtocols(Config.SSL_ENABLED_PROTOCOLS);
+				if(Config.H2_ENABLED){
+					SSLParameters j=((SSLServerSocket)server).getSSLParameters();
+					j.setApplicationProtocols(new String[]{"h2","http/1.1"});
+					System.out.println("TLS ALPN Enabled Protocols: "+Arrays.asList(j.getApplicationProtocols()));
+					((SSLServerSocket)server).setSSLParameters(j);
+				}
+			}else{
+				server = (loopback)
+					? new ServerSocket(Config.PORT,256,InetAddress.getLoopbackAddress())
+					: new ServerSocket(Config.PORT,256);
+			}
+			server.setSoTimeout(1000);
+		} catch (Exception f) {
+			f.printStackTrace();
+			System.out.println("Cannot open port " + Config.PORT);
+			if(server!=null)server.close();
+		}
+		
+		return server;
+	}
+	/**Check the time and perform file reading and other interval-based tasks.*/
+	public void updateOnTimer() throws IOException {
+		long newTime=System.currentTimeMillis();
+		if(newTime-lastSClean>scInterval) {
+			ee.cleanSessions();
+			lastSClean=newTime;
+		}
+		if(newTime-lastUpdate>config.REFRESH_TIMER && loaded.get()){
+			//check files(recompile as needed)
+			lastUpdate = newTime;
+			if(config.USE_WATCH_SERVICE) {
+				KEYS.entrySet().stream()
+					.flatMap(x->x.getValue().pollEvents().stream().map(y->Map.entry(x,y)))
+					.collect(groupingBy(x->x.getValue().context()))
+					.forEach((path, entries)->{
+						var entry = entries.get(entries.size()-1);
+						var evt = entry.getValue();
+						updateResource((Path)path,entry.getKey().getKey(),dir,evt.kind(),newTime);
+					});
+	
+				for(var k:KEYS.entrySet()) {
+					if(!k.getValue().isValid()) {
+						HydarUtil.addKey(this,k.getKey(),dir);
+						System.out.println("Invalid key for "+k.getKey()+" recreated");
+					}
+				}
+			}
+			else {
+				Set<Resource> found = new HashSet<>();
+				for(Path p:HydarUtil.getFiles(config,dir)) {
+					found.add(updateResource(p,null,dir,null,newTime));
+				}
+				if(resources.values().retainAll(found)) {
+					ee.servlets.keySet().removeIf(x->!resources.containsKey(x+".jsp"));
+					System.out.println("A file was removed from the server directory.");
+				}
+			}
 		}
 	}
-	public Resource update(Path p, Path parent, Path root, WatchEvent.Kind<?> kind, long now){
+	/**Replace a resource.*/
+	public Resource updateResource(Path p, Path parent, Path root, WatchEvent.Kind<?> kind, long now){
 		//check times to decide whether to replace
 		if(kind!=null) {
 			p=parent.resolve(p).normalize();
@@ -1273,6 +1232,55 @@ public class Hydar {
 		}
 		System.out.println("Failed to replace: "+e);
 		return r;
+	}
+	//Used for TURN authentication.
+	//TODO: hashing or something at least.
+	public String authenticate(String user){
+		for(String key:ee.sessions.keySet()){
+			if(key.substring(15,24).equals(user))
+				return ee.sessions.get(key).tc;
+		}
+		return null;
+	}
+	/**Start multiple hydars from multiple hydar.properties files. Different servlets can respond to different paths and hosts.*/
+	public static void main(String[] args) throws ClassNotFoundException, IOException, NamingException, InterruptedException {
+		if(args.length==0)
+			args= new String[]{"hydar.properties"};
+		for(String hydar: args) {
+			hydars.add(new Hydar(new String[] {hydar}));
+		}
+		ServerSocket server = makeSocket();
+		//server loop(only ends on ctrl-c)
+		Thread.currentThread().setPriority(Thread.NORM_PRIORITY+1);
+		System.gc();
+		if(Config.SSL_ENABLED && Config.SSL_REDIRECT_FROM>=0) {
+			start301();
+		}
+
+		if(Config.TC_ENABLED){
+			try {
+				Class.forName("xyz.hydar.ee.HydarLimiter");
+			}catch(ClassNotFoundException e) {
+				System.out.println("HydarLimiter module not found.");
+			}
+		}
+		while (alive) {
+			for(Hydar hydar: hydars) {
+				hydar.updateOnTimer();
+			}
+			try{
+				Socket client = server.accept();
+				if(!verifySocket(client))continue;
+				ServerThread connection = new ServerThread(client);
+				threadCount.incrementAndGet();
+				HydarUtil.TFAC.newThread(connection).start();
+			} catch(SocketTimeoutException ste) {}
+			catch(Exception e) {
+				e.printStackTrace();
+				Thread.sleep(5000);
+			}
+			System.out.flush();
+		}
 	}
 	public class Response{
 		/**TODO:Retry-After(503/429)*/

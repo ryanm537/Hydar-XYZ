@@ -106,28 +106,32 @@ public class HydarEE{
 		config=hydar.config;
 		ctx = new Context(hydar);
 		ctx.init = Map.copyOf(config.macros);
-		Path sessions = Path.of("sessions.bin");
+		Path sessionsPath = Path.of(config.configPath).resolveSibling("sessions.bin");
 		try {
 			if(config.PERSIST_SESSIONS) {
 				Runtime.getRuntime().addShutdownHook(new Thread(()->{
 					try {
 						var baos = new ByteArrayOutputStream();
 						var oos = new ObjectOutputStream(baos);
-						oos.writeObject(sessions);
-						baos.writeTo(Files.newOutputStream(sessions));
+						oos.writeObject(this.sessions);
+						baos.writeTo(Files.newOutputStream(sessionsPath));
 						System.out.println("Saved session data.");
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
 				}));
-				if(Files.exists(sessions)) {
-						var ois = new ObjectInputStream(Files.newInputStream(sessions));
+				if(Files.exists(sessionsPath)) {
+					System.out.println("Loading sessions from "+sessionsPath+"...");
+						var ois = new ObjectInputStream(Files.newInputStream(sessionsPath));
 						this.sessions = (Map<String, HttpSession>) ois.readObject();
-						Files.delete(sessions);
+						for(HttpSession s: this.sessions.values()) {
+							s.hydar=hydar;
+						}
+						Files.delete(sessionsPath);
 					
 				}
 			}else {
-				Files.deleteIfExists(sessions);
+				Files.deleteIfExists(sessionsPath);
 			}
 		} catch (ClassNotFoundException | IOException e) {
 			throw new RuntimeException(e);
@@ -925,7 +929,7 @@ public class HydarEE{
 	 * Implements most of jakarta.servlet.http.HttpSession.
 	 * */
 	public static class HttpSession implements Serializable{
-		private static final long serialVersionUID = -1061821602699032333L;
+		private static final long serialVersionUID = -1261821602699032333L;
 		private final Map<String,Object> attr= new ConcurrentHashMap<>();
 		public final String id;
 		public volatile boolean isNew=true;
@@ -934,7 +938,7 @@ public class HydarEE{
 		public volatile long lastUsed=System.currentTimeMillis();
 		public final String tc;
 		public volatile boolean valid=true;
-		public final Hydar hydar;
+		public transient volatile Hydar hydar;
 		private final InetAddress addr;
 		public String getId() {
 			lastUsed=System.currentTimeMillis();
