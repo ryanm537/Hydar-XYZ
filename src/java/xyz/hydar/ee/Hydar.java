@@ -855,11 +855,6 @@ class Resource{
 		streamPaths.put(enc,newPath);
 		return Files.size(newPath);
 	}
-	/**
-	 * Respond to a file event.
-	 * Usually reloads or removes the file.
-	 * 'kind' may be null if polling is being used.
-	 * */
 	
 }
 
@@ -1162,7 +1157,11 @@ public class Hydar {
 			}
 		}
 	}
-	/**Replace a resource.*/
+	/**
+	 * Respond to a file event.
+	 * Usually reloads or removes the file.
+	 * 'kind' may be null if polling is being used.
+	 * */
 	public Resource updateResource(Path p, Path parent, Path root, WatchEvent.Kind<?> kind, long now){
 		//check times to decide whether to replace
 		if(kind!=null) {

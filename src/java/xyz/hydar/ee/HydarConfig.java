@@ -324,7 +324,7 @@ class Config{
 				try {
 					field.get(null);
 					if(!alreadySet.add(k)) {
-						System.out.println("Repeat global setting "+k+". This setting is global and can only be changed once. Please ensure it only occurs in one properties files.");
+						System.out.println("Repeat global setting "+k+". This setting is global and can only be changed once. Please ensure it only occurs in one properties file.");
 						return;
 					}
 				}catch(NullPointerException e) {
