@@ -20,18 +20,18 @@ def refresh():
             if "water hydra" in auction['item_name'].lower():
                 for x in rare:
                     if x in auction['item_name'].lower():
-                        v=ign(auction['uuid'])
+                        v=auction['uuid']
                         print("RARE HYDAR HEAD AASJdhlkajfhlksd /viewauction "+v+" "+str(auction['starting_bid'])+"("+auction["item_name"].upper().replace("HYDRA","HYDAR")+")!!!!!!!!")
             for x in skeleman:
                 if x in auction['item_name'].lower():
                     if "water hydra" in auction['item_lore'].lower():
-                        v=ign(auction['uuid'])
+                        v=auction['uuid']
                         print("HDYAR SOULLL /viewauction "+v+" "+str(auction['starting_bid'])+"("+auction["item_name"].upper()+")!!!!!!!!")
                     if "the emperor" in auction['item_lore'].lower():
-                        v=ign(auction['uuid'])
+                        v=auction['uuid']
                         print("eMP SOULL(not hdyar) /viewauction "+v+" "+str(auction['starting_bid'])+"("+auction["item_name"].upper()+")!!!!!!!!")
                     if "great white" in auction['item_lore'].lower():
-                        v=ign(auction['uuid'])
+                        v=auction['uuid']
                         print("gw soul(not hdar) /viewauction "+v+" "+str(auction['starting_bid'])+"("+auction["item_name"].upper()+")!!!!!!!!")
             
             if 'bin' in auction.keys() and auction['end']>ms:
@@ -87,7 +87,7 @@ def lbin(name):
             elif q[1]<lb3 or lb3==-1:
                 lb3=q[1]
     if(lb1==-1):
-        print("warning: no auctions found for \""+name+"\"")
+        return bz(name)
         v= -1
     elif(lb2==-1):v= lb1
     elif(lb3==-1):v= (lb1+lb2)/2

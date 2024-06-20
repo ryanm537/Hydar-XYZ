@@ -32,18 +32,18 @@ def refresh():
             if "water hydra" in auction['item_name'].lower():
                 for x in rare:
                     if x in auction['item_name'].lower():
-                        v=ign(auction['uuid'])
+                        v=auction['uuid']
                         print("RARE HYDAR HEAD AASJdhlkajfhlksd /viewauction "+v+" "+str(auction['starting_bid'])+"("+auction["item_name"].upper().replace("HYDRA","HYDAR")+")!!!!!!!!")
             for x in skeleman:
                 if x in auction['item_name'].lower():
                     if "water hydra" in auction['item_lore'].lower():
-                        v=ign(auction['uuid'])
+                        v=auction['uuid']
                         print("HDYAR SOULLL /viewauction "+v+" "+str(auction['starting_bid'])+"("+auction["item_name"].upper()+")!!!!!!!!")
                     if "the emperor" in auction['item_lore'].lower():
-                        v=ign(auction['uuid'])
+                        v=auction['uuid']
                         print("eMP SOULL(not hdyar) /viewauction "+v+" "+str(auction['starting_bid'])+"("+auction["item_name"].upper()+")!!!!!!!!")
                     if "great white" in auction['item_lore'].lower():
-                        v=ign(auction['uuid'])
+                        v=auction['uuid']
                         print("gw soul(not hdar) /viewauction "+v+" "+str(auction['starting_bid'])+"("+auction["item_name"].upper()+")!!!!!!!!")
             
             if 'bin' in auction.keys() and auction['end']>ms:
@@ -99,7 +99,7 @@ def lbin(name):
             elif q[1]<lb3 or lb3==-1:
                 lb3=q[1]
     if(lb1==-1):
-        print("warning: no auctions found for \""+name+"\"")
+        return bz(name)
         v= -1
     elif(lb2==-1):v= lb1
     elif(lb3==-1):v= (lb1+lb2)/2
@@ -173,8 +173,8 @@ hydar1=[
     ["Fuel Tank", (lbin("fuel tank") - bz("enchanted coal block") * 2) / (10 * quick_forge_bonus)],
     ["Bejeweled Handle", (lbin("bejeweled handle") - lbin("glacite jewel") * 3) / (0.5 * quick_forge_bonus)],
     ["Drill Engine", (lbin("drill engine") - (bz("enchanted iron block") + bz("enchanted redstone block") * 3 + lbin("golden plate") + bz("treasurite") *10 + bz("refined diamond"))) / (30 * quick_forge_bonus)],
-    ["Golden Plate", (lbin("golden plate") - (bz("enchanted gold block") * 2 + lbin("glacite jewel") * 5 + bz("refined diamond"))) / (6 * quick_forge_bonus)],
-    ["Mithril Plate", (lbin("mithril plate") - (bz("refined mithril") * 5 + lbin("golden plate") + bz("enchanted iron block") + bz("refined titanium"))) / (18 * quick_forge_bonus)],
+    ["Golden Plate", (bzsell("golden plate") - (bz("enchanted gold block") * 2 + bz("glacite jewel") * 5 + bz("refined diamond"))) / (6 * quick_forge_bonus)],
+    ["Mithril Plate", (bzsell("mithril plate") - (bz("refined mithril") * 5 + bz("golden plate") + bz("enchanted iron block") + bz("refined titanium"))) / (18 * quick_forge_bonus)],
     ["Gemstone Mixture", (lbin("gemstone mixture") - (bz("fine jade") * 4 + bz("fine amber") * 4 + bz("fine amethyst") * 4 + bz("fine sapphire") * 4 + bz("sludge juice") * 320)) / (4 * quick_forge_bonus)],
     ["Perfect Jasper", (bzsell("perfect jasper") - bz("flawless jasper") * 5) / (20 * quick_forge_bonus)],
     ["Perfect Ruby", (bzsell("perfect ruby") - bz("flawless ruby") * 5) / (20 * quick_forge_bonus)],
