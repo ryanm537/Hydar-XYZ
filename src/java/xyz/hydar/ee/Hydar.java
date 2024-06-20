@@ -6,9 +6,11 @@ import static java.util.stream.Collectors.groupingBy;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.InetAddress;
@@ -1242,6 +1244,31 @@ public class Hydar {
 		}
 		return null;
 	}
+	public static void inputLoop(){
+		BufferedReader s = new BufferedReader(new InputStreamReader(System.in));
+		try {
+			while(true) {
+				String cmd=s.readLine();
+				if(cmd.equals("stop")) {
+					System.out.println("Type stop again to confirm");
+					if(s.readLine().equals("stop")) {
+						break;
+					}
+				}
+			}
+		}catch(IOException e) {
+			
+		}finally {
+			Hydar.alive=false;
+			Hydar.hydars.forEach(x->x.ee.persistSessions());
+			System.out.println("Attempted to save session data. Exiting");
+			System.out.flush();
+			try {
+				Thread.sleep(1000);
+			}catch(InterruptedException ie) {}
+			System.exit(0);
+		}
+	}
 	/**Start multiple hydars from multiple hydar.properties files. Different servlets can respond to different paths and hosts.*/
 	public static void main(String[] args) throws ClassNotFoundException, IOException, NamingException, InterruptedException {
 		if(args.length==0)
@@ -1249,37 +1276,39 @@ public class Hydar {
 		for(String hydar: args) {
 			hydars.add(new Hydar(new String[] {hydar}));
 		}
-		ServerSocket server = makeSocket();
-		//server loop(only ends on ctrl-c)
 		Thread.currentThread().setPriority(Thread.NORM_PRIORITY+1);
 		System.gc();
-		if(Config.SSL_ENABLED && Config.SSL_REDIRECT_FROM>=0) {
-			start301();
-		}
-
-		if(Config.TC_ENABLED){
-			try {
-				Class.forName("xyz.hydar.ee.HydarLimiter");
-			}catch(ClassNotFoundException e) {
-				System.out.println("HydarLimiter module not found.");
+		try(ServerSocket server = makeSocket()) {
+			//server loop(only ends on ctrl-c)
+			if(Config.SSL_ENABLED && Config.SSL_REDIRECT_FROM>=0) {
+				start301();
 			}
-		}
-		while (alive) {
-			for(Hydar hydar: hydars) {
-				hydar.updateOnTimer();
+			HydarUtil.TFAC.newThread(Hydar::inputLoop).start();
+			if(Config.TC_ENABLED){
+				try {
+					Class.forName("xyz.hydar.ee.HydarLimiter");
+				}catch(ClassNotFoundException e) {
+					System.out.println("HydarLimiter module not found.");
+				}
 			}
-			try{
-				Socket client = server.accept();
-				if(!verifySocket(client))continue;
-				ServerThread connection = new ServerThread(client);
-				threadCount.incrementAndGet();
-				HydarUtil.TFAC.newThread(connection).start();
-			} catch(SocketTimeoutException ste) {}
-			catch(Exception e) {
-				e.printStackTrace();
-				Thread.sleep(5000);
+			while (alive) {
+				for(Hydar hydar: hydars) {
+					hydar.updateOnTimer();
+				}
+				try{
+					Socket client = server.accept();
+					if(!verifySocket(client))continue;
+					ServerThread connection = new ServerThread(client);
+					threadCount.incrementAndGet();
+					HydarUtil.TFAC.newThread(connection).start();
+				} catch(SocketTimeoutException ste) {}
+				catch(Exception e) {
+					e.printStackTrace();
+					Thread.sleep(5000);
+				}
+				
+				System.out.flush();
 			}
-			System.out.flush();
 		}
 	}
 	public class Response{

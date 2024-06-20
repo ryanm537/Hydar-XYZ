@@ -86,6 +86,8 @@ public class HydarEE{
 	public final Hydar hydar;
 	public final Config config;
 	public volatile HydarEE lastToCompile = null;
+	//only run shutdown hook if needed
+	public volatile boolean persisted=false;
 	/**
 	 * Use a ServiceLoader to find and load implementations of xyz.hydar.ee.HttpServlet.
 	 * Overriding RESOURCE_LOCATION() is currently the only way to provide paths for these
@@ -109,17 +111,7 @@ public class HydarEE{
 		Path sessionsPath = Path.of(config.configPath).resolveSibling("sessions.bin");
 		try {
 			if(config.PERSIST_SESSIONS) {
-				Runtime.getRuntime().addShutdownHook(new Thread(()->{
-					try {
-						var baos = new ByteArrayOutputStream();
-						var oos = new ObjectOutputStream(baos);
-						oos.writeObject(this.sessions);
-						baos.writeTo(Files.newOutputStream(sessionsPath));
-						System.out.println("Saved session data.");
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-				}));
+				Runtime.getRuntime().addShutdownHook(new Thread(this::persistSessions));
 				if(Files.exists(sessionsPath)) {
 					System.out.println("Loading sessions from "+sessionsPath+"...");
 						var ois = new ObjectInputStream(Files.newInputStream(sessionsPath));
@@ -137,6 +129,22 @@ public class HydarEE{
 			throw new RuntimeException(e);
 		}
 		System.out.println("Service loader finished.");
+	}
+	/**Saves sessions to a file.*/
+	public void persistSessions() {
+		if(persisted || !config.PERSIST_SESSIONS)
+			return;
+		Path sessionsPath = Path.of(config.configPath).resolveSibling("sessions.bin");
+		try {
+			var baos = new ByteArrayOutputStream();
+			var oos = new ObjectOutputStream(baos);
+			oos.writeObject(this.sessions);
+			baos.writeTo(Files.newOutputStream(sessionsPath));
+			System.out.println("Saved session data.");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		persisted=true;
 	}
 	/**
 	 * With lazy compilation enabled, JSPs will only be compiled
