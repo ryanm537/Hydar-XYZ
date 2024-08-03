@@ -109,7 +109,7 @@ public class HydarH2{
 			.limiter(thread.limiter)
 			.withData(baos.array(),0,baos.limit())
 			.writeToH2(this, false);
-			
+		Frame.of(Frame.WINDOW_UPDATE).withData(HStream.WINDOW_INC).writeToH2(this,false);
 	}
 	public void read() throws IOException{
 		try {
@@ -168,6 +168,7 @@ class HStream{
 	};
 	private BAOS block=EMPTY_BAOS;
 	private BAOS dataBlock=EMPTY_BAOS;
+	public static final byte[] WINDOW_INC = ByteBuffer.allocate(4).putInt(Config.H2_LOCAL_WINDOW_INC).array();
 	private static final byte[][] CLOSE_REASONS=IntStream.range(0,20)
 		.mapToObj(x->ByteBuffer.allocate(4).putInt(x).array())
 		.toArray(byte[][]::new);
@@ -198,17 +199,18 @@ class HStream{
 	}
 	//wait for window to allow sending
 	public int controlFlow(){
-		long time=0,timer=Config.H2_WINDOW_TIMER,max=Config.H2_WINDOW_TIMER;
+		long time=0,timer=Config.H2_REMOTE_WINDOW_TIMER,max=Config.H2_REMOTE_WINDOW_TIMER;
 		while(canSend()&&time<max){
 			
 			//System.out.println(""+time+":"+remoteWindow+":"+h2.remoteWindow);
 			int local=remoteWindow.get();
 			int global=h2.remoteWindow.get();
+			//System.out.println("l"+local+" g"+global);
 			if(local>0&&global>0)
 				return Math.min(local,global);
 			try {
 				Thread.sleep(time==0?50:timer);
-				time+=timer;
+				time+=time==0?50:timer;
 			} catch (InterruptedException ee) {
 				Thread.currentThread().interrupt();
 			}
@@ -291,6 +293,26 @@ class HStream{
 					}
 					localWindow-=frame.length;
 					h2.localWindow-=frame.length;
+					if(localWindow<=0) {
+						if(Config.H2_LOCAL_WINDOW_TIMER>0) {
+							try {
+								Thread.sleep(Config.H2_LOCAL_WINDOW_TIMER*Hydar.threadCount.get());
+							} catch (InterruptedException e) {}
+						}
+						localWindow += Config.H2_LOCAL_WINDOW_INC;
+						Frame.of(Frame.WINDOW_UPDATE,this).withData(WINDOW_INC).writeToH2(h2,false);
+					}
+					if(h2.localWindow<=0) {
+						if(Config.H2_LOCAL_WINDOW_TIMER>0) {
+							try {
+								Thread.sleep(Config.H2_LOCAL_WINDOW_TIMER*Hydar.threadCount.get());
+							} catch (InterruptedException e) {}
+						}
+						h2.localWindow += Config.H2_LOCAL_WINDOW_INC;
+						Frame.of(Frame.WINDOW_UPDATE).withData(WINDOW_INC).writeToH2(h2,false);
+					}
+					//System.out.println(localWindow);
+					//System.out.println(h2.localWindow);
 					dataBlock().write(dis.array(), dis.position(), frame.length);
 					if(frame.endStream){
 						more.skip(padLength);
@@ -557,20 +579,41 @@ class Frame{
 				.putInt(streamNum()&0x7ffffff);
 	}
 	public void writeTo(OutputStream o, boolean flush) throws IOException{
-		int length=this.length;//protect lock
+		Frame part2=null;
 		if(stream!=null && type==Frame.DATA) {
-			int attempts=1, windowLeft=stream.controlFlow();
-			while(windowLeft<length&&stream.canSend()){
+			int attempts=Config.H2_WINDOW_ATTEMPTS, windowLeft=stream.controlFlow();
+			while(windowLeft==0&&stream.canSend()){
 				attempts--;
-				if(windowLeft<0||attempts<0) {
-					if(stream.canSend())
+				//System.out.println("ATTEMPT "+attempts);
+				if(attempts<0) {
+					//kill h2 if no global window, kill stream if no stream window
+					if(stream.remoteWindow.get()>=0 && stream.canSend())
 						stream.h2.goaway(0,"Flow control timeout");
+					else stream.close(5);
 					return;
 				}
 				windowLeft=stream.controlFlow();
 				//System.out.println("%%%%%%LEFT%%%%%%%%"+windowLeft);
 			}
+			//we have some window available but not the full length - split the frame
+			//this way client will notice 0 window and request more
+			if(stream.canSend() && windowLeft>0 && windowLeft<this.length) {
+				int oldLength = length;
+				length = windowLeft;
+				endStream=false;
+				if(dataStream!=null) {
+					part2=Frame.of(Frame.DATA,stream)
+							.endStream(endStream)
+							.withData(dataStream,oldLength-length,streamBuffer.orElse(null));
+					
+				}else {
+					part2 = Frame.of(Frame.DATA,stream)
+						.endStream(endStream)
+						.withData(data,offset+length,oldLength-length);
+				}
+			}
 		}
+		int length=this.length;//protect lock
 		lock.ifPresent(Lock::lock);
 		try {
 			//TODO: the copying didn't seem to lower the amount of tls fragmentation so try removing it again?
@@ -598,6 +641,9 @@ class Frame{
 				o.flush();
 		}finally {
 			lock.ifPresent(Lock::unlock);
+		}
+		if(part2!=null) {
+			part2.writeTo(o,flush);
 		}
 	}
 	public byte[] toByteArray() {

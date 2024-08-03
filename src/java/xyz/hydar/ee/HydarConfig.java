@@ -67,12 +67,15 @@ class Config{
 	public boolean PERSIST_SESSIONS=true;
 	
 	public static boolean H2_ENABLED=true;
-	public static int H2_WINDOW_ATTEMPTS=8;
-	public static int H2_WINDOW_TIMER=1000;
+	public static int H2_WINDOW_ATTEMPTS=3;
+	public static int H2_LOCAL_WINDOW_TIMER=0;
+	public static int H2_REMOTE_WINDOW_TIMER=1000;
+	public static int H2_LOCAL_WINDOW_INC=10_240_000;
 	public static int H2_HEADER_TABLE_SIZE=4096;
 	public static int H2_MAX_CONCURRENT_STREAMS=256;
 	public static int H2_MAX_FRAME_SIZE=16384;
 	public static int H2_MAX_HEADER_LIST_SIZE=8192;
+	
 	
 	public static int HTTP_LIFETIME=5000;
 	
