@@ -172,13 +172,18 @@ class Message{
 	public final long time;
 	public final String message;
 	public final int transaction;
+	public final String[] files;
 	//reply thing maybe.
 	public Message(int id, int uid, long time, String message, int transaction){
+		this(id,uid,time,message,transaction,null);
+	}
+	public Message(int id, int uid, long time, String message, int transaction, String[] files){
 		this.id=id;
 		this.uid=uid;
 		this.time=time;
 		this.message=message;
 		this.transaction=transaction;
+		this.files=files;
 	}
 	private String toString(boolean includeTID) {
 		int length=message.length();
@@ -190,6 +195,8 @@ class Message{
 		if(includeTID&&transaction!=1)
 			x.append("\",\"transaction\":").append(this.transaction);
 		else x.append("\"");
+		if(files!=null)
+			x.append(",\"files\":").append(Arrays.stream(files).map(y->"\""+y+"\"").toList());
 		return x.append("}").toString();
 		
 	}
@@ -976,21 +983,22 @@ class Board{
 		}
 		members.clear();
 		members.putAll(tmpMembers);
-		for(int i=ul+3;i<lines.length-1;i+=5){
+		for(int i=ul+3;i<lines.length-1;i+=6){
 			int id=parseInt(lines[i]);
 			int uid=parseInt(lines[i+1]);
 			long time = Long.parseLong(lines[i+2]);
-			int length = parseInt(lines[i+3]);
+			String[] files = lines[i+3].equals("null")?null:lines[i+3].split(",");
+			int length = parseInt(lines[i+4]);
 			message = new StringBuilder(length);
-			message.append(lines[i+4]);
+			message.append(lines[i+5]);
 			while(message.length()<length){
 				i++;
 				if(i+1==lines.length)
 					message.append("\n");
 				else 
-					message.append("\n").append(lines[i+4]);
+					message.append("\n").append(lines[i+5]);
 			}
-			messages.put(id,new Message(id,uid,time,message.toString(),1));
+			messages.put(id,new Message(id,uid,time,message.toString(),1,files));
 		}
 	}
 }

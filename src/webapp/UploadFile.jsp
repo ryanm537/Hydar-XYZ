@@ -13,6 +13,7 @@
 <%!
 //limits only for gw's
 static final int MAX_TOTAL = 1_000_000_000;
+static final int MAX_COUNT = 1024;
 static final int MAX_PER=10_240_000;
 static final String FILE_ROOT_PATH="/attachments";
 static Path fileRoot = null;
@@ -20,8 +21,9 @@ static SecureRandom rng = new SecureRandom();
 static final Pattern FILE_SAFE = Pattern.compile("[^a-zA-Z0-9-_.]");
 %>
 <%
-if(fileRoot==null)
+if(fileRoot==null){
 	fileRoot = Path.of(request.getServletContext().getRealPath(FILE_ROOT_PATH));
+}
 if(request.getMethod().equals("POST")){
 	Class.forName("com.mysql.jdbc.Driver");
 	DataSource dataSource = (DataSource) new InitialContext().lookup("java:comp/env/jdbc/hydar");
@@ -46,17 +48,20 @@ if(request.getMethod().equals("POST")){
 		//1. check perm
 		//2. check max size in db(should be context param, hydar param for ee uploads too)
 		int sizeLeft=Integer.MAX_VALUE;
-		int totalUploads=0;
+		int totalUploadSize=0;
+		int uploadCount = 0;
 		int uploadSize = request.getContentLength();
 		System.out.println("hdyar");
 		if(perms.equals("great_white")){
 			
-			ps = conn.prepareStatement("SELECT SUM(size) FROM `file` WHERE user = ?");
+			ps = conn.prepareStatement("SELECT COUNT(*),SUM(size) FROM `file` WHERE user = ?");
 			ps.setInt(1,uid);
 			result=ps.executeQuery();
 			while(result.next()){
-				totalUploads = result.getInt(1) ;
-				sizeLeft = MAX_TOTAL - (totalUploads + uploadSize);
+				uploadCount = result.getInt(1);
+				totalUploadSize = result.getInt(2);
+				
+				sizeLeft = MAX_TOTAL - (totalUploadSize + uploadSize);
 			}
 			if(sizeLeft < -1 * uploadSize){
 				response.sendError(400);
@@ -65,7 +70,7 @@ if(request.getMethod().equals("POST")){
 			ps = conn.prepareStatement("SELECT path, filename, size FROM `file` ORDER BY post WHERE user = ? AND post <> -1");
 			ps.setInt(1,uid);
 			result=ps.executeQuery();
-			while(sizeLeft < uploadSize && result.next()){
+			while((uploadCount > MAX_COUNT || sizeLeft < uploadSize) && result.next()){
 				ps = conn.prepareStatement("DELETE FROM `file` WHERE path=?");
 				String path = result.getString("path");
 				ps.setString(1,path);
@@ -73,6 +78,7 @@ if(request.getMethod().equals("POST")){
 				Files.delete(fileRoot.resolve(path).resolve(result.getString("filename")));
 				Files.delete(fileRoot.resolve(path));
 				sizeLeft += result.getInt("size");
+				uploadCount--;
 			}
 			if(sizeLeft < uploadSize){
 				response.sendError(400);
@@ -97,12 +103,13 @@ if(request.getMethod().equals("POST")){
 		
 		try{
 			Path dir = fileRoot.resolve(path);
-			Files.createDirectory(dir);
+			Files.createDirectories(dir);
 			request.getInputStream().transferTo(Files.newOutputStream(dir.resolve(filename)));
 		}catch(Exception ioe){
 			ps = conn.prepareStatement("DELETE FROM `file` WHERE path=?");
 			ps.setString(1,path);
 			ps.executeUpdate();
+			throw ioe;
 		}
 		//3.5. callback to HydarEndpoint so it adds to an attach list
 		HydarEndpoint.addFile(board,path,uid);
@@ -113,12 +120,15 @@ if(request.getMethod().equals("POST")){
 		//endpoint: Map<str,int> attachments
 		//updated on callbacks and initialized with all attachments from the db
 		//don't allow attachments that aren't in the map
+		
+		//include attachments in Message object and send them - done
 				
 		//js, upload: 1. get the bytes in js(all of them)
 		//2. upload to here
 		//3. add to visible attachments(wrapPosting) if successful, otherwise remove
 		//4. on post, send visible attachments as part of args
-		//5. submitpost: add the file as thing? doesnt have to be ig
+		
+		//submitpost: attachments param, update the file id, also update map based on it
 				
 		//js, render:
 		//wrapmsg will add the attachment, attachments stored in the messages map
