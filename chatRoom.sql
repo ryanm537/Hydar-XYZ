@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS 	`board` (
     KEY(`name`)
 );
 CREATE INDEX get_channels ON `board`(`channelof`) USING HASH;
+INSERT INTO board(`number`,`creator`, `name`, `public`, `image`,`channelof`,`dm`,`readonly`) VALUES(-1, -1, "Default Board", 0, "misc.png",-1,0,0);
 INSERT INTO board(`creator`, `name`, `public`, `image`,`channelof`,`dm`,`readonly`) VALUES(-1, "Everything Else", 1, "everythingelse.png",-1,0,0);
 INSERT INTO board(`creator`, `name`, `public`, `image`,`channelof`,`dm`,`readonly`) VALUES(-1, "SAS4", 1, "sas4.png",-1,0,0);
 INSERT INTO board(`creator`, `name`, `public`, `image`,`channelof`,`dm`,`readonly`) VALUES(-1, "Skyblock", 1, "skyblock.png",-1,0,0);
@@ -60,6 +61,7 @@ CREATE TABLE IF NOT EXISTS `ban`(
     KEY(`id`)
 );
 /*!40101 SET character_set_client = @saved_cs_client */;
+INSERT INTO user(`username`, `id`,  `password`, `pfp`, `permission_level`, `pings`, `volume`, `pingvolume`, `vcvolume`) VALUES("Deleted User",-1,"hydarhydar", "images/hydar2.png", "water_hydar", 0, 50, 50, 50);
 INSERT INTO user(`username`, `id`,  `password`, `pfp`, `permission_level`, `pings`, `volume`, `pingvolume`, `vcvolume`) VALUES("Raye",2,"raye", "images/r.png", "water_hydar", 0, 50, 50, 50);
 INSERT INTO user(`username`, `id`,  `password`, `pfp`, `permission_level`, `pings`, `volume`, `pingvolume`, `vcvolume`) VALUES("Guest",3,"skeleton", "images/emp.png", "skeleton", 0, 50, 50, 50);
 SELECT * FROM user;
@@ -79,8 +81,7 @@ ALTER TABLE `post` AUTO_INCREMENT = 0;
 
 
 /*!40101 SET character_set_client = @saved_cs_client */;
-#INSERT INTO post(`contents`, `id`, `board`, `created_date`)
-	#VALUES ("Hello", 0, 1, 0);
+INSERT INTO post(`contents`, `id`, `board`, `created_date`) VALUES ("Hydar", -1, -1, 0);
 
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -93,8 +94,7 @@ CREATE TABLE IF NOT EXISTS `posts` (
   CONSTRAINT `post_posted` FOREIGN KEY (`post`) REFERENCES `post` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
-#INSERT INTO posts(`user`, `post`)
-#	VALUES (0, 0);
+INSERT INTO posts(`user`, `post`) VALUES (-1, -1);
 
 DROP TABLE IF EXISTS `isin`;
 CREATE TABLE IF NOT EXISTS `isin` (
@@ -105,6 +105,10 @@ CREATE TABLE IF NOT EXISTS `isin` (
 	CONSTRAINT `user_is_in` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE,
 	CONSTRAINT `is_in_board` FOREIGN KEY (`board`) REFERENCES `board` (`number`) ON DELETE CASCADE
 );
+INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (-1, -1, 0);
+INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (-1, 1, 0);
+INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (-1, 2, 0);
+INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (-1, 3, 0);
 INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (2, 1, 0);
 INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (2, 2, 0);
 INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (2, 3, 0);
@@ -120,9 +124,24 @@ CREATE TABLE IF NOT EXISTS `invitedto` (
 	CONSTRAINT `user_invited_to` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE,
 	CONSTRAINT `invited_to_board` FOREIGN KEY (`board`) REFERENCES `board` (`number`) ON DELETE CASCADE
 );
+DROP TABLE IF EXISTS `file`;
+CREATE TABLE IF NOT EXISTS `file` (
+    `path` CHAR(16),
+    `filename` VARCHAR(64),
+	`user` int not null,
+	`board` int not null,
+    `post` int not null,
+	`size` bigint not null,
+    `date` bigint not null,
+    PRIMARY KEY (`path`),
+    CONSTRAINT `file_attached_to` FOREIGN KEY (`post`) REFERENCES `post` (`id`) ON DELETE CASCADE,
+	CONSTRAINT `file_uploaded_by` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+	CONSTRAINT `file_in_board` FOREIGN KEY (`board`) REFERENCES `board` (`number`) ON DELETE CASCADE
+);
 SELECT * FROM invitedto;
 SELECT * FROM user;
 SELECT * FROM board;
 SELECT * FROM isin;
 SELECT * FROM post;
+SELECT * FROM `file`;
 SELECT * FROM posts;

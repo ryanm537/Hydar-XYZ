@@ -749,6 +749,12 @@ public class HydarEE{
 		public InputStream getInputStream(){
 			return new BAIS(body,0,bodyLength);
 		}
+		public int getContentLength(){
+			return bodyLength;
+		}
+		public long getContentLengthLong(){
+			return bodyLength;
+		}
 		public Reader getReader(){
 			return new InputStreamReader(getInputStream(),UTF_8);
 		}

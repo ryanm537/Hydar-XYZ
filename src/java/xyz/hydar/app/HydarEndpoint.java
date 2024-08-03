@@ -159,7 +159,11 @@ public class HydarEndpoint extends HydarWS.Endpoint{
 				break;
 		}
 	}
-
+	public static void addFile(int board, String path, int uid) {
+		Board b = boards.get(board);
+		if(b!=null)
+			b.fileQueue.put(path,uid);
+	}
 }
 
 class Message{
@@ -265,6 +269,9 @@ class Board{
 	public final List<HydarEndpoint> users= new CopyOnWriteArrayList<>();
 	public final Map<Integer,Member> members = new ConcurrentHashMap<>();
 	public final Map<Integer,Message> messages = new ConcurrentHashMap<>(25);
+	
+	public final Map<String,Integer> fileQueue = new ConcurrentHashMap<>();
+	public final Map<String,Integer> files = new ConcurrentHashMap<>();
 	public final List<Channel> channels = new ArrayList<>();
 	public volatile static long REFRESH_TIMER=-1;
 	public volatile int boardId;
