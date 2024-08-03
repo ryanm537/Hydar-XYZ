@@ -278,7 +278,6 @@ class Board{
 	public final Map<Integer,Message> messages = new ConcurrentHashMap<>(25);
 	
 	public final Map<String,Integer> fileQueue = new ConcurrentHashMap<>();
-	public final Map<String,Integer> files = new ConcurrentHashMap<>();
 	public final List<Channel> channels = new ArrayList<>();
 	public volatile static long REFRESH_TIMER=-1;
 	public volatile int boardId;
@@ -515,10 +514,11 @@ class Board{
 	}
 	
 	public String processInput(String inputText, int uid, HydarEE.HttpSession session){
-		String[] msg = inputText.split(",",3);
+		String[] msg = inputText.split(",",4);
 		int transaction=parseInt(msg[0]);
 		int toReply=parseInt(msg[1]);
-		inputText=msg[2];
+		String[] files = msg[2].split(";");
+		inputText=msg[3];
 		//maybe?
 		//inputText = inputText.replace("\n", "");
 		//inputText = inputText.replace("\r", "");
@@ -598,7 +598,7 @@ class Board{
 			}
 		}
 			
-		int newID=newMessage(inputText,u,toReply,transaction,session,false);
+		int newID=newMessage(inputText,u,toReply,transaction,files,session,false);
 		if(this.hasRaye && inputText.length()>5 && inputText.startsWith("raye ")){
 			//newMessage(inputText,u,toReply,transaction, true);
 			TasqueManager.add(new PythonBot(this,new String[]{HydarEndpoint.PYTHON_PATH,"./bots/raye.py", inputText.substring(5)},null,newID,0,true));
@@ -836,17 +836,20 @@ class Board{
 		}
 		return inputText;
 	}
-	
+
 	public int newMessage(String inputText, Member u, int toReply, int transaction){
-		return newMessage(inputText, u, toReply, transaction,null, false);
+		return newMessage(inputText, u, toReply, transaction, null, null, false);
 	}
-	public int newMessage(String inputText, Member u, int toReply,HttpSession session, int transaction){
-		return newMessage(inputText, u, toReply, transaction,session, false);
+	public int newMessage(String inputText, Member u, int toReply, String[] files, int transaction){
+		return newMessage(inputText, u, toReply, transaction,files, null, false);
+	}
+	public int newMessage(String inputText, Member u, int toReply,String[] files, HttpSession session, int transaction){
+		return newMessage(inputText, u, toReply, transaction, files, session, false);
 	}
 	public int newRayeMessage(String inputText, Member u, int toReply, int transaction){
-		return newMessage(inputText, u, toReply, transaction,null, true);
+		return newMessage(inputText, u, toReply, transaction,null,null, true);
 	}
-	public int newMessage(String inputText, Member u, int toReply, int transaction, HttpSession session, boolean raye){
+	public int newMessage(String inputText, Member u, int toReply, int transaction, String[] files, HttpSession session, boolean raye){
 		//add reply header
 		if(!members.containsKey(u.id))
 			return -1;
@@ -912,19 +915,26 @@ class Board{
 				t=m;
 		if(t==null&&!raye)
 			return -1;
+		//verify file ownership
+		for(String f:files) {
+			if(fileQueue.remove(f)!=u.id)
+				return -1;
+		}
 		try{
 			newID =lastId.incrementAndGet();
 			inputText=inputText.replace("actualContents<MESSAGE_ID>","actualContents"+newID);
-			messages.put(newID,new Message(newID,u.id,System.currentTimeMillis(),inputText,transaction));
+			messages.put(newID,new Message(newID,u.id,System.currentTimeMillis(),inputText,transaction,files));
 			if(newID>=25)
 				messages.remove(newID-25);
 			
 			HydarEE.HttpSession s=raye?HydarEndpoint.RAYE:t.session;
 			//avoid re-URLencode
+			
 			var req=new HydarEE.HttpServletRequest("SubmitPost",Map.of(
 					"replyID",""+toReply,
 					"board_num",""+this.boardId,
-					"input_text",inputText
+					"input_text",inputText,
+					"files",String.join(",",files)
 					)
 				).withSession(s,true);
 			req.setAttribute("HYDAR_TIMESTAMP",messages.get(newID).time);
@@ -1084,7 +1094,7 @@ class PythonBot implements Tasque{
 			}
 			this.output=replyHeader+output;
 		}
-		board.newMessage(this.output,u,toReply,transaction,null,raye);
+		board.newMessage(this.output,u,toReply,transaction,null,null,raye);
 	}
 	@Override
 	public void fail(){

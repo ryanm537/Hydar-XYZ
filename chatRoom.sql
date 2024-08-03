@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS `posts` (
   `user` int not null,
   `post` int not null,
   PRIMARY KEY (`user`, `post`),
-  CONSTRAINT `user_posts_post` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `user_posts_post` FOREIGN KEY (`user`) REFERENCES `user` (`id`),
   CONSTRAINT `post_posted` FOREIGN KEY (`post`) REFERENCES `post` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -126,8 +126,8 @@ CREATE TABLE IF NOT EXISTS `invitedto` (
 );
 DROP TABLE IF EXISTS `file`;
 CREATE TABLE IF NOT EXISTS `file` (
-    `path` CHAR(16),
-    `filename` VARCHAR(64),
+    `path` CHAR(16) not null,
+    `filename` VARCHAR(64) not null,
 	`user` int not null,
 	`board` int not null,
     `post` int not null,
@@ -138,6 +138,8 @@ CREATE TABLE IF NOT EXISTS `file` (
 	CONSTRAINT `file_uploaded_by` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE,
 	CONSTRAINT `file_in_board` FOREIGN KEY (`board`) REFERENCES `board` (`number`) ON DELETE CASCADE
 );
+ALTER TABLE posts DROP FOREIGN KEY `user_posts_post`;
+ALTER TABLE posts ADD FOREIGN KEY `user_posts_post` (`user`) REFERENCES `user` (`id`);
 SELECT * FROM invitedto;
 SELECT * FROM user;
 SELECT * FROM board;
