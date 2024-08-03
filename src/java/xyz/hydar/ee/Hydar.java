@@ -335,7 +335,6 @@ class ServerThread implements Runnable {
 		if (path.equals("/")) {
 			path = config.HOMEPAGE;
 		}
-		path = config.LOWERCASE_URLS?path.toLowerCase():path;
 
 		String search = "";
 		String[] splitUrl=path.split("\\?",2);
@@ -343,6 +342,7 @@ class ServerThread implements Runnable {
 			path =splitUrl[0];
 			search = splitUrl[1];
 		}
+		path = config.LOWERCASE_URLS?path.toLowerCase():path;
 		System.out.println(""+client_addr+"> " + method + " " + path + " " + version);
 		//Virtual links(see default.properties).
 		//These are useful for turning path params into request params.
