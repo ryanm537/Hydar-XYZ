@@ -12,13 +12,16 @@
 <%@ include file='SkeleCheck.jsp' %>
 <%!
 //limits only for gw's
-final int MAX_TOTAL = 1_000_000_000;
-final int MAX_PER=10_240_000;
-final Path FILE_ROOT = Path.of("attachments/");
-SecureRandom rng = new SecureRandom();
-final Pattern FILE_SAFE = Pattern.compile("[^a-zA-Z0-9-_.]");
+static final int MAX_TOTAL = 1_000_000_000;
+static final int MAX_PER=10_240_000;
+static final String FILE_ROOT_PATH="/attachments";
+static Path fileRoot = null;
+static SecureRandom rng = new SecureRandom();
+static final Pattern FILE_SAFE = Pattern.compile("[^a-zA-Z0-9-_.]");
 %>
 <%
+if(fileRoot==null)
+	fileRoot = Path.of(request.getServletContext().getRealPath(FILE_ROOT_PATH));
 if(request.getMethod().equals("POST")){
 	Class.forName("com.mysql.jdbc.Driver");
 	DataSource dataSource = (DataSource) new InitialContext().lookup("java:comp/env/jdbc/hydar");
@@ -67,8 +70,8 @@ if(request.getMethod().equals("POST")){
 				String path = result.getString("path");
 				ps.setString(1,path);
 				ps.executeUpdate();
-				Files.delete(FILE_ROOT.resolve(path).resolve(result.getString("filename")));
-				Files.delete(FILE_ROOT.resolve(path));
+				Files.delete(fileRoot.resolve(path).resolve(result.getString("filename")));
+				Files.delete(fileRoot.resolve(path));
 				sizeLeft += result.getInt("size");
 			}
 			if(sizeLeft < uploadSize){
@@ -93,7 +96,7 @@ if(request.getMethod().equals("POST")){
 		ps.executeUpdate();
 		
 		try{
-			Path dir = FILE_ROOT.resolve(path);
+			Path dir = fileRoot.resolve(path);
 			Files.createDirectory(dir);
 			request.getInputStream().transferTo(Files.newOutputStream(dir.resolve(filename)));
 		}catch(Exception ioe){
