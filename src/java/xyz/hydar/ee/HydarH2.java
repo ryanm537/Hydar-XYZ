@@ -9,6 +9,7 @@ import java.net.SocketTimeoutException;
 import java.net.http.HttpTimeoutException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
@@ -78,7 +79,7 @@ public class HydarH2{
 	}
 
 	public void goaway(int error, String info){
-		streams.values().forEach(x->x.state=HStream.State.closed);
+		List.copyOf(streams.values()).forEach(x->x.state=HStream.State.closed);
 		streams.clear();
 		System.out.println("go away "+error+" "+info+" ");
 		//new RuntimeException().fillInStackTrace().printStackTrace();
@@ -311,8 +312,6 @@ class HStream{
 						h2.localWindow += Config.H2_LOCAL_WINDOW_INC;
 						Frame.of(Frame.WINDOW_UPDATE).withData(WINDOW_INC).writeToH2(h2,false);
 					}
-					//System.out.println(localWindow);
-					//System.out.println(h2.localWindow);
 					dataBlock().write(dis.array(), dis.position(), frame.length);
 					if(frame.endStream){
 						more.skip(padLength);
@@ -582,12 +581,12 @@ class Frame{
 		Frame part2=null;
 		if(stream!=null && type==Frame.DATA) {
 			int attempts=Config.H2_WINDOW_ATTEMPTS, windowLeft=stream.controlFlow();
-			while(windowLeft==0&&stream.canSend()){
+			while(windowLeft<=0&&stream.canSend()){
 				attempts--;
 				//System.out.println("ATTEMPT "+attempts);
 				if(attempts<0) {
 					//kill h2 if no global window, kill stream if no stream window
-					if(stream.remoteWindow.get()>=0 && stream.canSend())
+					if(stream.remoteWindow.get()>0 && stream.canSend())
 						stream.h2.goaway(0,"Flow control timeout");
 					else stream.close(5);
 					return;
@@ -613,6 +612,8 @@ class Frame{
 				}
 			}
 		}
+		if(stream!=null && !stream.canSend())
+			return;
 		int length=this.length;//protect lock
 		lock.ifPresent(Lock::lock);
 		try {
@@ -783,6 +784,7 @@ class Frame{
 					if(inc==0){
 						h2.goaway(1,"0 window increment");
 					}else{
+						//System.out.println("g "+inc);
 						h2.remoteWindow.addAndGet(inc);
 						//h2.streams.values().forEach(s->s.remoteWindow+=inc);
 					}
