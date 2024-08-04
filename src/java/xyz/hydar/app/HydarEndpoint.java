@@ -914,7 +914,6 @@ class Board{
 		if(inputText==null)
 			return -1;
 		int newID=-1;
-		lock.lock();
 		HydarEndpoint t = null;
 		for(HydarEndpoint m:users)
 			if(m.id==u.id)
@@ -922,11 +921,13 @@ class Board{
 		if(t==null&&!raye)
 			return -1;
 		//verify file ownership
-		for(String f:files) {
-			if(fileQueue.remove(f)!=u.id)
-				return -1;
-		}
+		
+		lock.lock();
 		try{
+			for(String f:files) {
+				if(fileQueue.remove(f)!=u.id)
+					return -1;
+			}
 			newID =lastId.incrementAndGet();
 			inputText=inputText.replace("actualContents<MESSAGE_ID>","actualContents"+newID);
 			messages.put(newID,new Message(newID,u.id,System.currentTimeMillis(),inputText,transaction,files));
