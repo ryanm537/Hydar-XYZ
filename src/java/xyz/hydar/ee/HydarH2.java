@@ -191,12 +191,16 @@ class HStream{
 		
 		this.number=number;
 	}
-	public void close(int reason) throws IOException{
+	public boolean cleanup() {
+		boolean first=h2.streams.remove(this.number)!=null;
 		state=State.closed;
-		if(reason<0)return;
-		if(h2.streams.remove(this.number)!=null&&dataBlock.size()>0) {
+		if(first&&dataBlock.size()>0) {
 			h2.senders.decrementAndGet();
 		}
+		return first;
+	}
+	public void close(int reason) throws IOException{
+		if(cleanup() && reason>=0)
 			Frame.of(Frame.RST_STREAM, this)
 				.withData(CLOSE_REASONS[reason])
 				.writeToH2(h2, true);
@@ -351,6 +355,7 @@ class HStream{
 				break;
 			case Frame.WINDOW_UPDATE:
 				int inc=(dis.getInt()&0x7fffffff);
+				//System.out.println("Stream "+number+" +"+inc);
 				if(inc==0){
 					h2.goaway(1,"0 window increment");
 				}else{
@@ -377,8 +382,13 @@ class HStream{
 		}
 		
 		if(frame.endStream){
+			if(state==State.half_closed_local) {
+				this.close(0);
+				return;
+			}
 			blockType=-1;
 			h2.expects=-1; 
+			state=State.half_closed_remote;
 			Map<String,String> heads = new HashMap<>(16);
 			//long t1 = new Date().getTime();
 			try(var byte_dis = block().toInputStream()){
@@ -405,20 +415,29 @@ class HStream{
 				}catch(IOException e){
 					
 				}finally {
+					//h2.streams.remove(number);
 					block = dataBlock = EMPTY_BAOS;
 					limiter.release(Token.PERMANENT_STATE, Config.TC_PERMANENT_H2_STREAM);
 					h2.maxStream=Math.max(this.number,h2.maxStream);
+					this.padLength=0;
+					try {
+						//System.out.println(this.state);
+						if(this.state!=State.open){
+							this.close(0);
+						}else this.state=State.half_closed_local;
+					}catch(IOException e) {
+						this.cleanup();
+					}
 				}
 			};
-			if(limiter.acquire(Token.PERMANENT_STATE, Config.TC_PERMANENT_H2_STREAM) && concurrent)
+			if(limiter.acquire(Token.PERMANENT_STATE, Config.TC_PERMANENT_H2_STREAM) && concurrent) {
+				//System.out.println("concurrent "+h2.streams.size()+concurrent);
 				HydarUtil.TFAC.newThread(streamTask).start();
-			else {
+			}else {
+				//System.out.println("nonconcurrent "+h2.streams.size()+concurrent);
 				streamTask.run();
 			}
-			this.padLength=0;
-			if(this.state!=State.open){
-				this.close(0);
-			}else this.state=State.half_closed_remote;
+			
 		}
 	}
 	//
