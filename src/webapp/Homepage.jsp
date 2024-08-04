@@ -15,6 +15,7 @@
 </head> 
 
 <body style = "background-color:rgb(51, 57, 63);"> 
+<input id="fileElem" multiple style="display:none" type="file" autocomplete="off"/>
 <center>
 <style type="text/css">
 html {
@@ -397,7 +398,7 @@ try(Connection conn=dataSource.getConnection()){
 	%>
 	<script>
 	function fileBrowser(){
-		document.getElementById("attach").click();
+		document.getElementById("fileElem").click();
 	}
 	</script>
 	<%

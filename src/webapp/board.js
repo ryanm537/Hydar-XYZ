@@ -16,8 +16,22 @@ var vcInterval=-1;
 var pingInterval=-1;
 const DEFAULT_USERNAME="Anonymous";
 const DEFAULT_PFP="images/hydar2.png";
+const ATTACHMENT_PATH="/attachments/"
 const DEFAULT_VOLS="50,50,50,0";
 const MSGS = document.getElementById("msgs");
+function wrapFile(x){//html for a file
+	let url = ATTACHMENT_PATH+x;
+	switch(url.substring(url.lastIndexOf("."))){
+		case ".png": case ".jpg": case ".jpeg": case ".gif": case ".tiff": case ".tif": case ".webp": case ".svg": case ".bmp":
+			return `<img src='${ATTACHMENT_PATH+x}'></img><br>`;
+		case ".mp4": case ".3gp": case ".flv": case ".webm": case ".mov": case ".avi": case ".wmv":
+			return `<video controls src='${ATTACHMENT_PATH+x}'></video><br>`;
+		case ".mp3": case ".ogg": case ".wav": case ".midi": case ".flac": case ".m4a": case ".aac":
+			return `<audio controls src='${ATTACHMENT_PATH+x}'></audio><br>`;
+		default:
+			return `<i>Attachment:</i> <a href='${ATTACHMENT_PATH+x}'>${x.split('/')[1]}</a><br>`;
+	}
+}
 function wrapMessage(x){//generate html for a message element
 	var user=users.get(x.uid);
 	if(!user)
@@ -33,6 +47,7 @@ function wrapMessage(x){//generate html for a message element
 	<div id='three_${x.id}' class='three'>&nbsp;(just now): </div><br>
 	<div class='msgText' id='msgText_${x.id}' data-tid='${x.transaction}' 
 		style='opacity:${x.verified?1:0.5}'>${decodeURIPlus(x.message)}</div>
+	${x.files?x.files.map(wrapFile).join(''):""}
 	<br clear='left'>
 	</div>`;
 	
@@ -162,18 +177,85 @@ function lowestId(){//lowest id on page
 function ping(){//hydar hydar hydar
 	sendToServer("]");
 }
-function wrapPosting(){
-	if(channelof == -1){
-		return "Posting in Channel: Main";
-	}else{
-		if(readonly == 1 && !me.owner){
-			return "Viewing " + boardName + " (read only)";
-		}else{
-			return "Posting in Channel: " + boardName;
+const fe=document.getElementById("fileElem");
+fe.onchange=()=>{
+	try{
+		
+		var posting=wrapPosting();
+		test=document.getElementById("posting");
+		if(test.innerHTML!=posting)
+			test.innerHTML=posting;
+		for(let file of fe.files){
+			
+			let target='/UploadFile.jsp?board='+boardId+"&filename="+file.name;
+			allFiles.set(file.name,{"prog":0,"file":file,"path":null});
+			let request = new XMLHttpRequest();
+		    request.upload.addEventListener('progress', function (e) {
+				let attElem=document.getElementById('attachment_'+file.name);
+		        if (e.loaded <= file.size) {
+		            var percent = Math.round(e.loaded / file.size * 100);
+		            allFiles.get(file.name).prog=percent;
+		            if(attElem)
+		           	 	attElem.children[0].innerHTML = percent + '%';
+		        } 
+		        if(e.loaded == e.total){
+		            allFiles.get(file.name).prog=99;
+		            if(attElem)
+		           		attElem.children[0].innerHTML = '99%';
+		        }
+		    });    
+		    request.addEventListener('loadend', function (e) {
+				if(request.status==200){
+					let attElem=document.getElementById('attachment_'+file.name);
+		            allFiles.get(file.name).prog=100;
+					if(attElem)attElem.children[0].innerHTML = '100%';
+					let text=request.responseText;
+					
+			        console.log(text);
+			        allFiles.get(file.name).path=text;
+			        //TODO: img preview and stuff
+			        if(attElem)attElem.setAttribute("href",ATTACHMENT_PATH+text);
+		        }else{
+					allFiles.delete(file.name);
+					try{
+						document.getElementById("posting").removeChild(document.getElementById('attachment_'+file.name));
+					}catch(e){}
+					console.log(request.status);
+				}
+		    }); 
+		    request.open('post', target);
+		    request.timeout = 300000;
+		    request.send(file);
 		}
+	}catch(e){
+		console.log(e);
+	}finally{
+		//document.getElementById('fileElem').files=[];
+    	fe.value='';
 	}
 }
-
+var allFiles = new Map();
+function wrapPosting(){
+	function label(){
+		if(channelof == -1){
+			return "Posting in Channel: Main";
+		}else{
+			if(readonly == 1 && !me.owner){
+				return "Viewing " + boardName + " (read only)";
+			}else{
+				return "Posting in Channel: " + boardName;
+			}
+		}
+	}
+	out=label();
+	for(let file of fe.files){
+		allFiles.set(file.name,{"prog":0,"file":file,"path":null});
+	}for (let [n,f] of allFiles){
+		link=f.path?`href='${ATTACHMENT_PATH+f.path}'`:"";
+		out+=`<a ${link} id='attachment_${f.file.name}'>, File:${f.file.name}, ${f.file.size} B - <b>${f.prog}%</b></a>`;
+	}
+	return out;
+}
 
 
 function wrapPostArea(){
@@ -665,7 +747,7 @@ setInterval(updateTimestamps,10000);
 function post(){
 	const textbox=document.getElementById("input_text");
 	var contents=textbox.value.replaceAll("\n", "<br>");
-	if(contents.length==0)
+	if(contents.length==0&&!([...allFiles.values()].filter(x=>x.path)))
 		return;
 	postString(contents);
 	textbox.value="";
@@ -696,8 +778,16 @@ function postString(x){
 	var estId=0;
 	if(MSGS.children.length>0)
 		estId=parseInt(MSGS.children[0].id.substring(4))+1;
-	
-	var msg = {id:estId,message:x,uid:me.id,time:(Date.now()*1000),transaction:n,verified:false};
+	var toSend = [...allFiles.values()].filter(x=>x.path);
+	for(let f of toSend){
+		allFiles.delete(f.file.name);
+	}
+	var posting=wrapPosting();
+		test=document.getElementById("posting");
+		if(test.innerHTML!=posting)
+			test.innerHTML=posting;
+	var fileNameList=toSend.map(x=>x.path);
+	var msg = {id:estId,message:x,uid:me.id,time:(Date.now()*1000),transaction:n,verified:false,files:fileNameList};
 	//todo: make this less dumb
 	messages.push(msg);
 	
@@ -705,7 +795,7 @@ function postString(x){
 		messages.splice(0,1);
 	insertMessage(msg);
 	
-	sendToServer("N,"+n+","+replyID+","+x);
+	sendToServer("N,"+n+","+replyID+","+fileNameList.join(';')+';'+","+x);
 	//$.get(n+"?autoOn=autoOff&replyID="+replyID+"&input_text="+encodeURIComponent(document.forms[3].input_text.value)+"&board_num="+q).fail(function(){document.querySelectorAll("[id='two']")[1].innerHTML="Loading...</a>";});
 }
 document.addEventListener('keypress', (event)=>{

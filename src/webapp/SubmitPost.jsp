@@ -50,7 +50,7 @@ try(Connection conn=dataSource.getConnection()){
 	//UPDATE DATABASE AFTER SUBMITTING POST
 	
 	int board = Integer.parseInt(request.getParameter("board_num")); 
-	String[] files = request.getParameter("files").split(","); 
+	String[] files = (request.getParameter("files")+",").split(","); 
 	int uid = (int)session.getAttribute("userid");
 	
 	// CHECK PERM

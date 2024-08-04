@@ -518,6 +518,10 @@ class Board{
 		int transaction=parseInt(msg[0]);
 		int toReply=parseInt(msg[1]);
 		String[] files = msg[2].split(";");
+		if(files.length>9) {
+			return null;
+		}
+		System.out.println(Arrays.toString(files));
 		inputText=msg[3];
 		//maybe?
 		//inputText = inputText.replace("\n", "");
@@ -917,6 +921,7 @@ class Board{
 			return -1;
 		//verify file ownership
 		for(String f:files) {
+			System.out.println("AAA"+f);
 			if(fileQueue.remove(f)!=u.id)
 				return -1;
 		}
@@ -997,7 +1002,7 @@ class Board{
 			int id=parseInt(lines[i]);
 			int uid=parseInt(lines[i+1]);
 			long time = Long.parseLong(lines[i+2]);
-			String[] files = lines[i+3].equals("null")?null:lines[i+3].split(",");
+			String[] files = lines[i+3].equals("null")?null:lines[i+3].split(",",-1);
 			int length = parseInt(lines[i+4]);
 			message = new StringBuilder(length);
 			message.append(lines[i+5]);

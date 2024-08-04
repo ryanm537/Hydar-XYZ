@@ -9,12 +9,12 @@
     pageEncoding="ISO-8859-1"%>
 <%@ page import="java.io.*,java.util.*, java.time.*, java.text.*, java.util.Date, java.sql.*"%>
 <%@ page import="javax.servlet.http.*,javax.servlet.*"%>
-<%@ include file='SkeleCheck.jsp' %>
 <%!
 //limits only for gw's
 static final int MAX_TOTAL = 1_000_000_000;
 static final int MAX_COUNT = 1024;
 static final int MAX_PER=10_240_000;
+static final int UPLOAD_SLEEP=2000;
 static final String FILE_ROOT_PATH="/attachments";
 static Path fileRoot = null;
 static SecureRandom rng = new SecureRandom();
@@ -24,13 +24,28 @@ static final Pattern FILE_SAFE = Pattern.compile("[^a-zA-Z0-9-_.]");
 if(fileRoot==null){
 	fileRoot = Path.of(request.getServletContext().getRealPath(FILE_ROOT_PATH));
 }
+
 if(request.getMethod().equals("POST")){
 	Class.forName("com.mysql.jdbc.Driver");
 	DataSource dataSource = (DataSource) new InitialContext().lookup("java:comp/env/jdbc/hydar");
 	try(Connection conn=dataSource.getConnection()){
 		String filename = FILE_SAFE.matcher(request.getParameter("filename")).replaceAll("");
+		if(filename.length()>64){
+			int dot=filename.lastIndexOf(".");
+			if(dot>=0){
+				String part2 = filename.substring(dot);
+				filename=new StringBuilder(64)
+						.append(filename,0,Math.max(0,64-part2.length()))
+						.append(part2)
+						.toString();
+			}else filename=filename.substring(64);
+		}
 		int board = Integer.parseInt(request.getParameter("board").replaceAll("\"", ""));
-		int uid=(int)session.getAttribute("userid");
+		Integer uid = (Integer)session.getAttribute("userid");
+		if(uid==null ||uid==3){
+			response.sendError(403);
+			return;
+		}
 		// CHECK PERMS
 		
 		String str = "SELECT user.permission_level FROM user WHERE user.id = ?" ;
@@ -105,6 +120,7 @@ if(request.getMethod().equals("POST")){
 			Path dir = fileRoot.resolve(path);
 			Files.createDirectories(dir);
 			request.getInputStream().transferTo(Files.newOutputStream(dir.resolve(filename)));
+			Thread.sleep(UPLOAD_SLEEP);
 		}catch(Exception ioe){
 			ps = conn.prepareStatement("DELETE FROM `file` WHERE path=?");
 			ps.setString(1,path);
@@ -112,10 +128,11 @@ if(request.getMethod().equals("POST")){
 			throw ioe;
 		}
 		//3.5. callback to HydarEndpoint so it adds to an attach list
-		HydarEndpoint.addFile(board,path,uid);
+		String fullPath=path+"/"+filename;
+		HydarEndpoint.addFile(board,fullPath,uid);
 		//4. return id and 200
 		response.resetBuffer();
-		out.print(path+"/"+filename);
+		out.print(fullPath);
 		return;
 		//endpoint: Map<str,int> attachments
 		//updated on callbacks and initialized with all attachments from the db
