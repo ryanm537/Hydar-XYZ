@@ -143,7 +143,7 @@ try(Connection conn=dataSource.getConnection()){
 		creatorID,
 		name,
 		image).map(Object::toString).collect(Collectors.joining(","));
-	String checkPostsStr="SELECT post.id, posts.user, post.contents, post.created_date "
+	String checkPostsStr="SELECT post.id, COALESCE(posts.user,-1) as `postUser`, post.contents, post.created_date "
 		+ "		,GROUP_CONCAT(CONCAT(`file`.`path`,'/',`file`.`filename`)) as files"
 		+ " FROM posts, post LEFT JOIN `file` ON `file`.post = post.id"
 		+ " WHERE posts.post = post.id AND post.board = ?"
@@ -183,7 +183,7 @@ try(Connection conn=dataSource.getConnection()){
 		String fixedString = result.getString("post.contents");//.replaceAll("<", "&lt;");
 		//fixedString=fixedString.replaceAll("&lt;href", "<href").replaceAll("&lt;img", "<img").replaceAll("&lt;br", "<br");
 		out.print(id);out.print('\n');
-		out.print(result.getInt("posts.user"));out.print('\n');
+		out.print(result.getInt("postUser"));out.print('\n');
 		out.print(result.getLong("post.created_date"));out.print('\n');
 		out.print(result.getString("files"));out.print('\n');
 		out.print(fixedString.length());out.print('\n');

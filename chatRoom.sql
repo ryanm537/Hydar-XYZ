@@ -87,15 +87,14 @@ INSERT INTO post(`contents`, `id`, `board`, `created_date`) VALUES ("Hydar", -1,
 /*!40101 SET character_set_client = utf8 */;
 DROP TABlE IF EXISTS `posts`;
 CREATE TABLE IF NOT EXISTS `posts` (
-  `user` int not null,
+  `user` int,
   `post` int not null,
-  PRIMARY KEY (`user`, `post`),
-  CONSTRAINT `user_posts_post` FOREIGN KEY (`user`) REFERENCES `user` (`id`),
+  PRIMARY KEY (`post`),
+  CONSTRAINT `user_posts_post` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE SET NULL,
   CONSTRAINT `post_posted` FOREIGN KEY (`post`) REFERENCES `post` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 INSERT INTO posts(`user`, `post`) VALUES (-1, -1);
-
 DROP TABLE IF EXISTS `isin`;
 CREATE TABLE IF NOT EXISTS `isin` (
 	`user` int not null,
@@ -128,18 +127,26 @@ DROP TABLE IF EXISTS `file`;
 CREATE TABLE IF NOT EXISTS `file` (
     `path` CHAR(16) not null,
     `filename` VARCHAR(64) not null,
-	`user` int not null,
-	`board` int not null,
-    `post` int not null,
+	`user` int,
+	`board` int,
+    `post` int,
 	`size` bigint not null,
     `date` bigint not null,
     PRIMARY KEY (`path`),
-    CONSTRAINT `file_attached_to` FOREIGN KEY (`post`) REFERENCES `post` (`id`) ON DELETE CASCADE,
-	CONSTRAINT `file_uploaded_by` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE,
-	CONSTRAINT `file_in_board` FOREIGN KEY (`board`) REFERENCES `board` (`number`) ON DELETE CASCADE
+    CONSTRAINT `file_attached_to` FOREIGN KEY (`post`) REFERENCES `post` (`id`) ON DELETE SET NULL,
+	CONSTRAINT `file_uploaded_by` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE SET NULL,
+	CONSTRAINT `file_in_board` FOREIGN KEY (`board`) REFERENCES `board` (`number`) ON DELETE SET NULL
 );
-ALTER TABLE posts DROP FOREIGN KEY `user_posts_post`;
-ALTER TABLE posts ADD FOREIGN KEY `user_posts_post` (`user`) REFERENCES `user` (`id`);
+show create table posts;
+ALTER TABLE posts DROP FOREIGN KEY `posts_ibfk_1`;
+ALTER TABLE posts MODIFY COLUMN `user` int null;
+ALTER TABLE posts ADD CONSTRAINT `user_posts_post` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE SET NULL;
+ALTER TABLE posts DROP FOREIGN KEY `post_posted`;
+ALTER TABLE posts ADD CONSTRAINT `post_posted` FOREIGN KEY (`post`) REFERENCES `post` (`id`) ON DELETE CASCADE;
+ALTER TABLE posts DROP PRIMARY KEY, ADD PRIMARY KEY (`post`);
+
+SELECT path, filename, size FROM `file`WHERE user = ? AND post <> -1 ORDER BY post ;
+SELECT COUNT(*),SUM(size) FROM `file` WHERE user = 1;
 SELECT * FROM invitedto;
 SELECT * FROM user;
 SELECT * FROM board;
@@ -147,3 +154,4 @@ SELECT * FROM isin;
 SELECT * FROM post;
 SELECT * FROM `file`;
 SELECT * FROM posts;
+SELECT posts.user FROM posts;

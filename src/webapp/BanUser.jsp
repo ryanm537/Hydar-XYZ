@@ -53,10 +53,17 @@ try(Connection conn=dataSource.getConnection()){
 	String ban2="DELETE FROM user WHERE user.addr = ?";
 	String ban3="INSERT INTO ban(id,type,addr) VALUES(?,?,?)";
 	
+	String deleteMsgA = "DELETE FROM post WHERE addr = ?";
+	String deleteMsgU = "DELETE FROM post WHERE id IN (SELECT post FROM posts WHERE posts.user = ?)";
+	
 	String unbanIp="SELECT addr FROM ban WHERE id=? AND type=?";
 	String unbanA="DELETE FROM ban WHERE addr=?";
 	if(ipBan==null||ipBan.equals("no")){
 		if(!unBan && kicked!=3){
+			ps=conn.prepareStatement(deleteMsgU);
+			ps.setInt(1,kicked);
+			ps.executeUpdate();
+			
 			ps=conn.prepareStatement(ban);
 			ps.setInt(1,kicked);
 			ps.executeUpdate();
@@ -72,6 +79,15 @@ try(Connection conn=dataSource.getConnection()){
 					throw new RuntimeException("Not anonymous");
 				InetAddress addr=InetAddress.getByAddress(ip);
 				if(!addr.isLoopbackAddress()){
+
+					ps=conn.prepareStatement(deleteMsgA);
+					ps.setBytes(1,ip);
+					ps.executeUpdate();
+					if(kicked!=3){
+						ps=conn.prepareStatement(deleteMsgU);
+						ps.setInt(1,kicked);
+						ps.executeUpdate();
+					}
 					ps=conn.prepareStatement(ban2);
 					ps.setBytes(1,ip);
 					ps.executeUpdate();
@@ -108,6 +124,10 @@ try(Connection conn=dataSource.getConnection()){
 				ps.setNull(1, Types.TINYINT);
 				ps.setString(2,"addr");
 				ps.setBytes(3,addr.getAddress());
+				ps.executeUpdate();
+
+				ps=conn.prepareStatement(deleteMsgA);
+				ps.setBytes(1,addr.getAddress());
 				ps.executeUpdate();
 				
 			}else{
