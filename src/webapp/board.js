@@ -234,6 +234,18 @@ fe.onchange=()=>{
     	fe.value='';
 	}
 }
+
+function formatSize(b){
+	if(b<1024){
+		return b+" B";
+	}else if(b<1024**2){
+		return Math.round(b/102.4)/10+" KB";
+	}else if(b<1024**3){
+		return Math.round(b/(1024**2/10))/10+" MB";
+	}else{
+		return Math.round(b/(1024**3/10))/10+" GB";
+	}
+}
 var allFiles = new Map();
 function wrapPosting(){
 	function label(){
@@ -252,7 +264,7 @@ function wrapPosting(){
 		allFiles.set(file.name,{"prog":0,"file":file,"path":null});
 	}for (let [n,f] of allFiles){
 		link=f.path?`href='${ATTACHMENT_PATH+f.path}'`:"";
-		out+=`<a ${link} id='attachment_${f.file.name}'>, File:${f.file.name}, ${f.file.size} B - <b>${f.prog}%</b></a>`;
+		out+=`<a ${link} id='attachment_${f.file.name}'>, File:${f.file.name}, ${formatSize(f.file.size)} - <b>${f.prog}%</b></a>`;
 	}
 	return out;
 }
@@ -747,7 +759,7 @@ setInterval(updateTimestamps,10000);
 function post(){
 	const textbox=document.getElementById("input_text");
 	var contents=textbox.value.replaceAll("\n", "<br>");
-	if(contents.length==0&&!([...allFiles.values()].filter(x=>x.path)))
+	if(contents.length==0&&!([...allFiles.values()].filter(x=>x.path).length))
 		return;
 	postString(contents);
 	textbox.value="";
@@ -801,7 +813,7 @@ function postString(x){
 document.addEventListener('keypress', (event)=>{
 	if(event.key == 'Enter' && event.shiftKey== false){
 		const textbox=document.getElementById("input_text");
-		if(textbox.value.trim().length){
+		if(textbox.value.trim().length || (allFiles.size && [...allFiles.values()].filter(x=>x.path).length)){
 			document.getElementById("PostButton").onsubmit();
 			textbox.value="";
 		}
