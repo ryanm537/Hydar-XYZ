@@ -20,6 +20,7 @@ static final String FILE_ROOT_PATH="/attachments";
 static Path fileRoot = null;
 static SecureRandom rng = new SecureRandom();
 static final Pattern FILE_SAFE = Pattern.compile("[^a-zA-Z0-9-_.]");
+static volatile long lastUpdate=0;
 %>
 <%
 if(fileRoot==null){
@@ -47,8 +48,7 @@ if(request.getMethod().equals("POST")){
 			response.sendError(403);
 			return;
 		}
-		// CHECK PERMS
-		
+		//1. check perm
 		String str = "SELECT user.permission_level FROM user WHERE user.id = ?" ;
 		var ps = conn.prepareStatement(str);
 		ps.setInt(1,uid);
@@ -61,7 +61,22 @@ if(request.getMethod().equals("POST")){
 		if(!perms.equals("water_hydar") && !perms.equals("great_white")){
 			throw new Exception();
 		}
-		//1. check perm
+		//1.5 delete expired files
+		long now=System.currentTimeMillis();
+		if(now-lastUpdate > 3600*1000*12){
+			lastUpdate=now;
+			ps = conn.prepareStatement("SELECT path, filename FROM `file` WHERE post IS NULL OR user IS NULL OR board IS NULL OR (post = -1 AND date < ?)");
+			ps.setLong(1,now-3600*1000*12);
+			result = ps.executeQuery();
+			while(result.next()){
+				String path = result.getString("path");
+				Files.delete(fileRoot.resolve(path).resolve(result.getString("filename")));
+				Files.delete(fileRoot.resolve(path));
+			}
+			ps = conn.prepareStatement("DELETE FROM `file` WHERE post IS NULL OR user IS NULL OR board IS NULL OR (post = -1 AND date < ?)");
+			ps.setLong(1,now-3600*1000*12);
+			ps.executeUpdate();
+		}
 		//2. check max size in db(should be context param, hydar param for ee uploads too)
 		long sizeLeft=Integer.MAX_VALUE;
 		long totalUploadSize=0;
@@ -83,11 +98,11 @@ if(request.getMethod().equals("POST")){
 			
 			sizeLeft = maxTotal - (totalUploadSize + uploadSize);
 		}
-		if(sizeLeft < -1 * uploadSize){
+		if(uploadSize > maxTotal){
 			response.sendError(400);
 			return;
 		}
-		ps = conn.prepareStatement("SELECT path, filename, size FROM `file` WHERE user = ? AND post <> -1 ORDER BY date ASC");
+		ps = conn.prepareStatement("SELECT path, filename, size FROM `file` WHERE user = ? ORDER BY date ASC");
 		ps.setInt(1,uid);
 		result=ps.executeQuery();
 		while((uploadCount > maxCount || sizeLeft < uploadSize) && result.next()){
