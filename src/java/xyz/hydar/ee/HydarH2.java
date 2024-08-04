@@ -4,13 +4,13 @@ import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Optional;
 import java.net.SocketTimeoutException;
 import java.net.http.HttpTimeoutException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.stream.IntStream;
@@ -446,6 +446,7 @@ class Frame{
 	private Optional<Limiter> limiter=Optional.empty();
 	private Optional<ByteBuffer> streamBuffer=Optional.empty();
 	private volatile Optional<Lock> lock=Optional.empty();
+	private final int MAX_DATA_FRAME_SPLITS=8;
 	//error codes
 	public Frame(byte type){
 		this.type=type;
@@ -578,15 +579,19 @@ class Frame{
 				.putInt(streamNum()&0x7ffffff);
 	}
 	public void writeTo(OutputStream o, boolean flush) throws IOException{
+		writeTo(o,flush,0);
+	}
+	private void writeTo(OutputStream o, boolean flush, int splits) throws IOException{
 		Frame part2=null;
+		int neededWindow=splits<MAX_DATA_FRAME_SPLITS?1:length;
 		if(stream!=null && type==Frame.DATA) {
 			int attempts=Config.H2_WINDOW_ATTEMPTS, windowLeft=stream.controlFlow();
-			while(windowLeft<=0&&stream.canSend()){
+			while(windowLeft<neededWindow&&stream.canSend()){
 				attempts--;
 				//System.out.println("ATTEMPT "+attempts);
 				if(attempts<0) {
 					//kill h2 if no global window, kill stream if no stream window
-					if(stream.remoteWindow.get()>0 && stream.canSend())
+					if(stream.remoteWindow.get()>=neededWindow && stream.canSend())
 						stream.h2.goaway(0,"Flow control timeout");
 					else stream.close(5);
 					return;
@@ -596,7 +601,7 @@ class Frame{
 			}
 			//we have some window available but not the full length - split the frame
 			//this way client will notice 0 window and request more
-			if(stream.canSend() && windowLeft>0 && windowLeft<this.length) {
+			if(splits<MAX_DATA_FRAME_SPLITS && stream.canSend() && windowLeft>0 && windowLeft<this.length) {
 				int oldLength = length;
 				length = windowLeft;
 				endStream=false;
@@ -640,11 +645,11 @@ class Frame{
 			o.write(buf.array(),0,9+length);
 			if(flush)
 				o.flush();
+			if(part2!=null) {
+				part2.writeTo(o,flush,splits+1);
+			}
 		}finally {
 			lock.ifPresent(Lock::unlock);
-		}
-		if(part2!=null) {
-			part2.writeTo(o,flush);
 		}
 	}
 	public byte[] toByteArray() {
