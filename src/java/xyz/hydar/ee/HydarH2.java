@@ -45,6 +45,7 @@ public class HydarH2{
 	public volatile int localWindow;
 	//longadder might be better but this saves memory
 	public final AtomicInteger remoteWindow = new AtomicInteger(remoteSettings[Setting.SETTINGS_INITIAL_WINDOW_SIZE]);
+	public final AtomicInteger senders=new AtomicInteger();//used for upload buffer limiting
 	volatile ByteBuffer input=ByteBuffer.allocate(0);
 	volatile ByteBuffer output=ByteBuffer.allocate(32);
 	public static final Frame SETTINGS_ACK=Frame.of(Frame.SETTINGS).ackFlag();
@@ -77,7 +78,6 @@ public class HydarH2{
 	ByteBuffer input(int length) {
 		return (length>input.capacity())?(input=ByteBuffer.allocate(length)):input;
 	}
-
 	public void goaway(int error, String info){
 		List.copyOf(streams.values()).forEach(x->x.state=HStream.State.closed);
 		streams.clear();
@@ -169,6 +169,7 @@ class HStream{
 	};
 	private BAOS block=EMPTY_BAOS;
 	private BAOS dataBlock=EMPTY_BAOS;
+	private int dataBlockCount=0;
 	public static final byte[] WINDOW_INC = ByteBuffer.allocate(4).putInt(Config.H2_LOCAL_WINDOW_INC).array();
 	private static final byte[][] CLOSE_REASONS=IntStream.range(0,20)
 		.mapToObj(x->ByteBuffer.allocate(4).putInt(x).array())
@@ -193,7 +194,9 @@ class HStream{
 	public void close(int reason) throws IOException{
 		state=State.closed;
 		if(reason<0)return;
-		h2.streams.remove(this.number);
+		if(h2.streams.remove(this.number)!=null&&dataBlock.size()>0) {
+			h2.senders.decrementAndGet();
+		}
 			Frame.of(Frame.RST_STREAM, this)
 				.withData(CLOSE_REASONS[reason])
 				.writeToH2(h2, true);
@@ -222,9 +225,15 @@ class HStream{
 		return block==EMPTY_BAOS?(block=new BAOS(256)):block;
 	}
 	private BAOS dataBlock() {
-		return dataBlock==EMPTY_BAOS?(dataBlock=new BAOS(256)):dataBlock;
+		if(dataBlock==EMPTY_BAOS) {
+			h2.senders.incrementAndGet();
+			dataBlock=new BAOS(256);
+		}
+		return dataBlock;
 	}
-
+	public int dataBlockSize() {
+		return dataBlock.size();
+	}
 	/**
 	 * An endpoint MUST NOT send frames other than PRIORITY on a closed stream. An
 	 * endpoint that receives any frame other than PRIORITY after receiving a
@@ -246,6 +255,7 @@ class HStream{
 			default -> false;
 		};
 	}
+
 	public void recv(Frame frame, ByteBuffer dis, InputStream more) throws IOException{
 		
 		switch(frame.type){
@@ -255,6 +265,7 @@ class HStream{
 					break;
 				}
 				blockType=Frame.HEADERS;
+				
 				if(canReceive()){
 					h2.minStream=this.number;
 					this.state=State.open;
@@ -311,6 +322,13 @@ class HStream{
 						}
 						h2.localWindow += Config.H2_LOCAL_WINDOW_INC;
 						Frame.of(Frame.WINDOW_UPDATE).withData(WINDOW_INC).writeToH2(h2,false);
+					}
+					//skip length calculation if limiter disabled, and only every 100 frames
+					if((++dataBlockCount%100==0)&&h2.thread.limiter!=null && !(h2.thread.limiter.checkBuffer(Integer.MAX_VALUE))) {
+						if(!h2.thread.limiter.checkBuffer(dataBlock.size() * h2.senders.get())) {
+							close(0xb);//ENHANCE_YOUR_CALM
+							return;
+						}
 					}
 					dataBlock().write(dis.array(), dis.position(), frame.length);
 					if(frame.endStream){
