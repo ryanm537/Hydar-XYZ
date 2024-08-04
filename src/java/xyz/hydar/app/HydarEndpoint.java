@@ -909,6 +909,8 @@ class Board{
 			}
 				
 		}
+		if(files==null)
+			files=new String[0];
 		if(inputText==null)
 			return -1;
 		int newID=-1;
@@ -921,7 +923,6 @@ class Board{
 			return -1;
 		//verify file ownership
 		for(String f:files) {
-			System.out.println("AAA"+f);
 			if(fileQueue.remove(f)!=u.id)
 				return -1;
 		}
