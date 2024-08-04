@@ -68,7 +68,14 @@ public class HydarWS extends OutputStream{
 		if(deflate) {
 			deflate_baos=new BAOS(256);
 			deflate_dos=new DeflaterOutputStream(deflate_baos,new Deflater(Deflater.DEFAULT_COMPRESSION, true),true);
-			inflate_baos = new BAOS(64);
+			inflate_baos = new BAOS(64) {
+				@Override
+				protected void ensureCapacity(int capacity) {
+					if(!thread.limiter.checkBuffer(capacity))
+						throw new RuntimeException("Buffer overflow");
+					super.ensureCapacity(capacity);
+				}
+			};
 			inflate_ios = new InflaterOutputStream(inflate_baos,new Inflater(true));
 		}
 		input=new byte[1024];

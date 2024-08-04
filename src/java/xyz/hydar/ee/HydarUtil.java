@@ -339,7 +339,7 @@ class BAOS extends ByteArrayOutputStream {
 	public BAOS(int length) {
 		super(length);
 	}
-	private void ensureCapacity(int minCapacity) {
+	protected void ensureCapacity(int minCapacity) {
 		int oldCapacity = buf.length;
 		int minGrowth = minCapacity - oldCapacity;
 		if (minGrowth > 0) {
