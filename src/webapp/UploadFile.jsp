@@ -11,9 +11,10 @@
 <%@ page import="javax.servlet.http.*,javax.servlet.*"%>
 <%!
 //limits only for gw's
-static final int MAX_TOTAL = 1_000_000_000;
+static final int MAX_TOTAL = 100_000_000;
 static final int MAX_COUNT = 1024;
 static final int MAX_PER=10_240_000;
+static final long HYDAR_MAX_TOTAL = 60_000_000_000l;
 static final int UPLOAD_SLEEP=2000;
 static final String FILE_ROOT_PATH="/attachments";
 static Path fileRoot = null;
@@ -62,50 +63,53 @@ if(request.getMethod().equals("POST")){
 		}
 		//1. check perm
 		//2. check max size in db(should be context param, hydar param for ee uploads too)
-		int sizeLeft=Integer.MAX_VALUE;
-		int totalUploadSize=0;
+		long sizeLeft=Integer.MAX_VALUE;
+		long totalUploadSize=0;
 		int uploadCount = 0;
 		int uploadSize = request.getContentLength();
-		System.out.println("hdyar");
-		if(perms.equals("great_white")){
-			
-			ps = conn.prepareStatement("SELECT COUNT(*),SUM(size) FROM `file` WHERE user = ?");
-			ps.setInt(1,uid);
-			result=ps.executeQuery();
-			while(result.next()){
-				uploadCount = result.getInt(1);
-				totalUploadSize = result.getInt(2);
-				
-				sizeLeft = MAX_TOTAL - (totalUploadSize + uploadSize);
-			}
-			if(sizeLeft < -1 * uploadSize){
-				response.sendError(400);
-				return;
-			}
-			ps = conn.prepareStatement("SELECT path, filename, size FROM `file` ORDER BY post WHERE user = ? AND post <> -1");
-			ps.setInt(1,uid);
-			result=ps.executeQuery();
-			while((uploadCount > MAX_COUNT || sizeLeft < uploadSize) && result.next()){
-				ps = conn.prepareStatement("DELETE FROM `file` WHERE path=?");
-				String path = result.getString("path");
-				ps.setString(1,path);
-				ps.executeUpdate();
-				Files.delete(fileRoot.resolve(path).resolve(result.getString("filename")));
-				Files.delete(fileRoot.resolve(path));
-				sizeLeft += result.getInt("size");
-				uploadCount--;
-			}
-			if(sizeLeft < uploadSize){
-				response.sendError(400);
-				return;
-			}
+		boolean hydar=perms.equals("water_hydar");
+		if(!hydar && uploadSize>MAX_PER){
+			response.sendError(400);
+			return;
 		}
+		long maxTotal = hydar?HYDAR_MAX_TOTAL:MAX_TOTAL;
+		int maxCount = hydar?Integer.MAX_VALUE:MAX_COUNT;
+		ps = conn.prepareStatement("SELECT COUNT(*),SUM(size) FROM `file` WHERE user = ?");
+		ps.setInt(1,uid);
+		result=ps.executeQuery();
+		while(result.next()){
+			uploadCount = result.getInt(1);
+			totalUploadSize = result.getLong(2);
+			
+			sizeLeft = maxTotal - (totalUploadSize + uploadSize);
+		}
+		if(sizeLeft < -1 * uploadSize){
+			response.sendError(400);
+			return;
+		}
+		ps = conn.prepareStatement("SELECT path, filename, size FROM `file` WHERE user = ? AND post <> -1 ORDER BY date ASC");
+		ps.setInt(1,uid);
+		result=ps.executeQuery();
+		while((uploadCount > maxCount || sizeLeft < uploadSize) && result.next()){
+			ps = conn.prepareStatement("DELETE FROM `file` WHERE path=?");
+			String path = result.getString("path");
+			ps.setString(1,path);
+			ps.executeUpdate();
+			Files.delete(fileRoot.resolve(path).resolve(result.getString("filename")));
+			Files.delete(fileRoot.resolve(path));
+			sizeLeft += result.getInt("size");
+			uploadCount--;
+		}
+		if(sizeLeft < uploadSize){
+			response.sendError(400);
+			return;
+		}
+		
 		//TODO: clean up -1 attachments
 		//3. syphon thing into a new file with limited buffer, and db
 		byte[] pathBytes = new byte[12];
 		rng.nextBytes(pathBytes);
 		String path = Base64.getUrlEncoder().encodeToString(pathBytes);
-		System.out.println(path);
 		ps = conn.prepareStatement("INSERT INTO `file`(path, filename, user, board, post, size, date) VALUES(?,?,?,?,?,?,?)");
 		ps.setString(1,path);
 		ps.setString(2,filename);
