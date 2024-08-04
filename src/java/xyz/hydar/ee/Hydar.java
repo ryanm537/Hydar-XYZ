@@ -528,7 +528,7 @@ class ServerThread implements Runnable {
 				String range=headers.get("range");
 				if(range!=null&&config.RANGE_NO_JSP&&!resp.parseRange(range)) {
 					getError("416",hstream)
-						.header("Content-Range","*"+"/"+length)
+						.header("Content-Range","bytes */"+length)
 						.write();
 					return;
 				}
@@ -1544,7 +1544,7 @@ public class Hydar {
 				return true;
 			}
 			status(206);
-			header("Content-Range",""+realStart+"-"+realEnd+"/"+realLength);
+			header("Content-Range","bytes "+realStart+"-"+realEnd+"/"+realLength);
 			return true;
 			
 		}
