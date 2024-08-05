@@ -655,10 +655,9 @@ public class HydarEE{
 			String mapPath=headers.get(":path");
 			path= mapPath==null ? null : mapPath.split("\\?",2)[0];
 			String ct = headers.get("content-type");
+			System.out.println(ct);
 			if(ct==null||!method.equals("POST")) {}
 			else if(ct.equals("application/x-www-form-urlencoded")) {
-				query+="&"+new String(body,StandardCharsets.ISO_8859_1);
-			}else if(ct.equals("text/plain")) {
 				query+="&"+new String(body,StandardCharsets.ISO_8859_1);
 			}
 			this.query=query;
