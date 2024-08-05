@@ -26,7 +26,6 @@ static volatile long lastUpdate=0;
 if(fileRoot==null){
 	fileRoot = Path.of(request.getServletContext().getRealPath(FILE_ROOT_PATH));
 }
-System.out.println(request.getQueryString());
 if(request.getMethod().equals("POST")){
 	Class.forName("com.mysql.jdbc.Driver");
 	DataSource dataSource = (DataSource) new InitialContext().lookup("java:comp/env/jdbc/hydar");
@@ -93,6 +92,12 @@ if(request.getMethod().equals("POST")){
 		}
 		long maxTotal = hydar?HYDAR_MAX_TOTAL:MAX_TOTAL;
 		int maxCount = hydar?Integer.MAX_VALUE:MAX_COUNT;
+		/**ps = conn.prepareStatement("SELECT COUNT(*),SUM(size) FROM `file` WHERE user = ? AND ");
+		ps.setInt(1,uid);
+		result=ps.executeQuery();
+		while(result.next()){
+			int dailyUpload=result.getInt(1);
+		}*/
 		ps = conn.prepareStatement("SELECT COUNT(*),SUM(size) FROM `file` WHERE user = ?");
 		ps.setInt(1,uid);
 		result=ps.executeQuery();

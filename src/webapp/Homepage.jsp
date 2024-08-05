@@ -440,6 +440,10 @@ try(Connection conn=dataSource.getConnection()){
 		out.print("</p>");
 	%>
 	</div>
+	<div id="overlay" hidden=1></div>
+	<div id="imageViewer" class="popup" hidden=1>
+		<a id="imageViewerTopCaption"></a>
+	</div>
 	<div class = "susRectangle" id = "susRectangle" hidden = true>
 	
 		<div class = "rectSUS" id = "rectSUS">

@@ -521,7 +521,6 @@ class Board{
 		if(files.length>9) {
 			return null;
 		}
-		System.out.println(Arrays.toString(files));
 		inputText=msg[3];
 		//maybe?
 		//inputText = inputText.replace("\n", "");

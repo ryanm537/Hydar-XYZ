@@ -32,28 +32,75 @@ function probeType(x){
 			return "file";
 	}
 }
-
+function preview(x){//show big sus rectangle with thing
+	let filename=x.substring(x.lastIndexOf('/')+1);
+	let vwr=document.getElementById("imageViewer");
+	let a = document.getElementById("imageViewerTopCaption");
+	a.innerText="Viewing attachment: "+filename;
+	fetch(ATTACHMENT_PATH+x,{method:"HEAD"}).then(response=>{
+		console.log(response.headers.get("content-length"));
+		a.innerText+=" - "+response.headers.get("content-type")+", "+formatSize(parseInt(response.headers.get("content-length")));
+	});
+	a.href=ATTACHMENT_PATH+x;
+	a.target="_blank";
+	vwr.hidden=0;
+	document.getElementById("overlay").hidden=0;
+	let type=probeType(x);
+	if(type=="image"||type=="video"||type=="audio"){
+		vwr.style.overflow="hidden";
+		let img = document.createElement(type=="image"?"img":type);
+		if(type=="video"||type=="audio")
+			img.setAttribute("controls","");
+		img.src=ATTACHMENT_PATH+x;
+		img.style.width="auto";
+		img.style.height="auto";
+		vwr.appendChild(img);
+	}else{
+		vwr.style.overflow="scroll";
+		let frame=document.createElement('iframe');
+		frame.src=ATTACHMENT_PATH+x;
+		frame.style.width="100%";
+		frame.style.height="100%";
+		frame.style.background="lightgray";
+		vwr.appendChild(frame);
+	}
+	return false;
+}
+document.getElementById("overlay").addEventListener('click', (evt)=>{
+	const ele=document.getElementById("imageViewer");
+	if(!ele.hasAttribute("hidden")){
+		if(ele!=null && !ele.contains(evt.target)){
+			[...ele.querySelectorAll("img,audio,video,iframe")].forEach(x=>ele.removeChild(x));
+			ele.setAttribute("hidden",1);
+			document.getElementById("overlay").setAttribute("hidden",1);
+		}
+	}
+});
 function wrapFile(x){//html for a file
+	//name2 = x.substring(0,x.lastIndexOf(".")).substring(0,Math.min(16,))
+	let filename=x.substring(x.lastIndexOf('/')+1);
 	switch(probeType(x)){
 		case "image":
 		case "video":
 			
 			return `
-			<a href=${ATTACHMENT_PATH+x}>
-			<div style='position:relative;width:120px;height:120px;text-align:left;'>
-			${x.substring(x.lastIndexOf('/')+1)}
-			<img width=100 onclick='return false;' style='z-index:-1;position:absolute;left:0px;top:20px;bottom:0px;display:inline' src='${ATTACHMENT_PATH+x+".jpg"}'>
-			
-			</div>
+			<a href=${ATTACHMENT_PATH+x} onclick="return preview('${x}')">
+				<div class='attGridSquare'">
+					<div class='attGridName'>
+						${filename}
+					</div>
+					<img width=100 height=100 onclick='return false;' src='${ATTACHMENT_PATH+x+".jpg"}'>
+				</div>
 			</a>
 			`;
 		default:
 			return `
-			<a href=${ATTACHMENT_PATH+x}>
-			<div style='position:relative;width:120px;height:120px;text-align:left;'>
-			${x.substring(x.lastIndexOf('/')+1)}
-			<img width=100 onclick='return false;' style='z-index:-1;position:absolute;left:0px;top:20px;bottom:0px;display:inline' src='images/file.png'>
-			
+			<a href=${ATTACHMENT_PATH+x} download=${filename} onclick="return preview('${x}')">
+				<div class='attGridSquare'>
+					<div class='attGridName'>
+						${filename}
+					</div>
+				<img  width=100 height=100 onclick='return false;' src='images/file.png'>
 			</div></a>
 			`;
 	}
@@ -84,7 +131,7 @@ function wrapMessage(x){//generate html for a message element
 	<div id='three_${x.id}' class='three'>&nbsp;(just now): </div><br>
 	<div class='msgText' id='msgText_${x.id}' data-tid='${x.transaction}' 
 		style='opacity:${x.verified?1:0.5}'>${decodeURIPlus(x.message)}</div>
-	${x.files?"<b>Attachments:<b><br><div style='font-size:20;height:120px;width:1200px;display: grid;grid-template-columns: repeat(10, 1fr);gap: 8px;grid-auto-rows: 120px;align-items: start;'>"+x.files.map(wrapFile).join('')+"</div>":""}
+	${x.files?"<b>Attachments:<b><br><div class='attGrid'>"+x.files.map(wrapFile).join('')+"</div>":""}
 	<br clear='left'>
 	</div>`;
 	

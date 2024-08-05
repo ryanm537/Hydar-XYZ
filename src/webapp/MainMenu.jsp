@@ -330,7 +330,7 @@ try(Connection conn=dataSource.getConnection()){
 					out.print("<style type=\"text/css\"> a{color:LightGrey; font-family:calibri, arial; text-align:right; font-size:15px}</style>");
 					
 					%>
-					<div id = "aboutButton", class = "aboutButton">
+					<div id = "aboutButton" class = "aboutButton">
 						<a href = "About.jsp" class = "aboutButton">About</a>
 					</div>
 					

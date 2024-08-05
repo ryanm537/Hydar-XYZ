@@ -449,8 +449,9 @@ async function handleNegotiationNeededEvent(target) {
 var smaller = false;
 window.addEventListener('click', (evt)=>{
 	const ele=document.getElementById("susRectangle");
+	const overlay=document.getElementById("overlay");
 	if(!ele.hasAttribute("hidden"))
-	if(ele!=null && !ele.contains(evt.target)){
+	if(ele!=null && !ele.contains(evt.target)&&!overlay.contains(evt.target)){
 		if(smaller == false){
 			smaller = true;
 			ele.style.top = "80%";
