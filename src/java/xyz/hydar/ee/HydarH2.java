@@ -206,6 +206,9 @@ class HStream{
 				.withData(CLOSE_REASONS[reason])
 				.writeToH2(h2, true);
 	}
+	public boolean isHead(boolean prev) {
+		return heads!=null?"HEAD".equals(heads.get(":method")):prev;
+	}
 	//wait for window to allow sending
 	public int controlFlow(){
 		long time=0,timer=Config.H2_REMOTE_WINDOW_TIMER,max=Config.H2_REMOTE_WINDOW_TIMER;
@@ -446,7 +449,6 @@ class HStream{
 				streamTask.run();
 			}
 			}catch(Exception e) {
-				System.out.println("S"+number+" "+frame.endStream+" "+frame.type);
 				e.printStackTrace();
 				
 			}

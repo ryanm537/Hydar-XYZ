@@ -101,7 +101,7 @@ class ServerThread implements Runnable {
 	public volatile HydarEE.HttpSession session=null;
 	
 	//FIXME:still not threadsafe, might change before response finishes writing
-	private boolean isHead=false;//INCOMING hstream
+	private volatile boolean isHead=false;//INCOMING hstream
 	public volatile Hydar hydar;
 	public volatile Config config=Hydar.hydars.get(0).config;
 	/**
@@ -614,14 +614,18 @@ class ServerThread implements Runnable {
 	/**Utility to build a response from the current context, with as much information as possible.*/
 	protected Hydar.Response newResponse(String code, Optional<HStream> hs) {
 		var build=hydar.new Response(code).version(h2==null?"HTTP/1.1":"HTTP/2.0").hstream(hs).output(output).limiter(limiter);
-		if(isHead)build.disableLength().disableData();
+		boolean isHead2=hs.map(x->x.isHead(isHead)).orElse(isHead);
+		if(isHead2) {//prioritize h2 if present
+			build.disableData();
+		}
 		return build;
 	}
 	
 	/**Build an error response from Response::getErrorPage, which loads from HydarConfig.*/
 	protected Hydar.Response getError(String code, Optional<HStream> hs) {
 		String error=config.getErrorPage(code);
-		var builder = !isHead?newResponse(code,hs).data(error.getBytes()):newResponse(code,hs);
+		boolean isHead2=hs.map(x->x.isHead(isHead)).orElse(isHead);
+		var builder = !isHead2?newResponse(code,hs).data(error.getBytes()):newResponse(code,hs);
 		return builder;
 	}
 	/**Build and immediately send an error. Convenience method.*/
