@@ -19,18 +19,55 @@ const DEFAULT_PFP="images/hydar2.png";
 const ATTACHMENT_PATH="/attachments/"
 const DEFAULT_VOLS="50,50,50,0";
 const MSGS = document.getElementById("msgs");
-function wrapFile(x){//html for a file
+function probeType(x){
 	let url = ATTACHMENT_PATH+x;
 	switch(url.substring(url.lastIndexOf("."))){
 		case ".png": case ".jpg": case ".jpeg": case ".gif": case ".tiff": case ".tif": case ".webp": case ".svg": case ".bmp":
-			return `<img src='${ATTACHMENT_PATH+x}'></img><br>`;
+			return "image";
 		case ".mp4": case ".3gp": case ".flv": case ".webm": case ".mov": case ".avi": case ".wmv":
-			return `<video controls src='${ATTACHMENT_PATH+x}'></video><br>`;
+			return "video";
 		case ".mp3": case ".ogg": case ".wav": case ".midi": case ".flac": case ".m4a": case ".aac":
+			return "audio";
+		default:
+			return "file";
+	}
+}
+
+function wrapFile(x){//html for a file
+	switch(probeType(x)){
+		case "image":
+		case "video":
+			
+			return `
+			<a href=${ATTACHMENT_PATH+x}>
+			<div style='position:relative;width:120px;height:120px;text-align:left;'>
+			${x.substring(x.lastIndexOf('/')+1)}
+			<img width=100 onclick='return false;' style='z-index:-1;position:absolute;left:0px;top:20px;bottom:0px;display:inline' src='${ATTACHMENT_PATH+x+".jpg"}'>
+			
+			</div>
+			</a>
+			`;
+		default:
+			return `
+			<a href=${ATTACHMENT_PATH+x}>
+			<div style='position:relative;width:120px;height:120px;text-align:left;'>
+			${x.substring(x.lastIndexOf('/')+1)}
+			<img width=100 onclick='return false;' style='z-index:-1;position:absolute;left:0px;top:20px;bottom:0px;display:inline' src='images/file.png'>
+			
+			</div></a>
+			`;
+	}
+		/** 
+	switch(probeType(x)){
+		case "image":
+			return `<img src='${ATTACHMENT_PATH+x}'></img><br>`;
+		case "video":
+			return `<video controls src='${ATTACHMENT_PATH+x}'></video><br>`;
+		case "audio":
 			return `<audio controls src='${ATTACHMENT_PATH+x}'></audio><br>`;
 		default:
 			return `<i>Attachment:</i> <a href='${ATTACHMENT_PATH+x}'>${x.split('/')[1]}</a><br>`;
-	}
+	}*/
 }
 function wrapMessage(x){//generate html for a message element
 	var user=users.get(x.uid);
@@ -47,7 +84,7 @@ function wrapMessage(x){//generate html for a message element
 	<div id='three_${x.id}' class='three'>&nbsp;(just now): </div><br>
 	<div class='msgText' id='msgText_${x.id}' data-tid='${x.transaction}' 
 		style='opacity:${x.verified?1:0.5}'>${decodeURIPlus(x.message)}</div>
-	${x.files?x.files.map(wrapFile).join(''):""}
+	${x.files?"<b>Attachments:<b><br><div style='font-size:20;height:120px;width:1200px;display: grid;grid-template-columns: repeat(10, 1fr);gap: 8px;grid-auto-rows: 120px;align-items: start;'>"+x.files.map(wrapFile).join('')+"</div>":""}
 	<br clear='left'>
 	</div>`;
 	
@@ -186,46 +223,48 @@ fe.onchange=()=>{
 		if(test.innerHTML!=posting)
 			test.innerHTML=posting;
 		for(let file of fe.files){
-			
-			let target='/UploadFile.jsp?board='+boardId+"&filename="+file.name;
-			allFiles.set(file.name,{"prog":0,"file":file,"path":null});
-			let request = new XMLHttpRequest();
-		    request.upload.addEventListener('progress', function (e) {
-				let attElem=document.getElementById('attachment_'+file.name);
-		        if (e.loaded <= file.size) {
-		            var percent = Math.round(e.loaded / file.size * 100);
-		            allFiles.get(file.name).prog=percent;
-		            if(attElem)
-		           	 	attElem.children[0].innerHTML = percent + '%';
-		        } 
-		        if(e.loaded == e.total){
-		            allFiles.get(file.name).prog=99;
-		            if(attElem)
-		           		attElem.children[0].innerHTML = '99%';
-		        }
-		    });    
-		    request.addEventListener('loadend', function (e) {
-				if(request.status==200){
+			rescaleImage(file).then(thumbnail=>{
+				let target='/UploadFile.jsp?board='+boardId+"&filename="+file.name+"&thumbsize="+thumbnail.size;
+				let newFile=new Blob([file,thumbnail],{"type":"application/octet-stream"});
+				allFiles.set(file.name,{"prog":0,"file":file,"path":null});
+				let request = new XMLHttpRequest();
+			    request.upload.addEventListener('progress', function (e) {
 					let attElem=document.getElementById('attachment_'+file.name);
-		            allFiles.get(file.name).prog=100;
-					if(attElem)attElem.children[0].innerHTML = '100%';
-					let text=request.responseText;
-					
-			        console.log(text);
-			        allFiles.get(file.name).path=text;
-			        //TODO: img preview and stuff
-			        if(attElem)attElem.setAttribute("href",ATTACHMENT_PATH+text);
-		        }else{
-					allFiles.delete(file.name);
-					try{
-						document.getElementById("posting").removeChild(document.getElementById('attachment_'+file.name));
-					}catch(e){}
-					console.log(request.status);
-				}
-		    }); 
-		    request.open('post', target);
-		    request.timeout = 300000;
-		    request.send(file);
+			        if (e.loaded <= file.size) {
+			            var percent = Math.round(e.loaded / file.size * 100);
+			            allFiles.get(file.name).prog=percent;
+			            if(attElem)
+			           	 	attElem.children[0].innerHTML = percent + '%';
+			        } 
+			        if(e.loaded == e.total){
+			            allFiles.get(file.name).prog=99;
+			            if(attElem)
+			           		attElem.children[0].innerHTML = '99%';
+			        }
+			    });    
+			    request.addEventListener('loadend', function (e) {
+					if(request.status==200){
+						let attElem=document.getElementById('attachment_'+file.name);
+			            allFiles.get(file.name).prog=100;
+						if(attElem)attElem.children[0].innerHTML = '100%';
+						let text=request.responseText;
+						
+				        console.log(text);
+				        allFiles.get(file.name).path=text;
+				        //TODO: img preview and stuff
+				        if(attElem)attElem.setAttribute("href",ATTACHMENT_PATH+text);
+			        }else{
+						allFiles.delete(file.name);
+						try{
+							document.getElementById("posting").removeChild(document.getElementById('attachment_'+file.name));
+						}catch(e){}
+						console.log(request.status);
+					}
+			    }); 
+			    request.open('post', target);
+			    request.timeout = 30000;
+			    request.send(newFile);
+			});
 		}
 	}catch(e){
 		console.log(e);
@@ -234,7 +273,80 @@ fe.onchange=()=>{
     	fe.value='';
 	}
 }
-
+function videoToImg(file){
+	if(probeType(file.name)=="image"){
+		return new Promise((resolve,_)=>resolve(file));
+	}else if(probeType(file.name)!="video"){
+		return new Promise((resolve,_)=>resolve(null));
+	}
+	let video = document.createElement("video");
+	let source = document.createElement("source");
+	let canvas = document.createElement('canvas'), ctx = canvas.getContext("2d");
+	let ref=URL.createObjectURL(file);
+	source.setAttribute('src', ref);
+    video.appendChild(source);
+	video.setAttribute('crossorigin', 'anonymous');
+    video.setAttribute('preload', 'metadata');
+    video.style.display = 'none';
+    canvas.style.display = 'none';
+    document.body.appendChild(canvas);
+    document.body.appendChild(video);
+	var p = new Promise((resolve,_)=>{
+		video.currentTime = 0.001;
+		video.load();
+		video.addEventListener('loadedmetadata', function() {
+	        video.oncanplay=function(){
+				setTimeout(()=>{
+				canvas.width = video.videoWidth;
+				canvas.height = video.videoHeight;
+				ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+				canvas.toBlob(x=>{
+					resolve(x);
+					URL.revokeObjectURL(ref);
+					video.remove();
+               	 	canvas.remove();
+				},"image/jpg",0.25);
+				},2000);
+			}
+		});
+	});
+	return p;
+}
+async function rescaleImage(file_) {
+	let width=100;
+	let canvas = document.createElement('canvas'), ctx = canvas.getContext("2d");
+	let oc = document.createElement('canvas'), octx = oc.getContext('2d');
+	return new Promise((resolve,_)=>{
+		videoToImg(file_).then(file=>{
+			if(!file){
+				resolve(file_);
+				return;
+			}
+			let img = document.createElement("img");
+			img.src=URL.createObjectURL(file);
+			img.addEventListener('load', function() {
+				canvas.width = width;
+				canvas.height = canvas.width * img.height / img.width;
+				var cur = {
+					width: Math.floor(img.width * 0.5),
+					height: Math.floor(img.height * 0.5)
+				};
+				oc.width = cur.width;
+				oc.height = cur.height;
+				octx.drawImage(img, 0, 0, cur.width, cur.height);
+				while (cur.width * 0.5 > width) {
+					cur = {
+						width: Math.floor(cur.width * 0.5),
+						height: Math.floor(cur.height * 0.5)
+					};
+					octx.drawImage(oc, 0, 0, cur.width * 2, cur.height * 2, 0, 0, cur.width, cur.height);
+				}
+				ctx.drawImage(oc, 0, 0, cur.width, cur.height, 0, 0, canvas.width, canvas.height);
+				canvas.toBlob(x=>resolve(x),"image/jpeg",0.25);
+			});
+		});
+	});
+}
 function formatSize(b){
 	if(b<1024){
 		return b+" B";

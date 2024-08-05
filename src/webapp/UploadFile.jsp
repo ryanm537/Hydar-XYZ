@@ -26,7 +26,7 @@ static volatile long lastUpdate=0;
 if(fileRoot==null){
 	fileRoot = Path.of(request.getServletContext().getRealPath(FILE_ROOT_PATH));
 }
-
+System.out.println(request.getQueryString());
 if(request.getMethod().equals("POST")){
 	Class.forName("com.mysql.jdbc.Driver");
 	DataSource dataSource = (DataSource) new InitialContext().lookup("java:comp/env/jdbc/hydar");
@@ -39,9 +39,12 @@ if(request.getMethod().equals("POST")){
 				filename=new StringBuilder(64)
 						.append(filename,0,Math.max(0,64-part2.length()))
 						.append(part2)
-						.toString();
+						.toString(); 
 			}else filename=filename.substring(64);
 		}
+		String thumbSizeString = request.getParameter("thumbsize");
+		int thumbSize = thumbSizeString==null?0:Integer.parseInt(thumbSizeString);
+		
 		int board = Integer.parseInt(request.getParameter("board").replaceAll("\"", ""));
 		Integer uid = (Integer)session.getAttribute("userid");
 		if(uid==null ||uid==3){
@@ -71,6 +74,7 @@ if(request.getMethod().equals("POST")){
 			while(result.next()){
 				String path = result.getString("path");
 				Files.delete(fileRoot.resolve(path).resolve(result.getString("filename")));
+				Files.deleteIfExists(fileRoot.resolve(path).resolve(result.getString("filename")+".jpg"));
 				Files.delete(fileRoot.resolve(path));
 			}
 			ps = conn.prepareStatement("DELETE FROM `file` WHERE post IS NULL OR user IS NULL OR board IS NULL OR (post = -1 AND date < ?)");
@@ -98,7 +102,7 @@ if(request.getMethod().equals("POST")){
 			
 			sizeLeft = maxTotal - (totalUploadSize + uploadSize);
 		}
-		if(uploadSize > maxTotal){
+		if(thumbSize > uploadSize || uploadSize > maxTotal){
 			response.sendError(400);
 			return;
 		}
@@ -111,6 +115,7 @@ if(request.getMethod().equals("POST")){
 			ps.setString(1,path);
 			ps.executeUpdate();
 			Files.delete(fileRoot.resolve(path).resolve(result.getString("filename")));
+			Files.deleteIfExists(fileRoot.resolve(path).resolve(result.getString("filename")+".jpg"));
 			Files.delete(fileRoot.resolve(path));
 			sizeLeft += result.getInt("size");
 			uploadCount--;
@@ -122,9 +127,10 @@ if(request.getMethod().equals("POST")){
 		
 		//TODO: clean up -1 attachments
 		//3. syphon thing into a new file with limited buffer, and db
+		String path=null;
 		byte[] pathBytes = new byte[12];
 		rng.nextBytes(pathBytes);
-		String path = Base64.getUrlEncoder().encodeToString(pathBytes);
+		path = Base64.getUrlEncoder().encodeToString(pathBytes);
 		ps = conn.prepareStatement("INSERT INTO `file`(path, filename, user, board, post, size, date) VALUES(?,?,?,?,?,?,?)");
 		ps.setString(1,path);
 		ps.setString(2,filename);
@@ -134,11 +140,29 @@ if(request.getMethod().equals("POST")){
 		ps.setInt(6,uploadSize);
 		ps.setLong(7,System.currentTimeMillis());
 		ps.executeUpdate();
-		
+		//on load, use thumb depending on extension
+		//if not present use alt text
+		//dont allow post until thumb found
+		//add rendered preview to top and also use in msgs
+		//click -> expand to full screen(like ss)
 		try{
 			Path dir = fileRoot.resolve(path);
 			Files.createDirectories(dir);
-			request.getInputStream().transferTo(Files.newOutputStream(dir.resolve(filename)));
+			if(thumbSize<=0){
+				try(InputStream is=request.getInputStream();
+					var os=Files.newOutputStream(dir.resolve(filename));){
+						is.transferTo(os);
+				}
+			}else{
+				
+				try(InputStream is=request.getInputStream();
+					var os=Files.newOutputStream(dir.resolve(filename));
+					var thumbOS=Files.newOutputStream(dir.resolve(filename+".jpg"))){
+					
+						os.write(is.readNBytes(uploadSize-thumbSize));
+						thumbOS.write(is.readNBytes(thumbSize));
+				}
+			}
 			Thread.sleep(UPLOAD_SLEEP);
 		}catch(Exception ioe){
 			ps = conn.prepareStatement("DELETE FROM `file` WHERE path=?");
