@@ -95,11 +95,12 @@ try(Connection conn=dataSource.getConnection()){
 			addPosts.setInt(2,newID);
 			addPosts.executeUpdate();
 		}
-		String fileQuery = prepare1D("UPDATE `file` SET `post`=? WHERE user=? AND CONCAT(path,'/',filename) IN %s",files.length);
+		String fileQuery = prepare1D("UPDATE `file` SET `post`=? WHERE user=? AND board=? AND CONCAT(path,'/',filename) IN %s",files.length);
 		try(PreparedStatement addFiles=conn.prepareStatement(fileQuery)){
 			addFiles.setInt(1,newID);
 			addFiles.setInt(2,uid);
-			set1D(addFiles,3,Arrays.asList(files));
+			addFiles.setInt(3,board);
+			set1D(addFiles,4,Arrays.asList(files));
 			if(addFiles.executeUpdate()<files.length){
 				try(PreparedStatement delete=conn.prepareStatement("DELETE FROM post WHERE id=?")){
 					delete.setInt(1,newID);
