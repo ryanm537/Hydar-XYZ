@@ -195,7 +195,7 @@ class Message{
 		if(includeTID&&transaction!=1)
 			x.append("\",\"transaction\":").append(this.transaction);
 		else x.append("\"");
-		if(files!=null)
+		if(files!=null && files.length>0)
 			x.append(",\"files\":").append(Arrays.stream(files).map(y->"\""+y+"\"").toList());
 		return x.append("}").toString();
 		

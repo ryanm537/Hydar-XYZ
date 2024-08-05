@@ -61,7 +61,8 @@ if(request.getMethod().equals("POST")){
 		}
 	
 		if(!perms.equals("water_hydar") && !perms.equals("great_white")){
-			throw new Exception();
+			response.sendError(403);
+			return;
 		}
 		//1.5 delete expired files
 		long now=System.currentTimeMillis();

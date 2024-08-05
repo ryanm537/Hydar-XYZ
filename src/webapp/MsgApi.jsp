@@ -143,8 +143,8 @@ try(Connection conn=dataSource.getConnection()){
 		creatorID,
 		name,
 		image).map(Object::toString).collect(Collectors.joining(","));
-	String checkPostsStr="SELECT post.id, COALESCE(posts.user,-1) as `postUser`, post.contents, post.created_date "
-		+ "		,GROUP_CONCAT(CONCAT(`file`.`path`,'/',`file`.`filename`)) as files"
+	String checkPostsStr="SELECT post.id, COALESCE(posts.user,-1) as postUser, post.contents, post.created_date "
+		+ "		,GROUP_CONCAT(CONCAT(`file`.`path`,'/',`file`.filename)) as files"
 		+ " FROM posts, post LEFT JOIN `file` ON `file`.post = post.id"
 		+ " WHERE posts.post = post.id AND post.board = ?"
 		+ " GROUP BY post.id ORDER BY post.id DESC LIMIT 25";
