@@ -153,6 +153,7 @@ class HStream{
 	public State state;
 	public final HydarH2 h2;
 	public final int number;
+	private Map<String,String> heads=null;
 	public int blockType;
 	public int padLength;
 	//
@@ -259,7 +260,17 @@ class HStream{
 			default -> false;
 		};
 	}
-
+	private void parseHeaders() {
+		if(heads!=null)throw new IllegalStateException("Already parsed headers");
+		heads = new HashMap<>(16);
+		//long t1 = new Date().getTime();
+		try(var byte_dis = block().toInputStream()){
+			h2.decompressor.readFields(byte_dis,heads);
+		}catch(IOException e){
+			h2.goaway(9,"Decompressing failed");
+			return;
+		}
+	}
 	public void recv(Frame frame, ByteBuffer dis, InputStream more) throws IOException{
 		
 		switch(frame.type){
@@ -287,6 +298,7 @@ class HStream{
 						blockType=Frame.DATA;
 						more.skip(padLength);
 						padLength=0;
+						parseHeaders();
 					}else{
 						h2.expects=Frame.CONTINUATION;
 					}
@@ -370,6 +382,7 @@ class HStream{
 						blockType=Frame.DATA;
 						more.skip(padLength);
 						padLength=0;
+						parseHeaders();
 					}
 				}else{
 					//Protocol error
@@ -380,23 +393,18 @@ class HStream{
 				//dis.skip(frame.length);
 				return;
 		}
-		
+
 		if(frame.endStream){
+			try {
+			if(!canReceive())return;
 			if(state==State.half_closed_local) {
 				this.close(0);
 				return;
 			}
+			state=State.half_closed_remote;
 			blockType=-1;
 			h2.expects=-1; 
-			state=State.half_closed_remote;
-			Map<String,String> heads = new HashMap<>(16);
-			//long t1 = new Date().getTime();
-			try(var byte_dis = block().toInputStream()){
-				h2.decompressor.readFields(byte_dis,heads);
-			}catch(IOException e){
-				h2.goaway(9,"Decompressing failed");
-				return;
-			}
+			
 			//System.out.println("read headers took "+(new Date().getTime()-t1)+" ms");
 				//System.out.println(heads);
 				//System.out.println("\""+heads.get(":path")+"\" "+heads.get(":path").length());
@@ -437,7 +445,11 @@ class HStream{
 				//System.out.println("nonconcurrent "+h2.streams.size()+concurrent);
 				streamTask.run();
 			}
-			
+			}catch(Exception e) {
+				System.out.println("S"+number+" "+frame.endStream+" "+frame.type);
+				e.printStackTrace();
+				
+			}
 		}
 	}
 	//
