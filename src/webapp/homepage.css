@@ -23,7 +23,6 @@
     height     : 500%;
     background : #000;
     opacity    : 0.6;
-    filter     : alpha(opacity=60);
     z-index    : 5
 }
 .popup{
@@ -39,7 +38,6 @@
 	overflow:hidden;
 }
 .attGrid{
-	font-size: 20;
 	height: 100px;
 	width: 900px;
 	display: grid;
@@ -72,9 +70,9 @@
 	bottom: 0px;
 	display: inline
 }
-.popup > a {
+#imageViewerTopCaption {
 	position:fixed;
-	margin-top:-20px;
+	margin-top:-25px;
 	font-size:20px;
 	z-index:8;
 }

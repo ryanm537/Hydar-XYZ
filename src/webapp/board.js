@@ -22,7 +22,7 @@ const MSGS = document.getElementById("msgs");
 function probeType(x){
 	let url = ATTACHMENT_PATH+x;
 	switch(url.substring(url.lastIndexOf("."))){
-		case ".png": case ".jpg": case ".jpeg": case ".gif": case ".tiff": case ".tif": case ".webp": case ".svg": case ".bmp":
+		case ".png": case ".apng": case ".jpg": case ".jpeg": case ".gif": case ".tiff": case ".tif": case ".webp": case ".svg": case ".bmp": case ".avif":
 			return "image";
 		case ".mp4": case ".3gp": case ".flv": case ".webm": case ".mov": case ".avi": case ".wmv":
 			return "video";
@@ -54,6 +54,8 @@ function preview(x){//show big sus rectangle with thing
 		img.src=ATTACHMENT_PATH+x;
 		img.style.width="auto";
 		img.style.height="auto";
+		if(type=="image")
+			img.onerror=()=>img.src="images/file.png";
 		vwr.appendChild(img);
 	}else{
 		vwr.style.overflow="scroll";
@@ -89,7 +91,7 @@ function wrapFile(x){//html for a file
 					<div class='attGridName'>
 						${filename}
 					</div>
-					<img width=100 height=100 onclick='return false;' src='${ATTACHMENT_PATH+x+".jpg"}'>
+					<img width=100 height=100 onerror='this.onerror=null;this.src="/images/file.png"' onclick='return false;' src='${ATTACHMENT_PATH+x+".jpg"}'>
 				</div>
 			</a>
 			`;
@@ -371,6 +373,7 @@ async function rescaleImage(file_) {
 			}
 			let img = document.createElement("img");
 			img.src=URL.createObjectURL(file);
+			img.onerror=()=>resolve(new Blob());
 			img.addEventListener('load', function() {
 				canvas.width = width;
 				canvas.height = canvas.width * img.height / img.width;
