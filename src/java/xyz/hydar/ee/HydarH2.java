@@ -8,7 +8,6 @@ import java.net.SocketTimeoutException;
 import java.net.http.HttpTimeoutException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -79,7 +78,10 @@ public class HydarH2{
 		return (length>input.capacity())?(input=ByteBuffer.allocate(length)):input;
 	}
 	public void goaway(int error, String info){
-		List.copyOf(streams.values()).forEach(x->x.state=HStream.State.closed);
+		for(HStream stream:streams.values()) {
+			if(stream!=null)
+				stream.state=HStream.State.closed;
+		}
 		streams.clear();
 		System.out.println("go away "+error+" "+info+" ");
 		//new RuntimeException().fillInStackTrace().printStackTrace();
