@@ -56,6 +56,7 @@ function preview(x){//show big sus rectangle with thing
 		img.style.height="auto";
 		if(type=="image")
 			img.onerror=()=>img.src="images/file.png";
+		else img.autoplay=true;
 		vwr.appendChild(img);
 	}else{
 		vwr.style.overflow="scroll";
@@ -81,7 +82,9 @@ document.getElementById("overlay").addEventListener('click', (evt)=>{
 function wrapFile(x){//html for a file
 	//name2 = x.substring(0,x.lastIndexOf(".")).substring(0,Math.min(16,))
 	let filename=x.substring(x.lastIndexOf('/')+1);
-	switch(probeType(x)){
+	let type=probeType(x);
+	let playButton=(type=="video"||type=="audio")?"<img class='play_button' src='images/play_button.png'>":"";
+	switch(type){
 		case "image":
 		case "video":
 			
@@ -91,7 +94,8 @@ function wrapFile(x){//html for a file
 					<div class='attGridName'>
 						${filename}
 					</div>
-					<img width=100 height=100 onerror='this.onerror=null;this.src="/images/file.png"' onclick='return false;' src='${ATTACHMENT_PATH+x+".jpg"}'>
+					<img onerror='this.onerror=null;this.src="/images/file.png"' src='${ATTACHMENT_PATH+x+".jpg"}'>
+					${playButton}
 				</div>
 			</a>
 			`;
@@ -102,7 +106,8 @@ function wrapFile(x){//html for a file
 					<div class='attGridName'>
 						${filename}
 					</div>
-				<img  width=100 height=100 onclick='return false;' src='images/file.png'>
+				<img src='images/file.png'>
+				${playButton}
 			</div></a>
 			`;
 	}
@@ -133,7 +138,7 @@ function wrapMessage(x){//generate html for a message element
 	<div id='three_${x.id}' class='three'>&nbsp;(just now): </div><br>
 	<div class='msgText' id='msgText_${x.id}' data-tid='${x.transaction}' 
 		style='opacity:${x.verified?1:0.5}'>${decodeURIPlus(x.message)}</div>
-	${x.files?"<b>Attachments:<b><br><div class='attGrid'>"+x.files.map(wrapFile).join('')+"</div>":""}
+	${(x.files&&x.files.length)?"<b>Attachments:</b><br><div class='attGrid'>"+x.files.map(wrapFile).join('')+"</div>":""}
 	<br clear='left'>
 	</div>`;
 	
@@ -278,22 +283,15 @@ fe.onchange=()=>{
 				allFiles.set(file.name,{"prog":0,"file":file,"path":null});
 				let request = new XMLHttpRequest();
 			    request.upload.addEventListener('progress', function (e) {
-					let attElem=document.getElementById('attachment_'+file.name);
-			        if (e.loaded <= file.size) {
-			            var percent = Math.round(e.loaded / file.size * 100);
-			            allFiles.get(file.name).prog=percent;
-			            if(attElem)
-			           	 	attElem.children[0].innerHTML = percent + '%';
-			        } 
-			        if(e.loaded == e.total){
-			            allFiles.get(file.name).prog=99;
-			            if(attElem)
-			           		attElem.children[0].innerHTML = '99%';
-			        }
+					let attElem=document.getElementById('attachment_'+encodeURIComponent(file.name));
+		            var percent = Math.round(e.loaded / (newFile.size/0.99) * 100);
+		            allFiles.get(file.name).prog=percent;
+		            if(attElem)
+		           	 	attElem.children[0].innerHTML = percent + '%';
 			    });    
 			    request.addEventListener('loadend', function (e) {
 					if(request.status==200){
-						let attElem=document.getElementById('attachment_'+file.name);
+						let attElem=document.getElementById('attachment_'+encodeURIComponent(file.name));
 			            allFiles.get(file.name).prog=100;
 						if(attElem)attElem.children[0].innerHTML = '100%';
 						let text=request.responseText;
@@ -305,7 +303,7 @@ fe.onchange=()=>{
 			        }else{
 						allFiles.delete(file.name);
 						try{
-							document.getElementById("posting").removeChild(document.getElementById('attachment_'+file.name));
+							document.getElementById("posting").removeChild(document.getElementById('attachment_'+encodeURIComponent(file.name)));
 						}catch(e){}
 						console.log(request.status);
 					}
@@ -330,15 +328,13 @@ function videoToImg(file){
 	}
 	let video = document.createElement("video");
 	let source = document.createElement("source");
-	let canvas = document.createElement('canvas'), ctx = canvas.getContext("2d");
 	let ref=URL.createObjectURL(file);
 	source.setAttribute('src', ref);
     video.appendChild(source);
 	video.setAttribute('crossorigin', 'anonymous');
     video.setAttribute('preload', 'metadata');
+	video.setAttribute('muted', 'true');
     video.style.display = 'none';
-    canvas.style.display = 'none';
-    document.body.appendChild(canvas);
     document.body.appendChild(video);
 	var p = new Promise((resolve,_)=>{
 		video.currentTime = 0.001;
@@ -346,43 +342,67 @@ function videoToImg(file){
 		video.addEventListener('loadedmetadata', function() {
 	        video.oncanplay=function(){
 				setTimeout(()=>{
-				canvas.width = video.videoWidth;
-				canvas.height = video.videoHeight;
-				ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-				canvas.toBlob(x=>{
-					resolve(x);
-					URL.revokeObjectURL(ref);
-					video.remove();
-               	 	canvas.remove();
-				},"image/jpg",0.25);
+					createImageBitmap(video).then(x=>{
+						resolve(x);
+						URL.revokeObjectURL(ref);
+						video.remove();
+					});
 				},2000);
 			}
 		});
 	});
 	return p;
 }
+async function removeTransparent(file){
+	return new Promise((resolve,_)=>{
+		if(!file || file.length==0)
+			resolve(file);
+		let onImgLoad=function(img) {
+			let canvas = newCanvas(img.width,img.height), ctx = canvas.getContext("2d");
+			ctx.fillStyle="rgb(51, 57, 63)";
+			ctx.fillRect(0,0,canvas.width,canvas.height);
+			ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+			createImageBitmap(canvas).then(x=>{
+				resolve(x);
+				if(img.remove){
+					img.remove();
+					URL.revokeObjectURL(img.src);
+				}
+				if(canvas.remove)
+					canvas.remove();
+			});
+		};
+		workOnImageOrBlob(file,onImgLoad);
+	});
+}
+function newCanvas(w,h){
+	return OffscreenCanvas?new OffscreenCanvas(w,h):document.createElement('canvas');
+}
+function workOnImageOrBlob(file, onImgLoad){
+	if(file instanceof Blob){
+		let img = document.createElement("img");
+		img.src=file instanceof Blob? URL.createObjectURL(file):file;
+		img.onerror=()=>resolve(new Blob());
+		img.addEventListener('load', _=>onImgLoad(img));
+	}else{
+		onImgLoad(file);
+	}
+}
 async function rescaleImage(file_) {
 	let width=100;
-	let canvas = document.createElement('canvas'), ctx = canvas.getContext("2d");
-	let oc = document.createElement('canvas'), octx = oc.getContext('2d');
 	return new Promise((resolve,_)=>{
-		videoToImg(file_).then(file=>{
+		videoToImg(file_).then(removeTransparent).then(file=>{
 			if(!file){
 				resolve(file_);
 				return;
 			}
-			let img = document.createElement("img");
-			img.src=URL.createObjectURL(file);
-			img.onerror=()=>resolve(new Blob());
-			img.addEventListener('load', function() {
-				canvas.width = width;
-				canvas.height = canvas.width * img.height / img.width;
+			let onImgLoad=function(img) {
+				let canvas = newCanvas(width, width * img.height / img.width), ctx = canvas.getContext("2d");
 				var cur = {
 					width: Math.floor(img.width * 0.5),
 					height: Math.floor(img.height * 0.5)
 				};
-				oc.width = cur.width;
-				oc.height = cur.height;
+				let oc = newCanvas(cur.width,cur.height), octx = oc.getContext('2d');
 				octx.drawImage(img, 0, 0, cur.width, cur.height);
 				while (cur.width * 0.5 > width) {
 					cur = {
@@ -392,8 +412,21 @@ async function rescaleImage(file_) {
 					octx.drawImage(oc, 0, 0, cur.width * 2, cur.height * 2, 0, 0, cur.width, cur.height);
 				}
 				ctx.drawImage(oc, 0, 0, cur.width, cur.height, 0, 0, canvas.width, canvas.height);
-				canvas.toBlob(x=>resolve(x),"image/jpeg",0.25);
-			});
+				if(!OffscreenCanvas){
+					canvas.toBlob(x=>{
+						resolve(x);
+						if(img.remove){
+							img.remove();
+							URL.revokeObjectURL(img.src);
+						}
+						oc.remove();
+						canvas.remove();
+					},"image/jpeg",0.25);
+				}else{
+					canvas.convertToBlob({type:"image/jpeg",quality:0.25}).then(resolve);
+				}
+			}
+			workOnImageOrBlob(file,onImgLoad);
 		});
 	});
 }
@@ -424,9 +457,9 @@ function wrapPosting(){
 	out=label();
 	for(let file of fe.files){
 		allFiles.set(file.name,{"prog":0,"file":file,"path":null});
-	}for (let [n,f] of allFiles){
+	}for (let [_,f] of allFiles){
 		link=f.path?`href='${ATTACHMENT_PATH+f.path}'`:"";
-		out+=`<a ${link} id='attachment_${f.file.name}'>, File:${f.file.name}, ${formatSize(f.file.size)} - <b>${f.prog}%</b></a>`;
+		out+=`<a ${link} id="attachment_${encodeURIComponent(f.file.name)}">, File:${encodeURIComponent(f.file.name)}, ${formatSize(f.file.size)} - <b>${f.prog}%</b></a>`;
 	}
 	return out;
 }
