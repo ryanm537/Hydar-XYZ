@@ -435,7 +435,9 @@ try(Connection conn=dataSource.getConnection()){
 	</div>
 	<div id="overlay" hidden=1></div>
 	<div id="imageViewer" class="popup" hidden=1>
-		<a id="imageViewerTopCaption"></a>
+		<div id="imageViewerTopCaption">
+			Viewing attachment: <a></a>
+		</div>
 		<a id="imageViewerNewTabCaption" target="_blank">Open in new tab</a>
 		<a id="imageViewerDownloadCaption" >Download...</a>
 	</div>

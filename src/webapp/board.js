@@ -40,10 +40,10 @@ function probeType(x){
 function preview(x){//show big sus rectangle with thing
 	let filename=x.substring(x.lastIndexOf('/')+1);
 	let vwr=document.getElementById("imageViewer");
-	let a = document.getElementById("imageViewerTopCaption");
+	let a = document.getElementById("imageViewerTopCaption").children[0];
 	let a2 = document.getElementById("imageViewerNewTabCaption");
 	let a3 = document.getElementById("imageViewerDownloadCaption");
-	a.innerText="Viewing attachment: "+filename;
+	a.innerText=filename;
 	fetch(ATTACHMENT_PATH+x,{method:"HEAD"}).then(response=>{
 		console.log(response.headers.get("content-length"));
 		a.innerText+=" - "+response.headers.get("content-type")+", "+formatSize(parseInt(response.headers.get("content-length")));
@@ -59,19 +59,20 @@ function preview(x){//show big sus rectangle with thing
 	document.getElementById("overlay").hidden=0;
 	let type=probeType(x);
 	if(type=="image"||type=="video"||type=="audio"){
-		vwr.style.overflow="hidden";
+		vwr.style.overflow="visible";
 		let img = document.createElement(type=="image"?"img":type);
 		if(type=="video"||type=="audio")
 			img.setAttribute("controls","");
 		img.src=ATTACHMENT_PATH+x;
 		img.style.width="auto";
+		img.style.display="block";
 		img.style.height="auto";
 		if(type=="image")
 			img.onerror=()=>img.src="images/file.png";
 		else img.autoplay=true;
 		vwr.appendChild(img);
 	}else{
-		vwr.style.overflow="scroll";
+		vwr.style.overflow="visible";
 		let frame=document.createElement('iframe');
 		frame.src=ATTACHMENT_PATH+x;
 		frame.style.width="100%";
