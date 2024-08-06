@@ -208,6 +208,7 @@ class HStream{
 				.withData(CLOSE_REASONS[reason])
 				.writeToH2(h2, true);
 	}
+	//check if request on this stream is HEAD, default to prev
 	public boolean isHead(boolean prev) {
 		return heads!=null?"HEAD".equals(heads.get(":method")):prev;
 	}

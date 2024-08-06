@@ -18,8 +18,10 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.net.URLDecoder;
 import java.net.http.HttpTimeoutException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardWatchEventKinds;
@@ -343,6 +345,7 @@ class ServerThread implements Runnable {
 			search = splitUrl[1];
 		}
 		path = config.LOWERCASE_URLS?path.toLowerCase():path;
+		path=URLDecoder.decode(path,StandardCharsets.UTF_8);
 		System.out.println(""+client_addr+"> " + method + " " + path + " " + version);
 		//Virtual links(see default.properties).
 		//These are useful for turning path params into request params.
