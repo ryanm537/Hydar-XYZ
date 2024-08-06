@@ -735,6 +735,17 @@ public class HydarEE{
 		public String getRequestURI(){
 			return path.split("\\?",2)[0];
 		}
+		public StringBuffer getRequestURL(){
+			String host=headers.get(":authority");
+			if(host==null)
+				host=headers.get("host");
+			String scheme=headers.get(":scheme");
+			String uri=getRequestURI();
+			int len=8+host.length()+uri.length();
+			return new StringBuffer(len)
+					.append(scheme).append("://")
+					.append(host).append(uri);
+		}
 		public String getRemoteAddr() {
 			return addr.getAddress().getHostAddress();
 		}

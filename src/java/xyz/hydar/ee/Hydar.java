@@ -66,6 +66,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
@@ -193,6 +194,7 @@ class ServerThread implements Runnable {
 			
 			headers.put(":method",firstLine[0]);
 			headers.put(":path",firstLine[1]);
+			headers.put(":scheme",client instanceof SSLSocket?"https":"http");
 			
 			byte[] body = new byte[0];
 			int bodyLength=0;
@@ -1030,6 +1032,7 @@ public class Hydar {
 						public void hparse(Map<String,String> headers, Optional<HStream> hstream, byte[] body, int bodyLength) throws IOException {
 							String path = headers.get(":path");
 							String host = hstream.isPresent() ? headers.get(":authority") : headers.get("host");
+							this.hydar=hydars.get(0);
 							if(host==null) {
 								sendError("400",hstream);
 								close();
