@@ -1310,10 +1310,10 @@ public class Hydar {
 			}
 			//server loop
 			while (alive) {
-				for(Hydar hydar: hydars) {
-					hydar.updateOnTimer();
-				}
 				try{
+					for(Hydar hydar: hydars) {
+						hydar.updateOnTimer();
+					}
 					Socket client = server.accept();
 					if(!verifySocket(client))continue;
 					ServerThread connection = new ServerThread(client);
