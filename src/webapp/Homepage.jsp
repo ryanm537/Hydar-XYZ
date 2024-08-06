@@ -16,14 +16,7 @@
 
 <body style = "background-color:rgb(51, 57, 63);"> 
 <input id="fileElem" multiple style="display:none" type="file" autocomplete="off"/>
-<center>
-<style type="text/css">
-html {
-	
-  scroll-behavior: smooth;
-}
-form{ display: inline-block; }
-</style>
+
 <div id="show">
 </div>
 <%!
@@ -443,6 +436,8 @@ try(Connection conn=dataSource.getConnection()){
 	<div id="overlay" hidden=1></div>
 	<div id="imageViewer" class="popup" hidden=1>
 		<a id="imageViewerTopCaption"></a>
+		<a id="imageViewerNewTabCaption" target="_blank">Open in new tab</a>
+		<a id="imageViewerDownloadCaption" >Download...</a>
 	</div>
 	<div class = "susRectangle" id = "susRectangle" hidden = true>
 	

@@ -273,6 +273,7 @@ record Channel(int id, String name){
 /**TODO: DAL and separate hydar packages or something*/
 /**todo: scale or something*/
 class Board{
+	public static final int MAX_FILE_PER_MSG=8;
 	public final List<HydarEndpoint> users= new CopyOnWriteArrayList<>();
 	public final Map<Integer,Member> members = new ConcurrentHashMap<>();
 	public final Map<Integer,Message> messages = new ConcurrentHashMap<>(25);
@@ -518,7 +519,7 @@ class Board{
 		int transaction=parseInt(msg[0]);
 		int toReply=parseInt(msg[1]);
 		String[] files = msg[2].split(";");
-		if(files.length>9) {
+		if(files.length>=MAX_FILE_PER_MSG) {
 			return null;
 		}
 		inputText=msg[3];

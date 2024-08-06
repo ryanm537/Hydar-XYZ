@@ -5,6 +5,7 @@ var readonly=-1;
 var isDm=-1;
 var replyID = -1;
 var users=new Map();
+var allFiles = new Map();
 var me=null;
 var creator=null;
 var vcvolume=-1;
@@ -19,6 +20,7 @@ const DEFAULT_PFP="images/hydar2.png";
 const ATTACHMENT_PATH="/attachments/"
 const DEFAULT_VOLS="50,50,50,0";
 const MSGS = document.getElementById("msgs");
+const MAX_FILE_PER_MSG=8;
 function probeType(x){
 	let url = ATTACHMENT_PATH+x;
 	switch(url.substring(url.lastIndexOf("."))){
@@ -36,6 +38,8 @@ function preview(x){//show big sus rectangle with thing
 	let filename=x.substring(x.lastIndexOf('/')+1);
 	let vwr=document.getElementById("imageViewer");
 	let a = document.getElementById("imageViewerTopCaption");
+	let a2 = document.getElementById("imageViewerNewTabCaption");
+	let a3 = document.getElementById("imageViewerDownloadCaption");
 	a.innerText="Viewing attachment: "+filename;
 	fetch(ATTACHMENT_PATH+x,{method:"HEAD"}).then(response=>{
 		console.log(response.headers.get("content-length"));
@@ -43,6 +47,11 @@ function preview(x){//show big sus rectangle with thing
 	});
 	a.href=ATTACHMENT_PATH+x;
 	a.target="_blank";
+	
+	
+	a2.href=ATTACHMENT_PATH+x;
+	a3.href=ATTACHMENT_PATH+x;
+	a3.download=filename;
 	vwr.hidden=0;
 	document.getElementById("overlay").hidden=0;
 	let type=probeType(x);
@@ -54,6 +63,7 @@ function preview(x){//show big sus rectangle with thing
 		img.src=ATTACHMENT_PATH+x;
 		img.style.width="auto";
 		img.style.height="auto";
+		img.style['padding-bottom']='5%';
 		if(type=="image")
 			img.onerror=()=>img.src="images/file.png";
 		else img.autoplay=true;
@@ -83,32 +93,33 @@ function wrapFile(x){//html for a file
 	//name2 = x.substring(0,x.lastIndexOf(".")).substring(0,Math.min(16,))
 	let filename=x.substring(x.lastIndexOf('/')+1);
 	let type=probeType(x);
-	let playButton=(type=="video"||type=="audio")?"<img class='play_button' src='images/play_button.png'>":"";
+	let playButton=(type=="video"||type=="audio"||x.endsWith(".gif"))?"<img class='play_button' src='images/play_button.png'>":"";
 	switch(type){
 		case "image":
 		case "video":
 			
 			return `
-			<a href=${ATTACHMENT_PATH+x} onclick="return preview('${x}')">
+			<a href='${ATTACHMENT_PATH+x}' onclick="return preview('${x}')">
 				<div class='attGridSquare'">
 					<div class='attGridName'>
 						${filename}
 					</div>
-					<img onerror='this.onerror=null;this.src="/images/file.png"' src='${ATTACHMENT_PATH+x+".jpg"}'>
+					<img onerror='this.onerror=null;this.src="/images/file.png"' src='${ATTACHMENT_PATH+x}.jpg'>
 					${playButton}
 				</div>
 			</a>
 			`;
 		default:
 			return `
-			<a href=${ATTACHMENT_PATH+x} download=${filename} onclick="return preview('${x}')">
+			<a href='${ATTACHMENT_PATH+x}' download='${filename}' onclick="return preview('${x}')">
 				<div class='attGridSquare'>
 					<div class='attGridName'>
 						${filename}
 					</div>
-				<img src='images/file.png'>
-				${playButton}
-			</div></a>
+					<img src='images/file.png'>
+					${playButton}
+				</div>
+			</a>
 			`;
 	}
 		/** 
@@ -128,18 +139,20 @@ function wrapMessage(x){//generate html for a message element
 	if(!user)
 		user={pfp:"images/yeti.png",id:x.uid,username:"Banned User"}
 		
-	var html=`<div id = 'msg_${x.id}' style='display:inline,position:absolute'>
-	<img src = '${user.pfp.replaceAll("'","")}' alt='hydar' style='border-radius:40px' width='40px' vspace='15' hspace='10' height='40px' align='left'>
+	var html=`<div id = 'msg_${x.id}'>
+	<img src = '${user.pfp.replaceAll("'","")}' alt='hydar' style="border-radius:40px;" width='40px' vspace='15' hspace='10' align='left'">
 	<img id = 'reply_button${x.id}' class = 'reply_button' src = 'images/reply-arrow.png' width = 15px height=15px>
 	<br><b><div class='msgUser' id = 'msgUser${x.id}'>${user.username}</div></b>
 	<div hidden class = 'rectangle' id = 'rectangle${x.id}'>
 	<img src = '${user.pfp}' alt='hydar' style='border-radius:60px' width='60px' vspace='10' hspace='10' height='60px' align='left'></img>
 	<div class = 'rectangleText'><b>${user.username}<br>Id# - ${user.id}</b><br><a href = 'CreateBoard.jsp?input_dm=${user.id}'>Send direct message</a></div></div>
 	<div id='three_${x.id}' class='three'>&nbsp;(just now): </div><br>
+	<div class='msgBody' style='display:block'>
 	<div class='msgText' id='msgText_${x.id}' data-tid='${x.transaction}' 
 		style='opacity:${x.verified?1:0.5}'>${decodeURIPlus(x.message)}</div>
 	${(x.files&&x.files.length)?"<b>Attachments:</b><br><div class='attGrid'>"+x.files.map(wrapFile).join('')+"</div>":""}
 	<br clear='left'>
+	</div>
 	</div>`;
 	
 	return html;
@@ -271,16 +284,22 @@ function ping(){//hydar hydar hydar
 const fe=document.getElementById("fileElem");
 fe.onchange=()=>{
 	try{
-		
-		var posting=wrapPosting();
-		test=document.getElementById("posting");
-		if(test.innerHTML!=posting)
-			test.innerHTML=posting;
+		if( !me || (me.username=="Guest" || me.username=="Anonymous")){
+			return;
+		}
 		for(let file of fe.files){
+			console.log(allFiles);
 			rescaleImage(file).then(thumbnail=>{
+				if(allFiles.size>=MAX_FILE_PER_MSG){
+					return;
+				}
 				let target='/UploadFile.jsp?board='+boardId+"&filename="+file.name+"&thumbsize="+thumbnail.size;
 				let newFile=new Blob([file,thumbnail],{"type":"application/octet-stream"});
 				allFiles.set(file.name,{"prog":0,"file":file,"path":null});
+				var posting=wrapPosting();
+				test=document.getElementById("posting");
+				if(test.innerHTML!=posting)
+					test.innerHTML=posting;
 				let request = new XMLHttpRequest();
 			    request.upload.addEventListener('progress', function (e) {
 					let attElem=document.getElementById('attachment_'+encodeURIComponent(file.name));
@@ -455,11 +474,9 @@ function wrapPosting(){
 		}
 	}
 	out=label();
-	for(let file of fe.files){
-		allFiles.set(file.name,{"prog":0,"file":file,"path":null});
-	}for (let [_,f] of allFiles){
+	for (let [_,f] of allFiles){
 		link=f.path?`href='${ATTACHMENT_PATH+f.path}'`:"";
-		out+=`<a ${link} id="attachment_${encodeURIComponent(f.file.name)}">, File:${encodeURIComponent(f.file.name)}, ${formatSize(f.file.size)} - <b>${f.prog}%</b></a>`;
+		out+=` <a ${link} target='_blank' id="attachment_${encodeURIComponent(f.file.name)}">File:${encodeURIComponent(f.file.name)}, ${formatSize(f.file.size)} - <b>${f.prog}%</b></a>`;
 	}
 	return out;
 }
@@ -608,7 +625,8 @@ function updateInfo(){//update general board info(things other than msgs p much)
 	if(creator){
 		test=document.getElementById("boardCreator");
 		if(test){
-			test.setAttribute("style","display:inline;opacity:"+(creator.online?1:0.5));
+			test.style.display='inline'
+			test.style.opacity=(creator.online?1:0.5);
 			if(test.innerHTML!=creator.username){
 				test.innerHTML=creator.username;
 			}

@@ -19,7 +19,7 @@ static final int UPLOAD_SLEEP=2000;
 static final String FILE_ROOT_PATH="/attachments";
 static Path fileRoot = null;
 static SecureRandom rng = new SecureRandom();
-static final Pattern FILE_SAFE = Pattern.compile("[^a-zA-Z0-9-_.]");
+static final Pattern FILE_SAFE = Pattern.compile("[^a-zA-Z0-9-_.+() ]");
 static volatile long lastUpdate=0;
 %>
 <%
@@ -151,6 +151,7 @@ if(request.getMethod().equals("POST")){
 		//dont allow post until thumb found
 		//add rendered preview to top and also use in msgs
 		//click -> expand to full screen(like ss)
+		conn.close();
 		try{
 			Path dir = fileRoot.resolve(path);
 			Files.createDirectories(dir);
@@ -171,10 +172,13 @@ if(request.getMethod().equals("POST")){
 			}
 			Thread.sleep(UPLOAD_SLEEP);
 		}catch(Exception ioe){
-			ps = conn.prepareStatement("DELETE FROM `file` WHERE path=?");
-			ps.setString(1,path);
-			ps.executeUpdate();
-			throw ioe;
+			try(var conn2=dataSource.getConnection()){
+				ps = conn2.prepareStatement("DELETE FROM `file` WHERE path=?");
+				ps.setString(1,path);
+				ps.executeUpdate();
+			}finally{
+				throw ioe;
+			}
 		}
 		//3.5. callback to HydarEndpoint so it adds to an attach list
 		String fullPath=path+"/"+filename;
