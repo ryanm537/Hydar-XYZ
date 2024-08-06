@@ -20,9 +20,12 @@ const DEFAULT_PFP="images/hydar2.png";
 const ATTACHMENT_PATH="/attachments/"
 const DEFAULT_VOLS="50,50,50,0";
 const MSGS = document.getElementById("msgs");
+const fe=document.getElementById("fileElem");
 const MAX_FILE_PER_MSG=8;
 function probeType(x){
 	let url = ATTACHMENT_PATH+x;
+	if(!url.includes(".") || url.endsWith("."))
+		return "file";
 	switch(url.substring(url.lastIndexOf("."))){
 		case ".png": case ".apng": case ".jpg": case ".jpeg": case ".gif": case ".tiff": case ".tif": case ".webp": case ".svg": case ".bmp": case ".avif":
 			return "image";
@@ -63,7 +66,6 @@ function preview(x){//show big sus rectangle with thing
 		img.src=ATTACHMENT_PATH+x;
 		img.style.width="auto";
 		img.style.height="auto";
-		img.style['padding-bottom']='5%';
 		if(type=="image")
 			img.onerror=()=>img.src="images/file.png";
 		else img.autoplay=true;
@@ -138,7 +140,7 @@ function wrapMessage(x){//generate html for a message element
 	var user=users.get(x.uid);
 	if(!user)
 		user={pfp:"images/yeti.png",id:x.uid,username:"Banned User"}
-		
+	let fileLen = x.files&&x.files.length>1?"s ("+x.files.length+")":"";
 	var html=`<div id = 'msg_${x.id}'>
 	<img src = '${user.pfp.replaceAll("'","")}' alt='hydar' style="border-radius:40px;" width='40px' vspace='15' hspace='10' align='left'">
 	<img id = 'reply_button${x.id}' class = 'reply_button' src = 'images/reply-arrow.png' width = 15px height=15px>
@@ -150,7 +152,7 @@ function wrapMessage(x){//generate html for a message element
 	<div class='msgBody' style='display:block'>
 	<div class='msgText' id='msgText_${x.id}' data-tid='${x.transaction}' 
 		style='opacity:${x.verified?1:0.5}'>${decodeURIPlus(x.message)}</div>
-	${(x.files&&x.files.length)?"<b>Attachments:</b><br><div class='attGrid'>"+x.files.map(wrapFile).join('')+"</div>":""}
+	${(x.files&&x.files.length)?`<b>Attachment${fileLen}:</b><br><div class='attGrid'>${x.files.map(wrapFile).join('')}</div>`:""}
 	<br clear='left'>
 	</div>
 	</div>`;
@@ -281,7 +283,6 @@ function lowestId(){//lowest id on page
 function ping(){//hydar hydar hydar
 	sendToServer("]");
 }
-const fe=document.getElementById("fileElem");
 fe.onchange=()=>{
 	try{
 		if( !me || (me.username=="Guest" || me.username=="Anonymous")){
@@ -461,6 +462,19 @@ function formatSize(b){
 	}
 }
 var allFiles = new Map();
+window.addEventListener('paste', e => {
+  fe.files = e.clipboardData.files;
+  fe.onchange();
+});
+document.body.addEventListener('dragover', (e) => {
+    e.preventDefault()
+});
+document.body.addEventListener('drop', (e) => {
+	console.log(e);
+  fe.files = e.dataTransfer.files;
+  fe.onchange();
+  e.preventDefault();
+});
 function wrapPosting(){
 	function label(){
 		if(channelof == -1){
@@ -474,9 +488,12 @@ function wrapPosting(){
 		}
 	}
 	out=label();
-	for (let [_,f] of allFiles){
-		link=f.path?`href='${ATTACHMENT_PATH+f.path}'`:"";
-		out+=` <a ${link} target='_blank' id="attachment_${encodeURIComponent(f.file.name)}">File:${encodeURIComponent(f.file.name)}, ${formatSize(f.file.size)} - <b>${f.prog}%</b></a>`;
+	if(allFiles.size>0){
+		out+=" | Files: ";
+		for (let [_,f] of allFiles){
+			link=f.path?`href='${ATTACHMENT_PATH+f.path}'`:"";
+			out+=` <a ${link} target='_blank' id="attachment_${encodeURIComponent(f.file.name)}">${encodeURIComponent(f.file.name)}, ${formatSize(f.file.size)} - <b>${f.prog}%</b></a>`;
+		}
 	}
 	return out;
 }
