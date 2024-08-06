@@ -502,9 +502,15 @@ function wrapPosting(){
 function wrapPostArea(){
 	//comment and substring thing is just to fix np++ formatting
 	if(readonly==1&&!me.owner)return "";
-	else return `
-
-	//`.substring(0,0)+`<div id = "attachmentButton" class = "attachmentButton"><img src="images/attachment.png" width=25px height=25px onclick="fileBrowser();"><input type="file" id="attach" hidden></div>
+	let att=(me&&me.id!=3&&me.username!="Anonymous")?`
+	//`.substring(0,0)+`
+	<div id = "attachmentButton" class = "attachmentButton">
+		<img src="images/attachment.png" width=25px height=25px alt="paperclip" onclick="fileBrowser();">
+		<input type="file" id="attach" hidden>
+	</div>`:"";
+	return `
+	//`.substring(0,0)+`
+	${att}
 	<style>#input_text::-webkit-scrollbar {display: none;}</style>
 	<textarea id="input_text" 
 				type="text" 
@@ -690,7 +696,7 @@ function updateInfo(){//update general board info(things other than msgs p much)
 		members();
 	}
 	test=document.getElementById("postArea");
-	if(test.innerHTML.indexOf('<')!=paStr.indexOf('<'))
+	if(test.innerHTML.lastIndexOf('<')!=paStr.lastIndexOf('<'))
 		test.innerHTML=paStr;
 		
 	test=document.getElementById("posting");
