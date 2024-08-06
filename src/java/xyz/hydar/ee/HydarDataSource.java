@@ -247,9 +247,12 @@ public abstract class HydarDataSource implements DataSource, AutoCloseable{
 		//} catch (IOException e1) {}
 		lock.lock();
 		try {
-			while(pool.size()>0) {
+			long remainingMillis=maxWaitMillis;
+			long startTime=System.currentTimeMillis();
+			while(pool.size()+actives.size()>=maxTotal) {
 				try {
-					PooledConn pc = pool.poll(maxWaitMillis,TimeUnit.MILLISECONDS);
+					PooledConn pc = pool.poll(remainingMillis,TimeUnit.MILLISECONDS);
+					remainingMillis = maxWaitMillis -  (System.currentTimeMillis()-startTime);
 					if(pc==null)
 						break;
 					activateChecked(pc);
