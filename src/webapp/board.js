@@ -297,7 +297,6 @@ fe.onchange=()=>{
 			if(allFiles.length>=MAX_FILE_PER_MSG){
 				return;
 			}
-			console.log(allFiles);
 			let id="attachment_"+Math.round(Math.random()*1E9);
 			let fileObj = {"prog":0,"file":file,"path":null,"id":id};
 			allFiles.push(fileObj);
@@ -313,6 +312,8 @@ fe.onchange=()=>{
 					thumbnail;
 				let request = new XMLHttpRequest();
 				fileObj.request = request;
+				if(fileObj.cancelled)
+					return;
 			    request.upload.addEventListener('progress', function (e) {
 		            var percent = Math.round(e.loaded / (newFile.size/0.99) * 100);
 		            fileObj.prog=percent;
@@ -522,7 +523,8 @@ function wrapPosting(){
 function clearFiles(){
 	if(allFiles.length==0)return false;
 	for(let file of allFiles){
-		file.request.abort();
+		file.request?.abort();
+		file.cancelled=1;
 	}
 	allFiles=[];
 	document.getElementById("posting").innerHTML=wrapPosting();
