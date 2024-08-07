@@ -618,7 +618,8 @@ class ServerThread implements Runnable {
 	}
 	/**Utility to build a response from the current context, with as much information as possible.*/
 	protected Hydar.Response newResponse(String code, Optional<HStream> hs) {
-		var build=hydar.new Response(code).version(h2==null?"HTTP/1.1":"HTTP/2.0").hstream(hs).output(output).limiter(limiter);
+		var tmpHydar=hydar==null?Hydar.hydars.get(0):hydar;
+		var build=tmpHydar.new Response(code).version(h2==null?"HTTP/1.1":"HTTP/2.0").hstream(hs).output(output).limiter(limiter);
 		boolean isHead2=hs.map(x->x.isHead(isHead)).orElse(isHead);
 		if(isHead2) {//prioritize h2 if present
 			build.disableData();
@@ -1184,6 +1185,7 @@ public class Hydar {
 		String e=e_;
 		Resource r=null;
 		long fmodif=0;
+		//System.out.println(p+" "+kind);
 		try {
 			if(kind==null) {
 				//using polling
@@ -1193,24 +1195,27 @@ public class Hydar {
 				return null;
 			}else if(config.FORBIDDEN_REGEX.map(x->x.matcher(e+"/").find()).orElse(false)){
 				return null;
+				//problem: wasdirectory not isdirectory
 			}else if(Files.isDirectory(p) && kind != StandardWatchEventKinds.ENTRY_DELETE){
 				if(!KEYS.containsKey(p)&& HydarUtil.addKey(this,p,root)) {
 					System.out.println("Created folder listener on "+e);
+					Files.walk(p).sorted().forEach(path->updateResource(path.getFileName(),path.getParent(),dir,kind,now));
 				}
 				return null;
-			}else if(kind == StandardWatchEventKinds.ENTRY_DELETE) {
+				//modify on folder is considered delete
+			}else if(KEYS.containsKey(p) || kind == StandardWatchEventKinds.ENTRY_DELETE) {
 				if(KEYS.remove(p)==null) {
 					resources.remove(e);
 					ee.servlets.remove(e+".jsp");
 					
 				}else {
 					System.out.println("Removed folder listener on "+e);
-					if(KEYS.keySet().removeIf(t->t.startsWith(e+"/"))) {
+					if(KEYS.keySet().removeIf(t->t.startsWith(e))) {
 						System.out.println("Subdirectory listeners removed");
 					}
 				}
-				resources.keySet().removeIf(x->Path.of(x).startsWith(e+"/"));
-				ee.servlets.keySet().removeIf(x->Path.of(x).startsWith(e+"/"));
+				resources.keySet().removeIf(x->Path.of(x).startsWith(e));
+				ee.servlets.keySet().removeIf(x->Path.of(x).startsWith(e));
 				System.out.println("File "+e+" was removed from the server directory.");
 				return null;
 			}
