@@ -246,7 +246,7 @@ function replaceMessage(m){//given a message object, replace its element
 	}
 	if(tmp ||ms!=null){
 		var isNew=mb.style.opacity==0.5;
-		var tmpDiv=document.createElement("div");
+		let tmpDiv=document.createElement("div");
 		tmpDiv.innerHTML=decodeURIPlus(m.message);
 		let diff=(mt.textContent!=tmpDiv.textContent)||(tmpDiv.children.length != mt.children.length);
 		if(diff){
@@ -640,7 +640,6 @@ function insertMessage(m){//given message object, add a new element
 	});
 	
 }
-
 function wrapMembers(){//HTML string of "messages" element
 	var uString="";
 	if(boardId<=3)
@@ -659,14 +658,14 @@ function wrapMembers(){//HTML string of "messages" element
 function wrapChannels(){
 	const usp = new URLSearchParams(document.location.search);
 	var hs="";
-	if(isDm == 0){
+	if(isDm == 0 && boardId>3){
 		if(channelof != -1){
 			usp.set("board",channelof);
 			hs+="<a href = 'Homepage.jsp?"+usp.toString()+ "'>Main</a><br>";
 		}else{
 			hs+="<a href = '#'>Main</a><br>";
 		}
-	}
+	}else return "";
 	channels.forEach(x=>{
 		usp.set("board",x.id);
 		hs+="<a href = 'Homepage.jsp?" +usp.toString() + "'>" + x.name.replaceAll("<","&lt;").replaceAll(">","&gt;") + "</a><br>";
@@ -685,7 +684,7 @@ function updateInfo(){//update general board info(things other than msgs p much)
 			}
 		}
 	}
-	
+	adminButtons(me.owner);
 	test=document.getElementById("boardInfo");
 	if(test.innerHTML!=boardName+" (#"+boardId+")")
 		test.innerHTML=boardName+" (#"+boardId+")";
@@ -696,9 +695,16 @@ function updateInfo(){//update general board info(things other than msgs p much)
 		
 	test=document.getElementById("members");
 	if(test){
-		var mb=wrapMembers();
-		if(test.innerHTML!=mb)
+		let mb=wrapMembers();
+		if(test.innerHTML!=mb){
 			test.innerHTML=mb;
+			let sm=document.getElementById("showMembers")
+			if(!isDm){
+				sm.className="sideButtons showMembersNoDM";
+			}else{
+				sm.className="sideButtons showMembersDM";
+			}
+		}
 	}
 	
 	test=document.getElementById("profileName");
@@ -721,6 +727,7 @@ function updateInfo(){//update general board info(things other than msgs p much)
 	test=document.getElementById("channelslist");
 	if(test&&test.innerHTML!=chStr){
 		test.innerHTML=chStr;
+		document.getElementById("showChannels").innerText=!isDm?"Channels":"";
 	}
 	if(chStr.length==0){
 		members();

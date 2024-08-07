@@ -72,9 +72,9 @@ try(Connection conn=dataSource.getConnection()){
 	//GET BOARD IMAGE
 	int isPublic = 0;
 	int boardDM = 0;
-	String boardImage = "";
+	String boardImage = "menuImages/misc.png";
 	if(!isDefault){
-		String getBoardAttributes="SELECT board.image, board.public, board.dm FROM board WHERE board.number = ?";
+		/**String getBoardAttributes="SELECT board.image, board.public, board.dm FROM board WHERE board.number = ?";
 		var ps = conn.prepareStatement(getBoardAttributes);
 		ps.setInt(1,board);
 		var result1 = ps.executeQuery();
@@ -83,7 +83,7 @@ try(Connection conn=dataSource.getConnection()){
 			isPublic = result1.getInt("board.public");
 			boardImage = result1.getString("board.image");
 			boardDM = result1.getInt("board.dm");
-		}
+		}*/
 	}else{
 		boardImage=DEFAULT_BOARDIMAGES.get(board);
 		isPublic=1;
@@ -110,15 +110,21 @@ try(Connection conn=dataSource.getConnection()){
 	%>
 	<style>
 		#showMembers{
+			/**
+			search showMembers in board.js(classnames are changed there)
+			*/
 			color:rgb(91, 97, 103);
 			font-size:20px;
+		}
+		.showMembersDM{
+			float:left;
+			margin-left:65px;
+			margin-right:unset;
+		}
+		.showMembersNoDM{
 			float:right;
-			<%if(boardDM == 0){%>
+			margin-left:unset;
 			margin-right:15px;
-			<%}else{%>
-				float:left;
-				margin-left:65px;
-			<%}%>
 		}
 		#showMembers:hover{
 			background-color:rgb(61, 67, 73);
@@ -126,12 +132,15 @@ try(Connection conn=dataSource.getConnection()){
 			padding:3px;
 			padding-left:7px;
 			padding-right:7px;
-			<%if(boardDM == 0){%>
-				margin-right:8px;
-			<%}else{%>
-				margin-left:58px;
-			<%}%>
 			margin-top:-3px;
+		}
+		.showMembersDM:hover{
+			margin-left:58px;
+			margin-right:inherit;
+		}
+		.showMembersNoDM:hover{
+			margin-left:inherit;
+			margin-right:8px;
 		}
 	</style>
 	
@@ -149,7 +158,7 @@ try(Connection conn=dataSource.getConnection()){
 			
 			
 			<div class="sideButtons">  </div>
-			<div id="showMembers" class="sideButtons"></div>
+			<div id="showMembers" class="sideButtons showMembersNoDM"></div>
 			<div id="showChannels" class="sideButtons"></div>
 			
 			
@@ -165,13 +174,8 @@ try(Connection conn=dataSource.getConnection()){
 			
 			
 			<div class="sideButtons"> <br> </div>
-			<div id="showMembers" class="sideButtons">Members</div>
-			<div id="showChannels" class="sideButtons">
-			<%if(boardDM==0){%>
-			Channels
-			
-			<%}%> 
-			</div>
+			<div id="showMembers" class="sideButtons showMembersNoDM">Members</div>
+			<div id="showChannels" class="sideButtons">Channels</div>
 			
 			<%
 			
@@ -193,9 +197,7 @@ try(Connection conn=dataSource.getConnection()){
 			
 			//channel list
 			out.print("<div id = 'channelslist'>");
-			if(boardDM == 0){
-				out.print("loading...");
-			}
+			out.print("loading...");
 			out.print("</div>");
 			
 			out.print("<div style='width: 100%; border-bottom: 2px solid rgba(0,0,0,20); text-align: center; position:relative; top:15px; left:-5px;'></div>");
@@ -224,97 +226,30 @@ try(Connection conn=dataSource.getConnection()){
 		</div>
 		
 		
-		<%
-		
-
-		String creator = "";
-		int creatorID = -1;
-		if(!isDefault){
-			String findOwner = "SELECT board.creator, user.id, user.username FROM board, user WHERE board.number = ? AND user.id = board.creator";
-			var ps = conn.prepareStatement(findOwner);
-			ps.setInt(1,board);
-			ResultSet result = ps.executeQuery();
-			if(result.next()){
-				creator = result.getString("user.username");
-				creatorID = result.getInt("user.id");
-			}
-		}
-	%>
+		<%-- creator id check removed, moved to js(adminButtons() function)--%>
 	
 	<div class = "ssButton" id = "ssButton"><b>Share Screen</b></div>
 	<div class = "ssButton" id = "ssButton2" hidden><b>Stop Sharing</b></div>
 	</div>
 	
-	<div hidden id = "bottom_bar" class="bottom_bar">
+	<div hidden=1 id = "bottom_bar" class="bottom_bar">
 		<input id = "Add" value="Add user"  type="submit" class = "button" style='margin-top:15px; margin-left:20px' >
 		
 		<input id = "Remove" value="Remove user"  type="submit" class = "button" style='margin-top:15px; margin-left:10px' >
 		
 		<form id = "addform" onsubmit="invite();return false;" action="" target="">
-			<input hidden id="ia1" type="text"  accept-charset=\"UTF-8\" name="input_create" size="23" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px;margin-top:10px; margin-left:22px" placeholder = "New user id (#)..."/>
-			<input hidden id = "ia2" value="Add"  type="submit" class = "button3" >
+			<input id="ia1" type="text"  accept-charset="UTF-8" name="input_create" size="23" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px;margin-top:10px; margin-left:22px" placeholder = "New user id (#)..."/>
+			<input id = "ia2" value="Add"  type="submit" class = "button3" >
 		</form>
 		
 		<form id = "removeform" onsubmit="kick();return false;" action="" target="">
-			<input hidden id="ir1" type="text"  accept-charset=\"UTF-8\" name="input_remove" size="23" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px;margin-top:10px; margin-left:22px" placeholder = "Removing user id (#)..."/>
-			<input hidden id = "ir2" value="Remove"  type="submit" class = "button3" >
+			<input id="ir1" type="text"  accept-charset="UTF-8" name="input_remove" size="23" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px;margin-top:10px; margin-left:22px" placeholder = "Removing user id (#)..."/>
+			<input id = "ir2" value="Remove"  type="submit" class = "button3" >
 		</form>	
 			
 	</div>
 	
 	<script>
-		function adminButtons (){
-			<%
-			int isAdmin = 0;
-			if((int)session.getAttribute("userid")==creatorID){
-				isAdmin = 1;
-			}
-			if(isAdmin == 1){
-				%>
-				document.getElementById("sidebar").style.height = "calc(100% - 215px)";
-				document.getElementById("bottom_bar").removeAttribute("hidden");
-				
-					const x3 = document.getElementById('sidebar');
-						x3.addEventListener("click", () => {
-						document.getElementById("bottom_bar").style.top = "calc(100% - 45px)";
-						document.getElementById("bottom_bar").style.width = "210px";
-						document.getElementById("sidebar").style.height = "calc(100% - 215px)";
-						document.getElementById("ir1").setAttribute("hidden", true);
-						document.getElementById("ir2").setAttribute("hidden", true);
-						document.getElementById("ia1").setAttribute("hidden", true);
-						document.getElementById("ia2").setAttribute("hidden", true);
-						}
-					);
-				<%
-			}
-			%>
-			
-			const x1 = document.getElementById('Add');
-			x1.addEventListener("click", () => {
-				document.getElementById("bottom_bar").style.top = "calc(100% - 90px)";
-				document.getElementById("bottom_bar").style.width = "260px";
-				document.getElementById("sidebar").style.height = "calc(100% - 260px)";
-				document.getElementById("ia1").removeAttribute("hidden");
-				document.getElementById("ia2").removeAttribute("hidden");
-				document.getElementById("ir1").setAttribute("hidden", true);
-				document.getElementById("ir2").setAttribute("hidden", true);
-				}
-			);
-			
-			const x2 = document.getElementById('Remove');
-			x2.addEventListener("click", () => {
-				document.getElementById("bottom_bar").style.top = "calc(100% - 90px)";
-				document.getElementById("bottom_bar").style.width = "280px";
-				document.getElementById("sidebar").style.height = "calc(100% - 260px)";
-				document.getElementById("ir1").removeAttribute("hidden");
-				document.getElementById("ir2").removeAttribute("hidden");
-				document.getElementById("ia1").setAttribute("hidden", true);
-				document.getElementById("ia2").setAttribute("hidden", true);
-				}
-			);
-			
-			
-		}
 		function invite(){
 			postString("/invite "+encodeURIComponent(document.getElementById("ia1").value));
 		}
@@ -322,8 +257,53 @@ try(Connection conn=dataSource.getConnection()){
 		function kick(){
 			postString("/kick "+encodeURIComponent(document.getElementById("ir1").value));
 		}
-		adminButtons();
+
+		const x1 = document.getElementById('Add');
+		x1.addEventListener("click", () => {
+			document.getElementById("bottom_bar").style.top = "calc(100% - 90px)";
+			document.getElementById("bottom_bar").style.width = "260px";
+			document.getElementById("sidebar").style.height = "calc(100% - 260px)";
+			document.getElementById("ir1").style.display="none";
+			document.getElementById("ir2").style.display="none";
+			document.getElementById("ia1").style.display="inline-block";
+			document.getElementById("ia2").style.display="inline-block";
+			}
+		);
 		
+		const x2 = document.getElementById('Remove');
+		x2.addEventListener("click", () => {
+			document.getElementById("bottom_bar").style.top = "calc(100% - 90px)";
+			document.getElementById("bottom_bar").style.width = "280px";
+			document.getElementById("sidebar").style.height = "calc(100% - 260px)";
+			document.getElementById("ir1").style.display="inline-block";
+			document.getElementById("ir2").style.display="inline-block";
+			document.getElementById("ia1").style.display="none";
+			document.getElementById("ia2").style.display="none";
+			}
+		);
+		const minimizeAdminButtons = () => {
+			document.getElementById("bottom_bar").style.top = "calc(100% - 45px)";
+			document.getElementById("bottom_bar").style.width = "210px";
+			document.getElementById("sidebar").style.height = "calc(100% - 215px)";
+			document.getElementById("ir1").style.display="none";
+			document.getElementById("ir2").style.display="none";
+			document.getElementById("ia1").style.display="none";
+			document.getElementById("ia2").style.display="none";
+		};
+		function adminButtons(admin){
+			let bottom_bar=document.getElementById("bottom_bar");
+			if(admin && bottom_bar.hidden){
+				let x3=document.getElementById("sidebar");
+				x3.style.height = "calc(100% - 215px)";
+				bottom_bar.removeAttribute("hidden");
+				x3.addEventListener("click",minimizeAdminButtons);
+			}else if(!admin && !bottom_bar.hidden){
+				let x3=document.getElementById("sidebar");
+				x3.style.height = "calc(100% - 170px)";
+				bottom_bar.setAttribute("hidden",1);
+				x3.removeEventListener("click",minimizeAdminButtons);
+			}
+		}
 	</script>
 	
 	<div class = "fix-div">
