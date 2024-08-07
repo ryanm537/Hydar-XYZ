@@ -99,6 +99,8 @@ try(Connection conn=dataSource.getConnection();
 		
 		byte[] encodedhash = digest.digest(
 		  encP.getBytes(StandardCharsets.UTF_8));
+		//System.out.println(HexFormat.of().formatHex(encodedhash));
+		//System.out.println(HexFormat.of().formatHex(result.getBytes("password")));
 		/**StringBuilder hexString = new StringBuilder(2 * encodedhash.length);
 		for(int i = 0; i < encodedhash.length; i++){
 			String hex = Integer.toHexString(0xff & encodedhash[i]);
@@ -109,7 +111,6 @@ try(Connection conn=dataSource.getConnection();
 		}
 		
 		encP = hexString.toString();*/
-		
 		if(result.getString("username").equals(inputtedU) && Arrays.equals(result.getBytes("password"),encodedhash)){
 			success = true;
 			session.removeAttribute("ip");

@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS `post` (
   CONSTRAINT `board_posts_post` FOREIGN KEY (`board`) REFERENCES `board` (`number`) ON DELETE CASCADE,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-ALTER TABLE `post` AUTO_INCREMENT = 0;
+/*ALTER TABLE `post` AUTO_INCREMENT = 0;*/
 
 
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -137,6 +137,7 @@ CREATE TABLE IF NOT EXISTS `file` (
 	CONSTRAINT `file_uploaded_by` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE SET NULL,
 	CONSTRAINT `file_in_board` FOREIGN KEY (`board`) REFERENCES `board` (`number`) ON DELETE SET NULL
 );
+/*
 show create table posts;
 ALTER TABLE posts DROP FOREIGN KEY `posts_ibfk_1`;
 ALTER TABLE posts MODIFY COLUMN `user` int null;
@@ -144,9 +145,11 @@ ALTER TABLE posts ADD CONSTRAINT `user_posts_post` FOREIGN KEY (`user`) REFERENC
 ALTER TABLE posts DROP FOREIGN KEY `post_posted`;
 ALTER TABLE posts ADD CONSTRAINT `post_posted` FOREIGN KEY (`post`) REFERENCES `post` (`id`) ON DELETE CASCADE;
 ALTER TABLE posts DROP PRIMARY KEY, ADD PRIMARY KEY (`post`);
-
+*/
+/*
 SELECT path, filename, size FROM `file`WHERE user = ? AND post <> -1 ORDER BY post ;
 SELECT COUNT(*),SUM(size) FROM `file` WHERE user = 1;
+*/
 SELECT * FROM invitedto;
 SELECT * FROM user;
 SELECT * FROM board;
