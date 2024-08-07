@@ -317,7 +317,7 @@ fe.onchange=()=>{
 				let target='/UploadFile.jsp?board='+boardId+"&filename="+file.name+"&thumbsize="+thumbnail.size+"&ordinal="+currentOrd;
 				let newFile = (thumbnail&&thumbnail.size>0)?
 					new Blob([file,thumbnail],{"type":"application/octet-stream"}):
-					thumbnail;
+					file;
 				let request = new XMLHttpRequest();
 				fileObj.request = request;
 				if(fileObj.cancelled)
@@ -440,7 +440,7 @@ async function rescaleImage(file_) {
 	return new Promise((resolve,_)=>{
 		videoToImg(file_).then(removeTransparent).then(file=>{
 			if(!file){
-				resolve(file_);
+				resolve(new Blob());
 				return;
 			}
 			let onImgLoad=function(img) {

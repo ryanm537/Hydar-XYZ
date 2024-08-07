@@ -166,11 +166,9 @@ a {
 	min-width:1280px;
 	min-height:720px;
 }
-.popup > video{
-	padding-bottom:5%;
-}
 .popup > audio {
-	padding-bottom:5%;
+	min-width:800px;
+	
 }
 .reply_button{
 	opacity:0.2;

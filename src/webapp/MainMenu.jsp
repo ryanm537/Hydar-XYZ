@@ -78,7 +78,7 @@ form{ display: inline-block; }
 			box-shadow:0 0 10px rgba(0,0,0,10);
 		}
 		.button3{
-			dsiplay:inline-block;
+			display:inline-block;
 			background-color:rgb(61, 67, 83);
 			color:white;border:none;
 			padding:8px; 
