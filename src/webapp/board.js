@@ -5,7 +5,7 @@ var readonly=-1;
 var isDm=-1;
 var replyID = -1;
 var users=new Map();
-var allFiles = new Map();
+var allFiles = [];
 var me=null;
 var creator=null;
 var vcvolume=-1;
@@ -105,7 +105,6 @@ function wrapFile(x){//html for a file
 			<a href='${ATTACHMENT_PATH+x}' onclick="return preview('${x}')">
 				<div class='attGridSquare'">
 					<div class='attGridName'>
-						${filename}
 					</div>
 					<img onerror='this.onerror=null;this.src="/images/file.png"' src='${ATTACHMENT_PATH+x}.jpg'>
 					${playButton}
@@ -119,7 +118,7 @@ function wrapFile(x){//html for a file
 					<div class='attGridName'>
 						${filename}
 					</div>
-					<img src='images/file.png'>
+					<img src='images/file_bw.png'>
 					${playButton}
 				</div>
 			</a>
@@ -231,20 +230,20 @@ function discardTrash(t){//remove trash(t is transaction id)
 		.forEach(e=>trash.removeChild(e));
 }
 function replaceMessage(m){//given a message object, replace its element
-	var ms=document.getElementById("msg_"+m.id);
-	var mt=document.getElementById("msgText_"+m.id);
-	var tid=mt?mt.dataset.tid:-1;
+	let ms=document.getElementById("msg_"+m.id);
+	let mt=document.getElementById("msgText_"+m.id);
+	let tid=mt?mt.dataset.tid:-1;
 	var tmp=false;
 	if(ms!=null&&m.transaction!=parseInt(tid)&&tid!="-1"
-	&&window.getComputedStyle(mt).opacity==0.5){
+	&&mt.style.opacity==0.5){
 		tmp=true;
 		trash(ms);
 	}
 	if(tmp ||ms!=null){
-		var isNew=window.getComputedStyle(mt).opacity==0.5;
+		var isNew=mt.style.opacity==0.5;
 		var tmpDiv=document.createElement("div");
 		tmpDiv.innerHTML=decodeURIPlus(m.message);
-		var diff=(mt.textContent!=tmpDiv.textContent)||(tmpDiv.children.length != mt.children.length);
+		let diff=(mt.textContent!=tmpDiv.textContent)||(tmpDiv.children.length != mt.children.length);
 		if(diff){
 			//console.log("DIFF%%%");
 			//console.log(mt.textContent);
@@ -290,41 +289,54 @@ fe.onchange=()=>{
 			return;
 		}
 		for(let file of fe.files){
+			if(allFiles.length>=MAX_FILE_PER_MSG){
+				return;
+			}
 			console.log(allFiles);
+			let id="attachment_"+Math.round(Math.random()*1E9);
+			let fileObj = {"prog":0,"file":file,"path":null,"id":id};
+			allFiles.push(fileObj);
+			var posting=wrapPosting();
+			let test=document.getElementById("posting");
+			if(test.innerHTML!=posting)
+				test.innerHTML=posting;
 			rescaleImage(file).then(thumbnail=>{
-				if(allFiles.size>=MAX_FILE_PER_MSG){
-					return;
-				}
+				fileObj.file=file;
 				let target='/UploadFile.jsp?board='+boardId+"&filename="+file.name+"&thumbsize="+thumbnail.size;
-				let newFile=new Blob([file,thumbnail],{"type":"application/octet-stream"});
-				allFiles.set(file.name,{"prog":0,"file":file,"path":null});
-				var posting=wrapPosting();
-				test=document.getElementById("posting");
-				if(test.innerHTML!=posting)
-					test.innerHTML=posting;
+				let newFile = (thumbnail&&thumbnail.size>0)?
+					new Blob([file,thumbnail],{"type":"application/octet-stream"}):
+					thumbnail;
 				let request = new XMLHttpRequest();
+				fileObj.request = request;
 			    request.upload.addEventListener('progress', function (e) {
-					let attElem=document.getElementById('attachment_'+encodeURIComponent(file.name));
 		            var percent = Math.round(e.loaded / (newFile.size/0.99) * 100);
-		            allFiles.get(file.name).prog=percent;
+		            fileObj.prog=percent;
+		            let attElem = document.getElementById(id);
 		            if(attElem)
 		           	 	attElem.children[0].innerHTML = percent + '%';
 			    });    
-			    request.addEventListener('loadend', function (e) {
+			    request.addEventListener('loadend', function (_) {
+		            let attElem = document.getElementById(id);
 					if(request.status==200){
-						let attElem=document.getElementById('attachment_'+encodeURIComponent(file.name));
-			            allFiles.get(file.name).prog=100;
+			            fileObj.prog=100;
 						if(attElem)attElem.children[0].innerHTML = '100%';
 						let text=request.responseText;
-						
-				        console.log(text);
-				        allFiles.get(file.name).path=text;
-				        //TODO: img preview and stuff
+				        fileObj.path=text;
 				        if(attElem)attElem.setAttribute("href",ATTACHMENT_PATH+text);
+						
+						let statusElem=document.getElementById("postingFiles").children[0];
+						if(statusElem){
+							let len=allFiles.length;
+							let doneLen = allFiles.filter(x=>x.path).length;
+							let fileText= `Files (${doneLen}/${len}): `;
+							statusElem.innerText=fileText;
+						}
+				        console.log(text);
+				        //TODO: img preview and stuff
 			        }else{
-						allFiles.delete(file.name);
+						allFiles.pop(fileObj);
 						try{
-							document.getElementById("posting").removeChild(document.getElementById('attachment_'+encodeURIComponent(file.name)));
+							document.getElementById("postingFiles").removeChild(attElem);
 						}catch(e){}
 						console.log(request.status);
 					}
@@ -462,7 +474,6 @@ function formatSize(b){
 		return Math.round(b/(1024**3/10))/10+" GB";
 	}
 }
-var allFiles = new Map();
 window.addEventListener('paste', e => {
   fe.files = e.clipboardData.files;
   fe.onchange();
@@ -489,16 +500,29 @@ function wrapPosting(){
 		}
 	}
 	out=label();
-	if(allFiles.size>0){
-		out+=" | Files: ";
-		for (let [_,f] of allFiles){
+	if(allFiles.length>0){
+		out=out.replace("Posting in Channel: ","");
+		let len=allFiles.length;
+		let doneLen = allFiles.filter(x=>x.path).length;
+		out=`
+		<div id='postingFiles'> ${out} | <b> Files (${doneLen}/${len}): </b>`;
+		for (let f of allFiles.sort(x=>-x.prog)){
 			link=f.path?`href='${ATTACHMENT_PATH+f.path}'`:"";
-			out+=` <a ${link} target='_blank' id="attachment_${encodeURIComponent(f.file.name)}">${encodeURIComponent(f.file.name)}, ${formatSize(f.file.size)} - <b>${f.prog}%</b></a>`;
+			out+=` <a ${link} target='_blank' id="${f.id}">${encodeURIComponent(f.file.name)}, ${formatSize(f.file.size)} - <b>${f.prog}%</b></a>`;
 		}
+		out+=`&nbsp;</div><a href='#' class='clearFiles' onclick='return clearFiles();'>(remove)</a>`
 	}
 	return out;
 }
-
+function clearFiles(){
+	if(allFiles.length==0)return false;
+	for(let file of allFiles){
+		file.request.abort();
+	}
+	allFiles=[];
+	document.getElementById("posting").innerHTML=wrapPosting();
+	return false;
+}
 
 function wrapPostArea(){
 	//comment and substring thing is just to fix np++ formatting
@@ -524,7 +548,7 @@ function wrapPostArea(){
 				autofocus="autofocus" 
 				onfocus="this.select()"></textarea>
 	<input value="${boardId}"  type="hidden" name="board_num">
-	<input value="  Post  "  type="submit" class = "button" >`;
+	<input value="  Post  " id="PostButton" type="submit" class = "button" >`;
 }
 
 function insertMessage(m){//given message object, add a new element
@@ -871,7 +895,7 @@ function update(cmd){
 	for(var e of MSGS.children){
 		var tmpId=parseInt(e.id.substring(e.id.indexOf('_')+1));
 		if(!messages.find(x=>x.id==tmpId)&&tmpId!="-1"&&tmpId!=1){
-			if(window.getComputedStyle(document.getElementById("msgText_"+tmpId)).opacity==0.5){
+			if(document.getElementById("msgText_"+tmpId).style.opacity==0.5){
 				
 				trash(e);
 			}else MSGS.removeChild(e);
@@ -994,9 +1018,9 @@ function updateTimestamps(){
 }
 setInterval(updateTimestamps,10000);
 function post(){
-	const textbox=document.getElementById("input_text");
+	let textbox=document.getElementById("input_text");
 	var contents=textbox.value.replaceAll("\n", "<br>");
-	if(contents.length==0&&!([...allFiles.values()].filter(x=>x.path).length))
+	if((contents.length==0&&!allFiles.length) || allFiles.find(x=>!x.path))
 		return;
 	postString(contents);
 	textbox.value="";
@@ -1027,9 +1051,9 @@ function postString(x){
 	var estId=0;
 	if(MSGS.children.length>0)
 		estId=parseInt(MSGS.children[0].id.substring(4))+1;
-	var toSend = [...allFiles.values()].filter(x=>x.path);
+	var toSend = allFiles.filter(x=>x.path);
 	for(let f of toSend){
-		allFiles.delete(f.file.name);
+		allFiles.pop(f);
 	}
 	var posting=wrapPosting();
 		test=document.getElementById("posting");
@@ -1049,8 +1073,8 @@ function postString(x){
 }
 document.addEventListener('keypress', (event)=>{
 	if(event.key == 'Enter' && event.shiftKey== false){
-		const textbox=document.getElementById("input_text");
-		if(textbox.value.trim().length || (allFiles.size && [...allFiles.values()].filter(x=>x.path).length)){
+		let textbox=document.getElementById("input_text");
+		if((textbox.value.trim().length || allFiles.length) && !allFiles.find(x=>!x.path)){
 			document.getElementById("PostButton").onsubmit();
 			textbox.value="";
 		}

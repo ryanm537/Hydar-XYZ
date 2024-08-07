@@ -1,22 +1,36 @@
 .attachmentButton{
-			opacity:0.75;
-			position:absolute;
-			top:5px;
-			left:-35px;
+	opacity:0.75;
+	position:absolute;
+	top:5px;
+	left:-35px;
 }
 .toptext{
 	opacity:0.75;
 	position:absolute;
-	text-overflow: ellipsis;
-	overflow:hidden;
 	text-align:left;
-	top:-20px;
-	overflow-wrap: break-word;
-	white-space: nowrap;
+	display:block;
+	top:-25px;
 	width:720px;
 	left:5px;
+	overflow-y:visible;
 	font-size:15px;
-	height:25px;
+	height:30px;
+}
+.toptext > #postingFiles{
+	display:inline-block;
+	position:relative;
+	max-width:500px;
+	overflow:hidden;
+	white-space: nowrap;
+	overflow-wrap: break-word;
+	text-overflow: ellipsis;
+}
+.clearFiles{
+	display:inline;
+	color:red;
+	position: relative;
+	top:-4px;
+	
 }
 .attachmentButton:hover{
 	opacity:1;
@@ -46,9 +60,7 @@
 	position:relative;
 	width:100px;
 	height:100px;
-	text-align:left;
-	overflow-wrap: break-word;
-	border:3px solid rgb(80,80,80);
+	/*border:3px solid rgb(80,80,80);*/
 }
 .attGridSquare:hover{
 	scale:1.05;
@@ -84,8 +96,19 @@
 	overflow:hidden
 }
 .attGridName{
-	display:inline;
+	max-height:50px;
+	max-width:120%;
+	overflow:hidden;
+	text-align:left;
+	white-space: nowrap;
+	text-overflow: ellipsis;
 	background-color:rgba(51, 57, 63,0.7)
+}
+a {
+	color: LightGrey;
+	font-family: calibri, arial;
+	text-align: right;
+	font-size: 15px
 }
 #imageViewerTopCaption {
 	position:fixed;
@@ -98,10 +121,10 @@
 #imageViewerNewTabCaption {
 	position:fixed;
 	bottom:-20px;
-	margin-left:10px;
+	margin-left:0px;
 	background:rgba(0,0,0,0.6);
 	margin-top:auto;
-	font-size:24px;
+	font-size:15px;
 	z-index:8;
 }
 #imageViewerDownloadCaption {
@@ -111,8 +134,8 @@
 	right:0px;
 	text-align:right;	
 	margin-left:auto;
-	margin-right:10px;
-	font-size:24px;
+	margin-right:0px;
+	font-size:15px;
 	z-index:8;
 }
 .popup > img, video, audio, iframe {
@@ -147,7 +170,7 @@
 	padding-bottom:5%;
 }
 .popup > audio {
-	padding-bottom:25%;
+	padding-bottom:5%;
 }
 .reply_button{
 	opacity:0.2;

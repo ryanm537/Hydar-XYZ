@@ -334,7 +334,6 @@ try(Connection conn=dataSource.getConnection()){
 	
 	out.print("<h1 style = \"color:rgb(255,255,255); font-size:15px; font-family:calibri, arial; text-align:right;position:relative;\"></style>");
 	out.print("Hello <div id=\"profileName\" style=\"display:inline\">" + session.getAttribute("username").toString() + "</div>! | ");
-	out.print("<style type=\"text/css\"> a{color:LightGrey; font-family:calibri, arial; text-align:right; font-size:15px}</style>");
 	out.print("<a href="+PROFILE+"> Profile</a>&nbsp;| ");
 	out.print("<a href="+MAIN_MENU+"> Home</a>&nbsp;| ");
 	%><a <%=uid==3?"hidden=''":""%>id='logout_link' href=<%=LOGOUT%> > Log out</a><%
