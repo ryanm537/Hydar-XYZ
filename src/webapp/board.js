@@ -149,9 +149,10 @@ function wrapMessage(x){//generate html for a message element
 	<img src = '${user.pfp}' alt='hydar' style='border-radius:60px' width='60px' vspace='10' hspace='10' height='60px' align='left'></img>
 	<div class = 'rectangleText'><b>${user.username}<br>Id# - ${user.id}</b><br><a href = 'CreateBoard.jsp?input_dm=${user.id}'>Send direct message</a></div></div>
 	<div id='three_${x.id}' class='three'>&nbsp;(just now): </div><br>
-	<div class='msgBody' style='display:block'>
-	<div class='msgText' id='msgText_${x.id}' data-tid='${x.transaction}' 
-		style='opacity:${x.verified?1:0.5}'>${decodeURIPlus(x.message)}</div>
+	<div class='msgBody' style='display:block;opacity:${x.verified?1:0.5}'>
+	<div class='msgText' id='msgText_${x.id}' data-tid='${x.transaction}'>
+		${decodeURIPlus(x.message)}
+	</div>
 	${(x.files&&x.files.length)?`<b>Attachment${fileLen}:</b><br><div class='attGrid'>${x.files.map(wrapFile).join('')}</div>`:""}
 	<br clear='left'>
 	</div>
@@ -180,37 +181,40 @@ function replaceID(e, newID){//replace ID of a message element, used before tras
 function trash(e){//trash a message element
 	console.log(e);
 	var tmpId=parseInt(e.id.substring(e.id.indexOf('_')+1));
-	var mt=document.getElementById("msgText_"+tmpId);
+	let mt=document.getElementById("msgText_"+tmpId);
+	let mb=mt.parentNode;
 	var tid=mt.dataset.tid;
-	var ts=document.getElementById("three_"+tmpId);
-	var rep=document.getElementById("reply_button"+tmpId);
+	let ts=document.getElementById("three_"+tmpId);
+	let rep=document.getElementById("reply_button"+tmpId);
 	e.removeChild(e.lastChild);
 	//add retry and discard buttons
-	var retry=document.createElement("div");
+	let retry=document.createElement("div");
 	retry.setAttribute("id","retry_"+tid);
 	retry.setAttribute("style",'display:inline');
 	retry.innerHTML="[Retry...]	";
 	e.appendChild(retry);
-	var discard=document.createElement("div");
+	let discard=document.createElement("div");
 	discard.setAttribute("id","discard_"+tid);
 	discard.setAttribute("style",'display:inline');
 	discard.innerHTML="[Discard...] ";
-	var br = document.createElement("br");
+	let br = document.createElement("br");
 	br.setAttribute("clear","left");
 	e.appendChild(discard);
 	e.appendChild(br);
 	//make text red(we know it was grayed before)
-	mt.setAttribute("style",mt.getAttribute("style").replace("opacity:0.5","opacity:1;color:Red"));
+	mb.style.opacity=1;
+	mb.style.color='red';
 	mt.setAttribute("id","msgText_"+tid);
 	mt.setAttribute("data-tid",tid);
 	ts.setAttribute("id","three_"+tid);
 	ts.innerHTML=" <i>(failed - please check your connection and try again)</i>"
 	rep.setAttribute("id","reply_button"+tid);
 	e.setAttribute("id","msg_"+tid);
-	document.getElementById("trash").appendChild(e);
+	let trash=document.getElementById("trash");
+	trash.appendChild(e);
 	
-	if(document.getElementById("trash").children.length>5){
-		document.getElementById("trash").removeChild(document.getElementById("trash").children[0]);
+	if(trash.children.length>5){
+		trash.removeChild(trash.children[0]);
 	}
 	//add event listeners
 	document.getElementById("retry_"+tid).addEventListener('click',()=>{
@@ -232,15 +236,16 @@ function discardTrash(t){//remove trash(t is transaction id)
 function replaceMessage(m){//given a message object, replace its element
 	let ms=document.getElementById("msg_"+m.id);
 	let mt=document.getElementById("msgText_"+m.id);
+	let mb=mt.parentNode;
 	let tid=mt?mt.dataset.tid:-1;
 	var tmp=false;
 	if(ms!=null&&m.transaction!=parseInt(tid)&&tid!="-1"
-	&&mt.style.opacity==0.5){
+	&&mb.style.opacity==0.5){
 		tmp=true;
 		trash(ms);
 	}
 	if(tmp ||ms!=null){
-		var isNew=mt.style.opacity==0.5;
+		var isNew=mb.style.opacity==0.5;
 		var tmpDiv=document.createElement("div");
 		tmpDiv.innerHTML=decodeURIPlus(m.message);
 		let diff=(mt.textContent!=tmpDiv.textContent)||(tmpDiv.children.length != mt.children.length);
@@ -895,7 +900,7 @@ function update(cmd){
 	for(var e of MSGS.children){
 		var tmpId=parseInt(e.id.substring(e.id.indexOf('_')+1));
 		if(!messages.find(x=>x.id==tmpId)&&tmpId!="-1"&&tmpId!=1){
-			if(document.getElementById("msgText_"+tmpId).style.opacity==0.5){
+			if(e.querySelector(".msgBody").style.opacity==0.5){
 				
 				trash(e);
 			}else MSGS.removeChild(e);
@@ -920,7 +925,7 @@ function newMessage(cmd){//new message from server(different packet from update)
 	var lastId=-1;
 	for(var e of MSGS.children){
 		var tmpId=parseInt(e.id.substring(e.id.indexOf('_')+1));
-		if(window.getComputedStyle(e.getElementsByClassName("msgText")[0]).opacity==1){
+		if(e.querySelector(".msgBody").style.opacity==1){
 			lastId=tmpId;
 			break;
 		}
