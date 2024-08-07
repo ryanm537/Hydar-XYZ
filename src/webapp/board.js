@@ -508,7 +508,7 @@ function wrapPosting(){
 		<div id='postingFiles'> ${out} | <b> Files (${doneLen}/${len}): </b>`;
 		for (let f of allFiles.sort(x=>-x.prog)){
 			link=f.path?`href='${ATTACHMENT_PATH+f.path}'`:"";
-			out+=` <a ${link} target='_blank' id="${f.id}">${encodeURIComponent(f.file.name)}, ${formatSize(f.file.size)} - <b>${f.prog}%</b></a>`;
+			out+=` <a ${link} target='_blank' id="${f.id}">(<b>${f.prog}%</b>) ${encodeURIComponent(f.file.name)}, ${formatSize(f.file.size)}</a>`;
 		}
 		out+=`&nbsp;</div><a href='#' class='clearFiles' onclick='return clearFiles();'>(remove)</a>`
 	}
