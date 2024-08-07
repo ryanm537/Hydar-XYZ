@@ -42,33 +42,10 @@ if(getBoard != null){
 }
 boolean isDefault = DEFAULT_BOARDS.contains(board);
 
-Class.forName("com.mysql.jdbc.Driver");
-DataSource dataSource = (DataSource) new InitialContext().lookup("java:comp/env/jdbc/hydar");
-try(Connection conn=dataSource.getConnection()){
 	//CHECK IF BOARD IS SPECIFIED, and redirect if the user does not have perms.
 	
 	
-	
-	int check = 0;
-	if(!isDefault&& uid!=3){
-		String checkBoardsStr="SELECT * FROM isin WHERE isin.user = ? AND isin.board = ?";
-		var ps = conn.prepareStatement(checkBoardsStr);
-		ps.setInt(1,uid);
-		ps.setInt(2,board);
-		var result1 = ps.executeQuery();
-		if(result1.next()){
-			//boardArray[n] = Integer.parseInt(result1.getString("isin.board"));
-			//n++;
-			//if(board == result1.getInt("isin.board")){
-			check += 1;
-			//}
-		}
-	}else if(isDefault)
-		check=1;
-	if(check == 0){
-		response.sendRedirect(MAIN_MENU);
-		return;
-	}
+try{
 	//GET BOARD IMAGE
 	int isPublic = 0;
 	int boardDM = 0;
