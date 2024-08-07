@@ -24,7 +24,7 @@
 static final List<Integer> DEFAULT_BOARDS=List.of(1,2,3);
 static final List<String> DEFAULT_BOARDNAMES=List.of("","Everything Else","SAS4","Skyblock");
 static final List<String> DEFAULT_BOARDIMAGES=List.of("","everythingelse.png","sas4.png","skyblock.png");
-
+static final String DEFAULT_FALLBACK_IMAGE="misc.png";
 %>
 <%
 
@@ -72,7 +72,7 @@ try(Connection conn=dataSource.getConnection()){
 	//GET BOARD IMAGE
 	int isPublic = 0;
 	int boardDM = 0;
-	String boardImage = "menuImages/misc.png";
+	String boardImage = DEFAULT_FALLBACK_IMAGE;
 	if(!isDefault){
 		/**String getBoardAttributes="SELECT board.image, board.public, board.dm FROM board WHERE board.number = ?";
 		var ps = conn.prepareStatement(getBoardAttributes);

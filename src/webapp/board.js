@@ -12,7 +12,7 @@ var vcvolume=-1;
 var boardId=new URLSearchParams(window.location.search).get("board")
 boardId=boardId?parseInt(boardId):1;
 var boardName="";
-var boardImage="";
+var boardImage=document.getElementById("boardImage").src;
 var vcInterval=-1;
 var pingInterval=-1;
 const DEFAULT_USERNAME="Anonymous";
@@ -686,7 +686,7 @@ function updateInfo(){//update general board info(things other than msgs p much)
 			}
 		}
 	}
-	adminButtons(me.owner);
+	adminButtons(me && me.owner);
 	test=document.getElementById("boardInfo");
 	if(test.innerHTML!=boardName+" (#"+boardId+")")
 		test.innerHTML=boardName+" (#"+boardId+")";
