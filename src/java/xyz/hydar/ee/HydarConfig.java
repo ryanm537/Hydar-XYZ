@@ -50,7 +50,8 @@ class Config{
 	public int CACHE_MAX=1024000;
 	public Optional<Pattern> HOST=Optional.empty();//empty=anything allowed
 	public Optional<Pattern> FORBIDDEN_REGEX=Optional.empty();//empty=anything allowed
-	public Optional<Pattern> CACHE_REGEX=Optional.of(Pattern.compile(".*"));//empty=anything allowed 
+	public Optional<Pattern> CACHE_OFF_REGEX=Optional.empty();//empty=anything allowed 
+	public Optional<Pattern> CACHE_ON_REGEX=Optional.of(Pattern.compile(".*"));//empty=anything allowed 
 	public boolean CACHE_ENABLED=true;
 	public List<String> ZIP_ALGS=List.of("gzip","deflate");
 	public Set<String> ZIP_MIMES = Set.of("text/html", "text/css", "text/plain", "text/xml", "text/x-component",
@@ -108,7 +109,7 @@ class Config{
 	public static int TC_FAST_H2_FRAME=5;
 	public static int TC_PERMANENT_THREAD=100;
 	public static int TC_PERMANENT_H2_STREAM=10;
-	public static int TC_MAX_BUFFER=1024 * 1024;
+	public static int TC_MAX_BUFFER=10 * 1024 * 1024;
 	public static int TC_SLOW_JSP_INVOKE=100;
 	public static Set<String> alreadySet = new HashSet<>();
 	public String configPath = "";

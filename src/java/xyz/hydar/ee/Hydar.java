@@ -806,7 +806,10 @@ class Resource{
 		
 		//Cache the file in memory along with its compressed versions, if it's small enough.
 		if(size > config.CACHE_MAX || !config.CACHE_ENABLED ||
-				!(config.CACHE_REGEX
+				!(config.CACHE_ON_REGEX
+						.filter(x->x.matcher(p.toString()).find())
+						.isPresent())
+				|| (config.CACHE_OFF_REGEX
 						.filter(x->x.matcher(p.toString()).find())
 						.isPresent())){
 			path=true;
