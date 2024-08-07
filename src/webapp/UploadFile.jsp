@@ -30,7 +30,19 @@ if(request.getMethod().equals("POST")){
 	Class.forName("com.mysql.jdbc.Driver");
 	DataSource dataSource = (DataSource) new InitialContext().lookup("java:comp/env/jdbc/hydar");
 	try(Connection conn=dataSource.getConnection()){
-		String filename = FILE_SAFE.matcher(request.getParameter("filename")).replaceAll("");
+		String filename = request.getParameter("filename");
+		String ordinal = request.getParameter("ordinal");
+		if(filename==null || ordinal==null){
+			response.sendError(400);
+			return;
+		}
+		filename=FILE_SAFE.matcher(filename).replaceAll("");
+		ordinal=FILE_SAFE.matcher(ordinal).replaceAll("");
+		if(ordinal.length()==0){
+			response.sendError(400);
+			return;
+		}
+		char ord = ordinal.charAt(0);
 		if(filename.length()>64){
 			int dot=filename.lastIndexOf(".");
 			if(dot>=0){
@@ -73,9 +85,9 @@ if(request.getMethod().equals("POST")){
 			result = ps.executeQuery();
 			while(result.next()){
 				String path = result.getString("path");
-				Files.delete(fileRoot.resolve(path).resolve(result.getString("filename")));
+				Files.deleteIfExists(fileRoot.resolve(path).resolve(result.getString("filename")));
 				Files.deleteIfExists(fileRoot.resolve(path).resolve(result.getString("filename")+".jpg"));
-				Files.delete(fileRoot.resolve(path));
+				Files.deleteIfExists(fileRoot.resolve(path));
 			}
 			ps = conn.prepareStatement("DELETE FROM `file` WHERE post IS NULL OR user IS NULL OR board IS NULL OR (post = -1 AND date < ?)");
 			ps.setLong(1,now-3600*1000*12);
@@ -120,9 +132,9 @@ if(request.getMethod().equals("POST")){
 			String path = result.getString("path");
 			ps.setString(1,path);
 			ps.executeUpdate();
-			Files.delete(fileRoot.resolve(path).resolve(result.getString("filename")));
+			Files.deleteIfExists(fileRoot.resolve(path).resolve(result.getString("filename")));
 			Files.deleteIfExists(fileRoot.resolve(path).resolve(result.getString("filename")+".jpg"));
-			Files.delete(fileRoot.resolve(path));
+			Files.deleteIfExists(fileRoot.resolve(path));
 			sizeLeft += result.getInt("size");
 			uploadCount--;
 		}
@@ -137,6 +149,8 @@ if(request.getMethod().equals("POST")){
 		byte[] pathBytes = new byte[12];
 		rng.nextBytes(pathBytes);
 		path = Base64.getUrlEncoder().encodeToString(pathBytes);
+		path = ""+ord+path.substring(1);
+		
 		ps = conn.prepareStatement("INSERT INTO `file`(path, filename, user, board, post, size, date) VALUES(?,?,?,?,?,?,?)");
 		ps.setString(1,path);
 		ps.setString(2,filename);

@@ -15,6 +15,7 @@ var boardName="";
 var boardImage=document.getElementById("boardImage").src;
 var vcInterval=-1;
 var pingInterval=-1;
+var ordinal=resetOrdinal();
 const DEFAULT_USERNAME="Anonymous";
 const DEFAULT_PFP="images/hydar2.png";
 const ATTACHMENT_PATH="/attachments/"
@@ -22,6 +23,9 @@ const DEFAULT_VOLS="50,50,50,0";
 const MSGS = document.getElementById("msgs");
 const fe=document.getElementById("fileElem");
 const MAX_FILE_PER_MSG=8;
+function resetOrdinal(){
+	return (Math.random()<0.5?65:97)+Math.round(Math.random()*16)
+}
 function probeType(x){
 	let url = ATTACHMENT_PATH+x;
 	if(!url.includes(".") || url.endsWith("."))
@@ -153,7 +157,7 @@ function wrapMessage(x){//generate html for a message element
 	<div class='msgText' id='msgText_${x.id}' data-tid='${x.transaction}'>
 		${decodeURIPlus(x.message)}
 	</div>
-	${(x.files&&x.files.length)?`<b>Attachment${fileLen}:</b><br><div class='attGrid'>${x.files.map(wrapFile).join('')}</div>`:""}
+	${(x.files&&x.files.length)?`<b>Attachment${fileLen}:</b><br><div class='attGrid'>${x.files.sort(x=>x).map(wrapFile).join('')}</div>`:""}
 	<br clear='left'>
 	</div>
 	</div>`;
@@ -297,6 +301,10 @@ fe.onchange=()=>{
 			if(allFiles.length>=MAX_FILE_PER_MSG){
 				return;
 			}
+			let currentOrd = String.fromCharCode(ordinal++);
+			if(ordinal>97+25 || (ordinal<97 && ordinal>65+25)){
+				ordinal=65;
+			}
 			let id="attachment_"+Math.round(Math.random()*1E9);
 			let fileObj = {"prog":0,"file":file,"path":null,"id":id};
 			allFiles.push(fileObj);
@@ -306,7 +314,7 @@ fe.onchange=()=>{
 				test.innerHTML=posting;
 			rescaleImage(file).then(thumbnail=>{
 				fileObj.file=file;
-				let target='/UploadFile.jsp?board='+boardId+"&filename="+file.name+"&thumbsize="+thumbnail.size;
+				let target='/UploadFile.jsp?board='+boardId+"&filename="+file.name+"&thumbsize="+thumbnail.size+"&ordinal="+currentOrd;
 				let newFile = (thumbnail&&thumbnail.size>0)?
 					new Blob([file,thumbnail],{"type":"application/octet-stream"}):
 					thumbnail;
@@ -526,6 +534,7 @@ function clearFiles(){
 		file.request?.abort();
 		file.cancelled=1;
 	}
+	ordinal=resetOrdinal();
 	allFiles=[];
 	document.getElementById("posting").innerHTML=wrapPosting();
 	return false;
@@ -1036,6 +1045,7 @@ function post(){
 	var contents=textbox.value.replaceAll("\n", "<br>");
 	if((contents.length==0&&!allFiles.length) || allFiles.find(x=>!x.path))
 		return;
+	ordinal=resetOrdinal();
 	postString(contents);
 	textbox.value="";
 	textbox.focus();
