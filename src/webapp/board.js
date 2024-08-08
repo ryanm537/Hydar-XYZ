@@ -107,7 +107,7 @@ function wrapFile(x){//html for a file
 			
 			return `
 			<a href='${ATTACHMENT_PATH+x}' onclick="return preview('${x}')">
-				<div class='attGridSquare'">
+				<div class='attGridSquare'>
 					<div class='attGridName'>
 					</div>
 					<img onerror='this.onerror=null;this.src="/images/file.png"' src='${ATTACHMENT_PATH+x}.jpg'>
