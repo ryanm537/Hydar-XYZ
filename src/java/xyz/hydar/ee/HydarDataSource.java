@@ -711,7 +711,7 @@ public abstract class HydarDataSource implements DataSource, AutoCloseable{
 			@Override
 			protected PooledConnection newPC(boolean login, String username, String password) throws SQLException {
 				if(ds instanceof DataSource pds)
-					return HydarDataSource.physicalHandle(!login?pds.getConnection():pds.getConnection(username, password));
+					return HydarDataSource.physicalHandle(!login?pds.getConnection(this.username,this.password):pds.getConnection(username, password));
 				else throw new SQLException("invalid");
 			}
 		}
@@ -723,7 +723,7 @@ public abstract class HydarDataSource implements DataSource, AutoCloseable{
 			@Override
 			protected PooledConnection newPC(boolean login, String username, String password) throws SQLException {
 				if(ds instanceof ConnectionPoolDataSource pds)
-					return !login?pds.getPooledConnection():pds.getPooledConnection(username, password);
+					return !login?pds.getPooledConnection(this.username,this.password):pds.getPooledConnection(username, password);
 				else throw new SQLException("invalid");
 			}
 		}
