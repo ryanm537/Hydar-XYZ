@@ -36,7 +36,7 @@ if(request.getMethod().equals("POST")){
 			response.sendError(400);
 			return;
 		}
-		filename=FILE_SAFE.matcher(filename).replaceAll("");
+		filename=FILE_SAFE.matcher(filename).replaceAll("").replace(".jsp",".jsp.txt");
 		ordinal=FILE_SAFE.matcher(ordinal).replaceAll("");
 		if(ordinal.length()==0){
 			response.sendError(400);
