@@ -41,6 +41,7 @@ function probeType(x){
 			return "file";
 	}
 }
+
 function preview(x){//show big sus rectangle with thing
 	let filename=x.substring(x.lastIndexOf('/')+1);
 	let vwr=document.getElementById("imageViewer");
@@ -140,6 +141,14 @@ function wrapFile(x){//html for a file
 			return `<i>Attachment:</i> <a href='${ATTACHMENT_PATH+x}'>${x.split('/')[1]}</a><br>`;
 	}*/
 }
+//used for verifying msgs(in case server changed them)
+function hashCode(str) {
+	var hash = 0, i = 0, len = str.length;
+	while (i < len) {
+		hash = ((hash << 5) - hash + str.charCodeAt(i++)) << 0;
+	}
+	return hash;
+}
 function wrapMessage(x){//generate html for a message element
 	var user=users.get(x.uid);
 	if(!user)
@@ -154,7 +163,7 @@ function wrapMessage(x){//generate html for a message element
 	<div class = 'rectangleText'><b>${user.username}<br>Id# - ${user.id}</b><br><a href = 'CreateBoard.jsp?input_dm=${user.id}'>Send direct message</a></div></div>
 	<div id='three_${x.id}' class='three'>&nbsp;(just now): </div><br>
 	<div class='msgBody' style='display:block;opacity:${x.verified?1:0.5}'>
-	<div class='msgText' id='msgText_${x.id}' data-tid='${x.transaction}'>
+	<div class='msgText' id='msgText_${x.id}' data-tid='${x.transaction}' data-msg='${hashCode(x.message)}'>
 		${decodeURIPlus(x.message)}
 	</div>
 	${(x.files&&x.files.length)?`<b>Attachment${fileLen}:</b><br><div class='attGrid'>${x.files.sort(x=>x).map(wrapFile).join('')}</div>`:""}
@@ -249,14 +258,16 @@ function replaceMessage(m){//given a message object, replace its element
 		trash(ms);
 	}
 	if(tmp ||ms!=null){
-		var isNew=mb.style.opacity==0.5;
-		let tmpDiv=document.createElement("div");
-		tmpDiv.innerHTML=decodeURIPlus(m.message);
-		let diff=(mt.textContent!=tmpDiv.textContent)||(tmpDiv.children.length != mt.children.length);
+		let isNew=mb.style.opacity==0.5;
+		//let tmpDiv=document.createElement("div");
+		//tmpDiv.innerHTML=decodeURIPlus(m.message);
+		//let diff=(mt.textContent!=tmpDiv.textContent)||(tmpDiv.children.length != mt.children.length);
+		let diff = mt.dataset.msg != hashCode(m.message);
+		console.log(isNew);
 		if(diff){
-			//console.log("DIFF%%%");
-			//console.log(mt.textContent);
-			//console.log(tmpDiv.textContent);
+			console.log("DIFF%%%");
+			console.log( mt.dataset.msg);
+			console.log(m.message);
 		}
 		if(isNew&&!diff){
 			/**mt.setAttribute("style",
@@ -266,7 +277,7 @@ function replaceMessage(m){//given a message object, replace its element
 				if(tid=="-1"){
 					mt.setAttribute("data-tid",m.transaction);
 				}
-				mt.removeAttribute("style");
+				mb.style.opacity=1;
 			return;
 		}
 		else if(isNew || diff){

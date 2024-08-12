@@ -277,6 +277,7 @@ static class Game{
 					player.print("msg:Mixed hand. Please draw again");
 					player.print("err:MIXED_HAND");
 					player.print("turn:start");
+					activePlayer.compareAndExchange(player,null);
 					return;
 				}
 				active=tmpActive;
@@ -426,7 +427,7 @@ public static class Player extends HydarWS.Endpoint{
 			}else{
 				print("msg:Not Queued...");
 			}
-		}else if(cmd.equals("settings")&&code==null){
+		}else if(cmd.equals("settings")&&code!=null){
 			String[] settings = msg.split(":",2)[1].split(",");
 			this.dealCount=Integer.parseInt(settings[0]);
 			this.jokers=Integer.parseInt(settings[1]);
@@ -447,19 +448,19 @@ static{
 
 %>
 <!DOCTYPE html>
-<html><body>
-<div style='height:360px;top:0px;position:relative;background:lightgray;overflow:scroll;display: flex; flex-direction: column-reverse;'>
+<html><body style='background:gray'>
+<div style='height:200px;top:0px;position:relative;background:lightgray;overflow:scroll;display: flex; flex-direction: column-reverse;'>
 	<pre id='chat'></pre>
 </div>
 
-<div id='active' hidden=1>
+<div id='active' hidden=1 style='font-size:20px'>
 Active Cards:<br>
 	<div style='display:inline'>
 	[    <a> 1</a>       ]
 	</div>
 </div>
 
-<div id='turn' hidden=1 style='cursor:pointer'>
+<div id='turn' hidden=1 style='cursor:pointer;font-size:20px'>
 	<br>
 	Your hand:
 	<br>
@@ -468,7 +469,7 @@ Active Cards:<br>
 	<input type="checkbox" style="pointer-events:none">]
 	</div>
 </div>
-<div id='play' onclick='this.hidden=1;makeSocket();'>
+<div id='play' onclick='this.hidden=1;makeSocket();' style='font-size:40px'>
 <button type='submit'>
 Play
 </button>

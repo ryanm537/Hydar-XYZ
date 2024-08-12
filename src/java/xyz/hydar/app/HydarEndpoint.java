@@ -23,6 +23,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
@@ -614,7 +615,25 @@ class Board{
 		}else if(inputText==BITS){
 			TasqueManager.add(new PythonBot(this,new String[]{HydarEndpoint.PYTHON_PATH,"./bots/HydarBitsCalculator.py"},u,newID,0,false));
 		}else if(inputText.equals("/bloons")) {
-			TasqueManager.add(new IframeBot(this,u,newID,"bloons.html",0));
+			TasqueManager.add(new IframeBot(this,u,newID,"bloons.html","hop on bloons",0));
+		}else if(inputText.startsWith("/thehydar")) {
+			var rng = ThreadLocalRandom.current();
+			int dealCount=5,jokers=2;
+			String code=""+rng.nextInt((int)1E8,(int)1E9);
+			try {
+				String[] args = inputText.split(" ",3);
+				if(args.length==3) {
+					dealCount=Integer.parseInt(args[1]);
+					jokers=Integer.parseInt(args[2]);
+				}else if(args.length==2) {
+					if(args[1].equalsIgnoreCase("public")) {
+						code="public";
+					}else dealCount=Integer.parseInt(args[1]);
+				}
+				dealCount=Math.min(dealCount,26+jokers/2);
+			}catch(NumberFormatException nfe) {}
+			String url = "TestHydarGame.jsp?code="+code+"&dealCount="+dealCount+"&jokers="+jokers;
+			TasqueManager.add(new IframeBot(this,u,newID,url,"the hydar",0));
 		}
 		return null;
 	}
@@ -1133,14 +1152,17 @@ interface Tasque extends Runnable{
 //TODO: common subclass
 class IframeBot extends PythonBot{
 	final String url;
-	public IframeBot(Board b, Member u, int toReply, String url, int transaction) {
+	final String text;
+	public IframeBot(Board b, Member u, int toReply, String url, String text, int transaction) {
 		super(b, null, u, toReply, transaction, false);
 		this.url=url;
+		this.text=text;
 	}
 	@Override
 	public void run() {
 		this.output=new StringBuilder(64)
-				.append("hop on bloons<br><iframe width='400' height='400' frameBorder='0' src = '")
+				.append(text)
+				.append("<br><iframe width='400' height='400' frameBorder='0' src = '")
 				.append(url).append("'></iframe>")
 				.toString();//url is trusted field
 		success();
