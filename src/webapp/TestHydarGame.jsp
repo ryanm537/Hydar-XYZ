@@ -382,7 +382,7 @@ public static class Player extends HydarWS.Endpoint{
 	@Override
 	public void onClose() throws IOException{
 		if(code!=null)
-			privates.remove(code);
+			privates.computeIfPresent(this.code,(k,v)->v==this?null:v);
 		publicQueue.compareAndExchange(this, null);
 		if(game!=null){
 			game.dropPlayer(this);
@@ -416,7 +416,7 @@ public static class Player extends HydarWS.Endpoint{
 				print("msg:Finding code "+code+"...");
 				queue=privates.put(this.code,this);
 				if(queue!=null && queue!=this)
-					privates.remove(code);
+					privates.computeIfPresent(this.code,(k,v)->v==this?null:v);
 			}
 			if(queue!=null&&queue!=this){
 				print("msg:Found game: "+queue.username+"...");
