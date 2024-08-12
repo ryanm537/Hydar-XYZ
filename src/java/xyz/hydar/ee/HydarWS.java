@@ -53,6 +53,7 @@ public class HydarWS extends OutputStream{
 	private BAOS deflate_baos;
 	private DeflaterOutputStream deflate_dos;
 	static final LongBuffer empty=LongBuffer.allocate(0);
+	private volatile boolean alive=true;
 	public final Hydar hydar;
 	
 	/**Initialize this context and its endpoint, if one is available.*/
@@ -149,15 +150,18 @@ public class HydarWS extends OutputStream{
 	 * */
 	@Override
 	public void close() throws IOException{
-		try {
-			if(endpoint!=null) {
-				endpoint.onClose();
+		if(alive) {
+			alive=false;
+			try {
+				if(endpoint!=null) {
+					endpoint.onClose();
+				}
+				super.close();
+				if(thread.alive())
+					thread.output.write(WS_CLOSE);
+			} finally {
+				thread.close();
 			}
-			super.close();
-			if(thread.alive)
-				thread.output.write(WS_CLOSE);
-		} finally {
-			thread.close();
 		}
 	}
 	/**Partial read. TODO: optimize*/
@@ -195,7 +199,7 @@ public class HydarWS extends OutputStream{
 		long length=0;
 		String line="";
 		//on error just die
-		if(--ping==0||!thread.alive){//nothing sent for a while
+		if(--ping==0||!thread.alive()){//nothing sent for a while
 			System.out.println("L bozi,");
 			close();
 			return;
@@ -287,7 +291,7 @@ public class HydarWS extends OutputStream{
 				thread.output.flush();
 				return;
 			}else{
-				if(thread.alive==false){
+				if(thread.alive()==false){
 					close();
 					return;
 				}
@@ -375,6 +379,7 @@ public class HydarWS extends OutputStream{
 					test = (Endpoint)endpointClass.getConstructors()[0].newInstance(websocket);
 				} catch (InstantiationException | IllegalAccessException | IllegalArgumentException
 						| InvocationTargetException | SecurityException e) {
+					e.printStackTrace();
 					return null;
 				}
 			}

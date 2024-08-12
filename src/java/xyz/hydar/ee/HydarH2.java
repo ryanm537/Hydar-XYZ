@@ -401,7 +401,6 @@ class HStream{
 		}
 
 		if(frame.endStream){
-			try {
 			if(!canReceive())return;
 			if(state==State.half_closed_local) {
 				this.close(0);
@@ -450,10 +449,6 @@ class HStream{
 			}else {
 				//System.out.println("nonconcurrent "+h2.streams.size()+concurrent);
 				streamTask.run();
-			}
-			}catch(Exception e) {
-				e.printStackTrace();
-				
 			}
 		}
 	}

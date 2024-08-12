@@ -91,7 +91,7 @@ class ServerThread implements Runnable {
 	public final BufferedDIS input;//See HydarUtil
 	
 	//If false we end the thread on the next read or timeout.
-	public volatile boolean alive;
+	private volatile boolean alive;
 	
 	//Controls rate limiting - specified in HydarUtil, implemented in HydarLimiter
 	public final Limiter limiter;
@@ -99,7 +99,7 @@ class ServerThread implements Runnable {
 	//If the client has already successfully sent a request,
 	//set this field so we don't 408 them on SocketTimeoutExceptions.
 	private boolean h1use=false;
-	
+	private boolean willClose=false;//Connection: close header
 	//Session obtained from cookies or URL.
 	public volatile HydarEE.HttpSession session=null;
 	
@@ -133,7 +133,7 @@ class ServerThread implements Runnable {
 	public void run() {
 		try(client) {
 			this.alive=true;
-			while(this.alive){
+			while(this.alive() && !willClose){
 				//update last used time for session
 				try {
 					if(h2!=null)
@@ -153,7 +153,7 @@ class ServerThread implements Runnable {
 		} catch (IOException e) {
 			
 		}finally {
-			this.alive=false;
+			close();
 			//Return tokens to the limiter.
 			limiter.release(Token.PERMANENT_STATE,Config.TC_PERMANENT_THREAD);
 			Hydar.threadCount.decrementAndGet();
@@ -393,7 +393,7 @@ class ServerThread implements Runnable {
 		if(h2 == null && connection!=null){
 			connection=connection.toLowerCase();
 			if(connection.contains("close"))
-				this.alive=false;
+				willClose=true;
 			if(connection.contains("upgrade")) {
 				upgrade=true;
 				protocol = headers.get("upgrade");
@@ -701,10 +701,15 @@ class ServerThread implements Runnable {
 		
 		
 	}
+	/**Public getter for status checks*/
+	public boolean alive() {
+		return alive;
+	}
 	/**Close immediately. Called by HydarWS::close and HydarH2::goaway.*/
 	public void close() {
-		alive=false;
-		try(client){}
+		this.alive=false;
+		try(client;HydarWS ws = this.ws;){
+		}
 		catch(IOException ioe) {}
 	}
 	
@@ -1734,7 +1739,7 @@ public class Hydar {
 						}
 						tmp.writeTo(output,endStream);
 						offset+=flength;
-					}while(thread.alive && offset<originalSize && h.canSend());
+					}while(thread.alive() && offset<originalSize && h.canSend());
 				}
 			}
 					//h.thread.alive=false;
