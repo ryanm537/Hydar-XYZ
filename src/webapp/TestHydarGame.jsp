@@ -1,5 +1,7 @@
+<%@page import="java.util.EnumMap"%>
 <%@page import="java.util.concurrent.ThreadLocalRandom"%>
-<%@page import="java.util.stream.Collectors"%>
+<%@page import="java.util.stream.Collectors, static java.util.stream.Collectors.toMap"%>
+<%@page import="static java.util.stream.Collectors.joining"%>
 <%@page import="java.util.ArrayList"%>
 <%@page import="java.io.IOException"%>
 <%@page import="java.util.stream.Stream"%>
@@ -16,6 +18,7 @@
 <%@ page language="java"%>
 <%@ page import="javax.servlet.http.*,javax.servlet.*"%>
 <%@ page contentType="text/html; charset=UTF-8" %>
+<%@ include file="SkeleAdd.jsp" %>
 <%!
 static enum Suit{
 	HEARTS, DIAMONDS, CLUBS, SPADES;
@@ -30,23 +33,35 @@ static enum Suit{
 	}
 };
 static record Card(Suit suit, int rank){
-	static int[] ranks = IntStream.range(1,14).toArray();
-	static Card[][] CARDS=Arrays.stream(Suit.values())
-			.map(x->Arrays.stream(ranks).mapToObj(y->new Card(x,y)).toArray(Card[]::new))
-			.toArray(Card[][]::new);
-	static Card[][] IMPOSTORS = Arrays.stream(Suit.values())
-			.map(x->Arrays.stream(ranks).mapToObj(y->new Card(x,-y)).toArray(Card[]::new))
-			.toArray(Card[][]::new);
+	static final int[] ranks = IntStream.range(1,14).toArray();
+	static final EnumMap<Suit,List<Card>> CARDS=Arrays.stream(Suit.values())
+		.collect(
+			toMap(
+				x->x,
+				x->Arrays.stream(ranks).mapToObj(y->new Card(x,y)).toList(),
+				(x,y)->x,
+				()->new EnumMap<>(Suit.class)
+			)
+		);
+	static final EnumMap<Suit,List<Card>> IMPOSTORS = Arrays.stream(Suit.values())
+		.collect(
+			toMap(
+				x->x,
+				x->Arrays.stream(ranks).mapToObj(y->new Card(x,-y)).toList(),
+				(x,y)->x,
+				()->new EnumMap<>(Suit.class)
+			)
+		);
 	static Card JOKER = new Card(Suit.HEARTS,-1);
 	static Card of(Suit suit, int rank){
-		return CARDS[suit.ordinal()][rank-1];
+		return CARDS.get(suit).get(rank-1);
 	}
 	static Card negative(Suit suit, int rank){
-		return IMPOSTORS[suit.ordinal()][-rank-1];
+		return IMPOSTORS.get(suit).get(-rank-1);
 	}
 	static List<Card> deal(int n, int jokers){
 		List<Card> deck = Stream.concat(
-				Arrays.stream(CARDS).flatMap(Arrays::stream)
+				CARDS.values().stream().flatMap(List::stream)
 				//,Stream.generate(()->new Card(Suit.HEARTS,-1)).limit(jokers)
 				,Collections.nCopies(jokers, JOKER).stream()
 			).collect(Collectors.toCollection(ArrayList::new));
@@ -124,8 +139,8 @@ static class Game{
 		p1.opp=p2;
 		p2.opp=p1;
 		List<Card> hands = Card.deal(10,2);
-		p1.hand = hands.subList(0,5);
-		p2.hand = hands.subList(5,10);
+		p1.hand = hands.subList(0,hands.size()/2);
+		p2.hand = hands.subList(hands.size()/2,hands.size());
 		printHands();
 		p1.print("msg:Your turn...");
 		p1.print("turn:start");
@@ -133,35 +148,45 @@ static class Game{
 		p2.print("turn:start");
 		//send that game has started + hands
 	}
+	private String formatCards(List<Card> cards){
+		return cards.stream().map(Card::toString).collect(joining(","));
+	}
 	public void printHands() throws IOException{
 		if(active!=null){
 			p1.print("msg:"+"Cards down "+(p1==activePlayer?"(yours) ":"(enemy's) ")+active);
 			p2.print("msg:"+"Cards down: "+(p2==activePlayer?"(yours) ":"(enemy's) ")+active);
+			p1.print("active:"+formatCards(active));
+			p2.print("active:"+formatCards(active));
 		}
-		p1.print("msg:"+"Your hand: "+p1.hand);
-		p1.print("hand:"+p1.hand.stream().map(Card::toString).collect(Collectors.joining(",")));
-		p2.print("msg:"+"Your hand: "+p2.hand);
-		p2.print("hand:"+p2.hand.stream().map(Card::toString).collect(Collectors.joining(",")));
+		p1.print("msg:Your hand: "+p1.hand);
+		p1.print("hand:"+formatCards(p1.hand));
+		p2.print("msg:Your hand: "+p2.hand);
+		p2.print("hand:"+formatCards(p2.hand));
 	}
 	public List<Card> showdown(List<Card> active, List<Card> challenge) throws IOException{
 		rounds++;
+		var rng=ThreadLocalRandom.current();
 		Player challengePlayer = activePlayer==p1?p2:p1;
 		Suit activeSuit = Card.findSuit(active);
 		Suit challengeSuit = Card.findSuit(challenge);
 		int activeTotal = active.stream().mapToInt(x->x.rank()).sum();
-		activePlayer.print("msg:"+"Your cards have a total of "+activeTotal+" power");
-		challengePlayer.print("msg:"+"The enemy's cards have a total of "+activeTotal+" power");
+		//activePlayer.print("msg:"+"Your cards have a total of "+activeTotal+" power");
+		//challengePlayer.print("msg:"+"The enemy's cards have a total of "+activeTotal+" power");
 		int challengeTotal = challenge.stream().mapToInt(x->x.rank()).sum();
-		challengePlayer.print("msg:"+"Your cards have a total of "+challengeTotal+" power");
-		activePlayer.print("msg:"+"The enemy's cards have a total of "+challengeTotal+" power");
+		//challengePlayer.print("msg:"+"Your cards have a total of "+challengeTotal+" power");
+		//activePlayer.print("msg:"+"The enemy's cards have a total of "+challengeTotal+" power");
 		double multiplier = Card.multiplier(activeSuit,challengeSuit);
-		activePlayer.print("msg:"+"Your cards are multiplied by "+multiplier+" for a total of "+activeTotal*multiplier+" power");
-		challengePlayer.print("msg:"+"The enemy's cards are multiplied by "+multiplier+" for a total of "+activeTotal*multiplier+" power");
+		//activePlayer.print("msg:"+"Your cards are multiplied by "+multiplier+" for a total of "+activeTotal*multiplier+" power");
+		//challengePlayer.print("msg:"+"The enemy's cards are multiplied by "+multiplier+" for a total of "+activeTotal*multiplier+" power");
 		boolean tie=activeTotal * multiplier == challengeTotal;
 		boolean activeWin = activeTotal * multiplier > challengeTotal;
+		String activeResult = "msg:(You)"+active+" x "+multiplier+" = "+ (activeTotal*multiplier)+"\n vs. (Enemy) "+challenge +" = " +challengeTotal;
+		String challengeResult = "msg:(Enemy)"+active+" x "+multiplier+" = "+ (activeTotal*multiplier)+"\n vs. (You) "+challenge +" = " +challengeTotal;
+		activePlayer.print(activeResult);
+		challengePlayer.print(challengeResult);
 		if(tie){
-			boolean activePick = Math.random()>0.5;//h/t pick
-			boolean coin = Math.random()>0.5;//h/t roll
+			boolean activePick = rng.nextDouble()>0.5;//h/t pick
+			boolean coin = rng.nextDouble()>0.5;//h/t roll
 			activeWin = activePick==coin;
 			activePlayer.print("msg:Tie, you pick: "+(activePick?"heads":"tails")+", coin: "+(coin?"heads":"tails"));
 			challengePlayer.print("msg:Tie, you pick: "+(activePick?"tails":"heads")+", coin: "+(coin?"heads":"tails"));
@@ -172,6 +197,7 @@ static class Game{
 		challengePlayer.print("msg:"+(activeWin?"You lose this round!":"You win this round!"));
 		return activeWin ? active : challenge;
 	}
+	//Return a version of the deployed cards(with) with jokers and aces replaced
 	public List<Card> replaceJokersAces(Player player, List<Card> with, List<Card> against) throws IOException{
 		List<Card> newCards = new ArrayList<>();
 		Suit ownSuit = Card.findSuit(with);
@@ -216,16 +242,29 @@ static class Game{
 			}
 			else newCards.add(c);
 		}
-		return newCards;
+		return Collections.unmodifiableList(newCards);
 	}
 	public void process(Player player, String move) throws IOException{
+		//formatting
+		String[] cmds=move.split(":",2);
+		if(cmds.length!=2){
+			player.print("err:BAD_CMD");
+			player.print("turn:start");
+			return;
+		}
+		String cmd = cmds[0];
+		String text = cmds[1];
+		if(text.length()==0){
+			player.print("err:BAD_CMD");
+			player.print("turn:start");
+			return;
+		}
 		//move contains the cards selected
-		//roll aces and jokers when deployed, convert them to their value
-		String cmd = move.split(":",2)[0];
 		if(cmd.equals("select")){
 			turnLock.lock();
 			try{
-				List<Integer> selected = Arrays.asList(move.split(":",2)[1].split(",")).stream().map(Integer::parseInt).toList();
+				//unselected cards are the ones that will be left in hand
+				List<Integer> selected = Arrays.asList(text.split(",")).stream().map(Integer::parseInt).toList();
 				List<Integer> unselected = IntStream.range(0,player.hand.size()).boxed().filter(x->!selected.contains(x)).toList();
 				
 				List<Card> challenging=null;
@@ -272,10 +311,6 @@ static class Game{
 					if(active.stream().anyMatch(x->x==Card.JOKER || x.rank==1)){
 						active = replaceJokersAces(activePlayer, active, challenging);
 					}
-					activePlayer.print("msg:Your cards this turn: "+active);
-					activePlayer.print("msg:Enemy cards this turn: "+challenging);
-					player.print("msg:Your cards this turn: "+challenging);
-					player.print("msg:Enemy cards this turn: "+active);
 					active = showdown(active, challenging);
 					if(active==challenging){ 
 						activePlayer = player;
@@ -356,6 +391,11 @@ public static class Player extends HydarWS.Endpoint{
 	}
 	@Override
 	public void onMessage(String msg) throws IOException{
+		Integer uidTest=(Integer)session.getAttribute("userid");
+		if(uidTest==null || uidTest!=id){
+			close();
+			return;
+		}
 		String cmd = msg.split(":",2)[0];
 		if(cmd.equals("queue")){
 			queueLock.lock();
@@ -393,8 +433,38 @@ static{
 %>
 <!DOCTYPE html>
 <html><body>
-<pre id='chat'></pre>
+<div style='height:360px;top:0px;position:relative;background:lightgray;overflow:scroll;display: flex; flex-direction: column-reverse;'>
+	<pre id='chat'></pre>
+</div>
+
+<div id='active' hidden=1>
+Active Cards:<br>
+	<div style='display:inline'>
+	[    <a> 1</a>       ]
+	</div>
+</div>
+
+<div id='turn' hidden=1 style='cursor:pointer'>
+	<br>
+	Your hand:
+	<br>
+	<div onclick='this.children[1].checked^=1;return false;' style='display:inline'>
+	[<a> 1</a>
+	<input type="checkbox" style="pointer-events:none">]
+	</div>
+</div>
 <script>
+let turnElem=document.getElementById("turn");
+let activeElem=document.getElementById("active");
+for(var i=0;i<27;i++){
+	turnElem.appendChild(turnElem.querySelector("div").cloneNode(true));
+	activeElem.appendChild(activeElem.querySelector("div").cloneNode(true));
+}
+let submitHand=document.createElement("button");
+submitHand.type="submit";
+submitHand.innerText="Send";
+submitHand.onclick=()=>sendTurn(turnElem);
+turnElem.appendChild(submitHand);
 var myHostname = window.location.hostname;
 var scheme = document.location.protocol==="https:"?"wss":"ws";
 serverUrl = scheme + "://" + myHostname + ":"+document.location.port+"/TestHydarGame.jsp?";
@@ -408,6 +478,7 @@ chat("Connecting...");
 var connection = new WebSocket(serverUrl);
 var timer=null;
 var hand=[];
+var active=[];
 connection.onopen = function(_evt) {
 	clearTimeout(timer);
 	chat("Opened.");
@@ -416,12 +487,14 @@ connection.onopen = function(_evt) {
 }
 connection.onclose=function(_evt){
 	clearTimeout(timer);
-	hideMove();
+	hideMove("turn");
+	hideMove("active");
 	chat("Disconnected.");
 }
 connection.onerror = function(evt) {
 	clearTimeout(timer);
-	hideMove();
+	hideMove("turn");
+	hideMove("active");
 	chat("Disconnected(error).");
 }
 connection.onmessage = async function(evt) {
@@ -431,7 +504,11 @@ connection.onmessage = async function(evt) {
 		chat(evt.data.replace("msg:",""));
 		break;
 	case "turn":
-		showMove();
+		showMove("turn",hand);
+		break;
+	case "active":
+		active=evt.data.split(":")[1].split(",");
+		showMove("active",active);
 		break;
 	case "hand":
 		hand=evt.data.split(":")[1].split(",");
@@ -453,62 +530,46 @@ function sendTurn(e){
 		if(box.checked)
 			turn.push(i)
 		box.checked=false;
-		if(i==4)
+		if(i>=hand.length)
 			break;
 	}
+	if(turn.length==0)
+		return false;
 	connection.send("select:"+turn.join());
-	hideMove();
+	hideMove("turn");
 	return false;
 }
-function hideMove(){
-	document.getElementById("turn").hidden=1;
+function hideMove(element){
+	document.getElementById(element).hidden=1;
 }
-function showMove(){
-	let turn_=document.getElementById("turn");
+function showMove(element, cards){
+	let turn_=document.getElementById(element);
 	for(let [i,caption] of turn_.querySelectorAll("a").entries()){
-		if(i>=hand.length){
+		if(i>=cards.length){
 			caption.hidden=true;
 		}else{
 			caption.hidden=false;
-			caption.innerText = hand[i];
-			console.log(hand[i]);
-			console.log((hand[i].includes("♥")||hand[i].includes("♦")));
-			caption.style.color=(hand[i].includes("♥")||hand[i].includes("♦"))?"red":"black";
+			caption.innerText = cards[i];
+			caption.style.color=(cards[i].includes("♥")||cards[i].includes("♦"))?"red":"black";
 		}
 	}
 	for(let [i,box] of turn_.querySelectorAll("input").entries()){
-		if(i>=hand.length){
+		if(i>=cards.length){
 			box.hidden=true;
 		}else box.hidden=false;
+	}
+	for(let [i,div] of turn_.querySelectorAll("div").entries()){
+		if(i>=cards.length)
+			div.style.display="none";
+		else{
+			div.style.display="inline";
+		}
 	}
 	turn_.hidden=false;
 }
 </script>
-<div id='turn' hidden=1 style='cursor:pointer'>
-<form target='#' action=''>
-<div onclick='this.children[1].checked^=1;return false;' style='display:inline'>
-[<a id='card0'> 1</a>
-<input type=checkbox style="pointer-events: none;">]
-</div>
-<div onclick='this.children[1].checked^=1;return false;' style='display:inline'>
-[<a id='card1'> 2</a>
-<input type=checkbox style="pointer-events: none;">]
-</div>
-<div onclick='this.children[1].checked^=1;return false;' style='display:inline'>
-[<a id='card2'> 3</a>
-<input type=checkbox style="pointer-events: none;">]
-</div>
-<div onclick='this.children[1].checked^=1;return false;' style='display:inline'>
-[<a id='card3'> 4</a>
-<input type=checkbox style="pointer-events: none;">]
-</div>
-<div onclick='this.children[1].checked^=1;return false;' style='display:inline'>
-[<a id='card4'> 5</a>
-<input type=checkbox style="pointer-events: none;">]
-</div>
-</form>
-<button type=submit onclick='sendTurn(document.forms[0]);'>Send</button>
-</div>
+
+
 </body>
 </html>
 <%-- Hydar hydar hydar hydar--%>
