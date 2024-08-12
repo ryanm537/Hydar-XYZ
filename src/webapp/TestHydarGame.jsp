@@ -59,7 +59,7 @@ static record Card(Suit suit, int rank){
 			if(c.suit()!=Suit.HEARTS&&theSuit==null){
 				theSuit=c.suit();
 			}else if(theSuit!=c.suit() && c.suit()!=Suit.HEARTS && theSuit!=null)
-				throw new IllegalArgumentException("mixed hand");
+				return null;
 		}
 		return theSuit==null?Suit.HEARTS:theSuit;
 	}
@@ -114,6 +114,7 @@ static class Game{
 	//on selected cards, lock and set active to these cards IF its null, otherwise fight those cards
 	//maybe atomicreference instead??
 	volatile Player activePlayer;//player on battlefield
+	volatile int rounds=0;
 	final ReentrantLock turnLock = new ReentrantLock();
 	public Game(Player p1, Player p2) throws IOException{
 		this.p1=p1;
@@ -143,6 +144,7 @@ static class Game{
 		p2.print("hand:"+p2.hand.stream().map(Card::toString).collect(Collectors.joining(",")));
 	}
 	public List<Card> showdown(List<Card> active, List<Card> challenge) throws IOException{
+		rounds++;
 		Player challengePlayer = activePlayer==p1?p2:p1;
 		Suit activeSuit = Card.findSuit(active);
 		Suit challengeSuit = Card.findSuit(challenge);
@@ -181,7 +183,7 @@ static class Game{
 				player.print("msg:Dice rolls(Joker): "+dice1+", "+dice2);
 				player.opp.print("dice:enemy,joker,"+dice1+","+dice2);
 				player.print("dice:you,joker,"+dice1+","+dice2);
-				Suit newSuit = ownSuit!=Suit.HEARTS? ownSuit:switch(Card.findSuit(against)){
+				Suit newSuit = (ownSuit!=Suit.HEARTS || rounds==0)? ownSuit:switch(Card.findSuit(against)){
 					case HEARTS->Suit.HEARTS;
 					case DIAMONDS->Suit.CLUBS;
 					case CLUBS->Suit.SPADES;
@@ -225,17 +227,34 @@ static class Game{
 			try{
 				List<Integer> selected = Arrays.asList(move.split(":",2)[1].split(",")).stream().map(Integer::parseInt).toList();
 				List<Integer> unselected = IntStream.range(0,player.hand.size()).boxed().filter(x->!selected.contains(x)).toList();
+				
 				List<Card> challenging=null;
 				Player opp = player==p1?p2:p1;
 			
 				if(activePlayer==null){
-					active = selected.stream().map(player.hand::get).toList();
+					List<Card> tmpActive = selected.stream().map(player.hand::get).toList();
+					if(Card.findSuit(tmpActive)==null){
+						player.print("msg:Mixed hand. Please draw again");
+						player.print("err:MIXED_HAND");
+						player.print("turn:start");
+						return;
+					}
+					active=tmpActive;
 					activePlayer=player;
 				}else{
-					if(activePlayer==player)
+					if(activePlayer==player){
+						player.print("msg:Not your turn.");
+						player.print("err:WRONG_TURN");
 						return;
-					else{
-						challenging = selected.stream().map(player.hand::get).toList();
+					}else{
+						List<Card> tmpChallenging = selected.stream().map(player.hand::get).toList();
+						if(Card.findSuit(tmpChallenging)==null){
+							player.print("msg:Mixed hand. Please draw again");
+							player.print("err:MIXED_HAND");
+							player.print("turn:start");
+							return;
+						}
+						challenging = tmpChallenging;
 					}
 				}
 				player.hand = unselected.stream().map(player.hand::get).toList();
@@ -342,7 +361,8 @@ public static class Player extends HydarWS.Endpoint{
 			queueLock.lock();
 			try{
 				if(queue!=null && queue!=this){
-					print("msg:Found game...");
+					print("msg:Found game: "+queue.username+"...");
+					queue.print("msg:Found game: "+username+"...");
 					Game g = new Game(this,queue);
 				}else if(queue==null){
 					queue=this;
@@ -396,10 +416,12 @@ connection.onopen = function(_evt) {
 }
 connection.onclose=function(_evt){
 	clearTimeout(timer);
+	hideMove();
 	chat("Disconnected.");
 }
 connection.onerror = function(evt) {
 	clearTimeout(timer);
+	hideMove();
 	chat("Disconnected(error).");
 }
 connection.onmessage = async function(evt) {
