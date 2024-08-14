@@ -23,6 +23,11 @@
 <%@ page contentType="text/html; charset=UTF-8" %>
 <%@ include file="SkeleAdd.jsp" %>
 <%!
+static volatile AtomicReference<Player> publicQueue = new AtomicReference<>();
+static ConcurrentMap<Integer,Player> privates = new ConcurrentHashMap<>();
+static{
+	HydarWS.registerEndpoint("TestHydarGame.jsp", Player.class);
+}
 static enum Suit{
 	HEARTS, DIAMONDS, CLUBS, SPADES;
 	@Override
@@ -215,7 +220,7 @@ static class Game{
 				player.print("msg:Your dice rolls(Joker): "+dice1+", "+dice2);
 				player.opp.print("dice:enemy,joker,"+dice1+","+dice2);
 				player.print("dice:you,joker,"+dice1+","+dice2);
-				Suit newSuit = (ownSuit!=Suit.HEARTS || rounds==0)? ownSuit:switch(Card.findSuit(against)){
+				Suit newSuit = (ownSuit!=Suit.HEARTS || rounds==1)? ownSuit:switch(Card.findSuit(against)){
 					case HEARTS->Suit.HEARTS;
 					case DIAMONDS->Suit.CLUBS;
 					case CLUBS->Suit.SPADES;
@@ -311,8 +316,8 @@ static class Game{
 				if(challenging.stream().anyMatch(x->x==Card.JOKER || x.rank==1)){
 					challenging = replaceJokersAces(activePlayer().opp, challenging, active);
 				}
-				//process aces and jokers on active
-				if(active.stream().anyMatch(x->x==Card.JOKER || x.rank==1)){
+				//process aces and jokers on active if first round(otherwise it was processed already)
+				if(rounds==1 && active.stream().anyMatch(x->x==Card.JOKER || x.rank==1)){
 					active = replaceJokersAces(activePlayer(), active, challenging);
 				}
 				active = showdown(active, challenging);
@@ -437,11 +442,6 @@ public static class Player extends HydarWS.Endpoint{
 			game.process(this,msg);
 		}
 	}
-}
-static volatile AtomicReference<Player> publicQueue = new AtomicReference<>();
-static ConcurrentMap<Integer,Player> privates = new ConcurrentHashMap<>();
-static{
-	HydarWS.registerEndpoint("TestHydarGame.jsp", Player.class);
 }
 %>
 <%
