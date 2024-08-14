@@ -348,9 +348,9 @@ public class HydarWS extends OutputStream{
 				if(hydar.config.LOWERCASE_URLS)
 					path=path.toLowerCase();
 				endpoints.put(path,builder);
-			}else throw new IllegalStateException("This must be called at compile time of a JSP.");
+			}
 		}
-		
+		throw new IllegalStateException("This must be called at compile time of a JSP.");
 	}
 	/**Provide an endpoint class, if state that a builder can't handle is needed*/
 	public static void registerEndpoint(String path,Class<? extends Endpoint> classObject){
