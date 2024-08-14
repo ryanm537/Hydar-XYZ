@@ -1162,7 +1162,7 @@ class IframeBot extends PythonBot{
 	public void run() {
 		this.output=new StringBuilder(64)
 				.append(text)
-				.append("<br><iframe width='400' height='400' frameBorder='0' src = '")
+				.append("<br><iframe style='z-index:0' width='400' height='400' frameBorder='0' src = '")
 				.append(url).append("'></iframe>")
 				.toString();//url is trusted field
 		success();

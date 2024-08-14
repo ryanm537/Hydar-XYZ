@@ -211,8 +211,8 @@ static class Game{
 		for(Card c:with){
 			if(c==Card.JOKER){
 				int dice1=rng.nextInt(1,7), dice2=rng.nextInt(1,7);
-				player.opp.print("msg:Dice rolls(Joker): "+dice1+", "+dice2);
-				player.print("msg:Dice rolls(Joker): "+dice1+", "+dice2);
+				player.opp.print("msg:Enemy dice rolls(Joker): "+dice1+", "+dice2);
+				player.print("msg:Your dice rolls(Joker): "+dice1+", "+dice2);
 				player.opp.print("dice:enemy,joker,"+dice1+","+dice2);
 				player.print("dice:you,joker,"+dice1+","+dice2);
 				Suit newSuit = (ownSuit!=Suit.HEARTS || rounds==0)? ownSuit:switch(Card.findSuit(against)){
