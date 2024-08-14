@@ -28,10 +28,10 @@ static enum Suit{
 	@Override
 	public String toString(){
 		return switch(this){
-			case HEARTS->"♥";
-			case DIAMONDS->"♦";
-			case CLUBS->"♣︎";
-			case SPADES->"♠";
+			case HEARTS->"\u2665";
+			case DIAMONDS->"\u2666";
+			case CLUBS->"\u2663";
+			case SPADES->"\u2660";
 		};
 	}
 };
@@ -140,6 +140,8 @@ static class Game{
 		p2.game=this;
 		p1.opp=p2;
 		p2.opp=p1;
+		dealCount = Math.min(dealCount,50);
+		jokers = Math.min(jokers,500);
 		List<Card> hands = Card.deal(dealCount*2,jokers);
 		p1.hand = hands.subList(0,hands.size()/2);
 		p2.hand = hands.subList(hands.size()/2,hands.size());
@@ -465,8 +467,8 @@ Active Cards:<br>
 	Your hand:
 	<br>
 	<div onclick='this.children[1].checked^=1;return false;' style='display:inline'>
-	[<a> 1</a>
-	<input type="checkbox" style="pointer-events:none">]
+		[<a> 1</a>
+		<input type="checkbox" style="pointer-events:none">]
 	</div>
 </div>
 <div id='play' onclick='this.hidden=1;makeSocket();' style='font-size:40px'>
@@ -584,7 +586,7 @@ function showMove(element, cards){
 		}else{
 			caption.hidden=false;
 			caption.innerText = cards[i];
-			caption.style.color=(cards[i].includes("♥")||cards[i].includes("♦"))?"red":"black";
+			caption.style.color=(cards[i].includes("\u2666")||cards[i].includes("\u2665"))?"red":"black";
 		}
 	}
 	for(let [i,box] of turn_.querySelectorAll("input").entries()){
