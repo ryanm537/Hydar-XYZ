@@ -237,12 +237,10 @@ static class Game{
 
 				int dice1=rng.nextInt(1,7), dice2=rng.nextInt(1,7);
 				Card nc=Card.of(ownSuit,(dice1+dice2));
-				player.opp.print("msg:Dice rolls(Ace): "+dice1+", "+dice2);
-				player.print("msg:Dice rolls(Ace): "+dice1+", "+dice2);
+				player.opp.print("msg:Enemy dice rolls(Ace): "+dice1+", "+dice2 +" -> ("+nc+")");
+				player.print("msg:Your dice rolls(Ace): "+dice1+", "+dice2 +" -> ("+nc+")");
 				player.opp.print("dice:enemy,ace,"+dice1+","+dice2);
 				player.print("dice:you,ace,"+dice1+","+dice2);
-				player.opp.print("msg:Enemy ace becomes: ("+nc+")");
-				player.print("msg:Your ace becomes: ("+nc+")");
 				
 				newCards.add(nc);
 			}
