@@ -340,19 +340,22 @@ class ServerThread implements Runnable {
 			path = config.HOMEPAGE;
 		}
 
+		
+		path = config.LOWERCASE_URLS?path.toLowerCase():path;
+		path = URLDecoder.decode(path,StandardCharsets.UTF_8);
+		System.out.println(""+client_addr+"> " + method + " " + path + " " + version);
+		//Virtual links(see default.properties).
+		//These are useful for turning path params into request params.
+		for(var s:config.links.entrySet()){
+			System.out.println(s);
+			path=path.replaceAll(s.getKey(),s.getValue());
+			System.out.println(path);
+		}
 		String search = "";
 		String[] splitUrl=path.split("\\?",2);
 		if(splitUrl.length==2){
 			path =splitUrl[0];
 			search = splitUrl[1];
-		}
-		path = config.LOWERCASE_URLS?path.toLowerCase():path;
-		path=URLDecoder.decode(path,StandardCharsets.UTF_8);
-		System.out.println(""+client_addr+"> " + method + " " + path + " " + version);
-		//Virtual links(see default.properties).
-		//These are useful for turning path params into request params.
-		for(var s:config.links.entrySet()){
-			path=path.replaceAll(s.getKey(),s.getValue());
 		}
 		//Reject multipart. TODO: support it.
 		if(method.equals("POST")) {
