@@ -165,8 +165,8 @@ static class Game{
 	}
 	public void printHands() throws IOException{
 		if(active!=null){
-			p1.print("msg:"+"Cards down "+(p1==activePlayer()?"(yours) ":"(enemy's) ")+active);
-			p2.print("msg:"+"Cards down: "+(p2==activePlayer()?"(yours) ":"(enemy's) ")+active);
+			activePlayer().print("msg:Cards down (yours): "+active);
+			activePlayer().opp.print("msg:Cards down (enemy's): "+active);
 			p1.print("active:"+formatCards(active));
 			p2.print("active:"+formatCards(active));
 		}
@@ -177,7 +177,7 @@ static class Game{
 	}
 	public List<Card> showdown(List<Card> active, List<Card> challenge) throws IOException{
 		var rng=ThreadLocalRandom.current();
-		Player challengePlayer = activePlayer()==p1?p2:p1;
+		Player challengePlayer = activePlayer().opp;
 		Suit activeSuit = Card.findSuit(active);
 		Suit challengeSuit = Card.findSuit(challenge);
 		int activeTotal = active.stream().mapToInt(x->x.rank()).sum();
@@ -340,17 +340,16 @@ static class Game{
 			}
 			if(challenging!=null)
 			printHands();
-			(p1==activePlayer()?p2:p1).print("turn:start");//new challenger
+			activePlayer().opp.print("turn:start");//new challenger
 		}
 		
 		return;
 	}
 	public void dropPlayer(Player player) throws IOException{
 		try{
-			Player opp=player==p1?p2:p1;
 			if(alive){
-				opp.print("msg:Opponent disconnected.");
-				opp.print("msg:You win!");
+				player.opp.print("msg:Opponent disconnected.");
+				player.opp.print("msg:You win!");
 			}
 		}finally{
 			end();
@@ -487,7 +486,7 @@ let code=params.get("code")||"public";
 let jokers=params.get("jokers")||2;
 let dealCount=params.get("dealCount")||5;
 chat("Settings: "+dealCount+" card hand, "+jokers+" jokers, code: "+code);
-for(var i=0;i<parseInt(dealCount);i++){
+for(let i=0;i<parseInt(dealCount);i++){
 	turnElem.appendChild(turnElem.querySelector("div").cloneNode(true));
 	activeElem.appendChild(activeElem.querySelector("div").cloneNode(true));
 }
@@ -501,29 +500,29 @@ function chat(str){
 }
 if(id)serverUrl+="HYDAR_sessionID="+id+"&";
 console.log("Connecting to server: "+serverUrl);
-var hand=[];
-var active=[];
-var connection=null;
+let hand=[];
+let active=[];
+let connection=null;
 function makeSocket(){
 	chat("Connecting...");
 	connection = new WebSocket(serverUrl);
-	var timer=null;
+	let timer=null;
 	connection.onopen = function(_evt) {
-		clearTimeout(timer);
+		clearInterval(timer);
 		chat("Opened.");
 		connection.send("queue:"+code);
 		connection.send("settings:"+dealCount+","+jokers);
 		timer = setInterval(()=>connection.send("ping:hydar"),7000);
 	}
 	connection.onclose=function(_evt){
-		clearTimeout(timer);
+		clearInterval(timer);
 		hideMove("turn");
 		hideMove("active");
 		document.getElementById("play").hidden=false;
 		chat("Disconnected.");
 	}
 	connection.onerror = function(evt) {
-		clearTimeout(timer);
+		clearInterval(timer);
 		hideMove("turn");
 		hideMove("active");
 		document.getElementById("play").hidden=false;
