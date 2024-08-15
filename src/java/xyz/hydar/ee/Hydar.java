@@ -347,9 +347,7 @@ class ServerThread implements Runnable {
 		//Virtual links(see default.properties).
 		//These are useful for turning path params into request params.
 		for(var s:config.links.entrySet()){
-			System.out.println(s);
 			path=path.replaceAll(s.getKey(),s.getValue());
-			System.out.println(path);
 		}
 		String search = "";
 		String[] splitUrl=path.split("\\?",2);
@@ -1619,7 +1617,8 @@ public class Hydar {
 					baos.write(CRLF);
 				}
 				baos.write(CRLF);
-				limiter.force(Token.OUT,baos.size());
+				if(limiter!=null)
+					limiter.force(Token.OUT,baos.size());
 				baos.writeTo(o);
 			}else{
 				//WRITE TO H

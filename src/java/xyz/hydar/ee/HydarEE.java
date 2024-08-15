@@ -442,8 +442,8 @@ public class HydarEE{
 			}
 			
 			//Final step: load the class, create an instance, and store it so it becomes executable.
-			try{
-				synchronized(compiler) {
+			synchronized(compiler) {
+				try{
 					lastToCompile = this;
 					if(success){
 						//load class and update hash table
@@ -464,11 +464,11 @@ public class HydarEE{
 							System.err.println(e+": Compilation failed. more like cringe compilation LMAO");
 						return -1;
 					}
+				}finally{
+					if(config.COMPILE_IN_MEMORY)
+						ucl.close();
+					lastToCompile=null;
 				}
-			}finally{
-				lastToCompile=null;
-				if(config.COMPILE_IN_MEMORY)
-					ucl.close();
 			}
 		}catch(Exception e){
 			System.out.println("Failed to replace "+p.toString());

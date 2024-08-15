@@ -249,7 +249,9 @@ public abstract class HydarDataSource implements DataSource, AutoCloseable{
 		try {
 			long remainingMillis=maxWaitMillis;
 			long startTime=System.currentTimeMillis();
-			while(pool.size()+actives.size()>=maxTotal) {
+			boolean overflow;
+			while(overflow=pool.size()+actives.size()>=maxTotal) {
+				if(remainingMillis<=0)break;
 				try {
 					PooledConn pc = pool.poll(remainingMillis,TimeUnit.MILLISECONDS);
 					remainingMillis = maxWaitMillis -  (System.currentTimeMillis()-startTime);
@@ -268,7 +270,7 @@ public abstract class HydarDataSource implements DataSource, AutoCloseable{
 					continue;
 				}
 			}
-			if(actives.size()>=maxTotal) {
+			if(overflow) {
 				throw new SQLException("No connections available");
 				//return new PooledConn(login, username, password, true).getConnection();
 			}return newConn(login, username, password);
