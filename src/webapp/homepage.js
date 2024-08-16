@@ -1,11 +1,11 @@
-var myHostname = window.location.hostname;
-var timer=10;
-var canDc=true;
+let myHostname = window.location.hostname;
+let timer=10;
+let canDc=true;
 if (!myHostname) {
   myHostname = "localhost";
-}var connection = null;
-var thisName=null;
-var constraints = {
+}
+let thisName=null;
+let constraints = {
 	audio: 
 	{ 
 		"autoGainControl": true,
@@ -13,15 +13,15 @@ var constraints = {
 		"noiseSuppression": true
 	}
 }
-var connection=null;
-var serverUrl;
-var muted=false;
-var pleaseRefresh=-1;
-var userAudio=null;
-var userVideo=null;
+let connection=null;
+let serverUrl;
+let muted=false;
+let pleaseRefresh=-1;
+let userAudio=null;
+let userVideo=null;
 /**Add mic and local screenshare(if already active) to a peer connection*/
 async function addLocalMedia(target){
-	var stream = await getUserAudio();
+	let stream = await getUserAudio();
 	let tar=users.get(target);
 	try {
 		stream.getTracks().forEach(
@@ -62,7 +62,7 @@ async function getDisplayVideo(){
 		});
 		
 		document.getElementById("susRectangleSMALL").removeAttribute("hidden");
-		var e=document.getElementById("stream_preview");
+		let e=document.getElementById("stream_preview");
 		if(!e){
 			e = document.createElement("video");
 			e.setAttribute("id","stream_preview");
@@ -160,6 +160,30 @@ function leaveVC(send=true){
 	getPeers().forEach((x)=>closeVc(x.id));
 	updateInfo();
 }
+let backOffTime=3;
+let lastBackOff=3;
+let reconnectInterval=null;
+function tryReconnect(shouldWait){
+	if(!reconnectInterval)return;
+	clearInterval(reconnectInterval);
+	document.getElementById("reconnect").innerText="...";
+	if(!shouldWait){
+		lastBackOff=backOffTime=3;
+	}else{
+		lastBackOff=lastBackOff<15?lastBackOff+3:(lastBackOff<300?lastBackOff*2:lastBackOff);
+		backOffTime=lastBackOff;
+	}
+	makeSocket();
+}
+function startBackOff(){
+	reconnectInterval = setInterval(()=>{
+		backOffTime--;
+		if(backOffTime<=0){
+			tryReconnect(true);
+		}else 
+			document.getElementById("reconnect").innerText=backOffTime+(backOffTime==1?' second':' seconds');
+	},1000);
+}
 /**WebSocket error handler - try to reconnect every 3 seconds*/
 function dcHandler(){
 	if(!canDc)
@@ -167,13 +191,13 @@ function dcHandler(){
 	canDc=false;
 	clearInterval(vcInterval);
 	clearInterval(pingInterval);
-	document.querySelectorAll("[id='two']")[1].innerHTML="<a style = 'color:Red'>Connection lost - retrying in <a style = 'color:Red' id='reconnect'>3 seconds</a></div>";
-		  
+	let reconnect=document.querySelectorAll("[id='two']")[1];
+	reconnect.innerHTML="<a style = 'color:Red'>Connection lost - retrying in <a style = 'color:Red' id='reconnect'>...</a></div>";
+	reconnect.href="#";
+	reconnect.onclick=()=>tryReconnect(false);
 	leaveVC(false);
-	pleaseRefresh=setTimeout(()=>document.querySelectorAll("[id='two']")[1].innerHTML="<a style = 'color:Red'><b id = 'reconnect'>Connection lost - Please Refresh<b></a>",5000);
-	setTimeout(()=>document.getElementById("reconnect").innerHTML='2 seconds',1000);
-	setTimeout(()=>document.getElementById("reconnect").innerHTML='1 second',2000);
-	setTimeout(makeSocket,2500);
+	//pleaseRefresh=setTimeout(()=>document.querySelectorAll("[id='two']")[1].innerHTML="<a style = 'color:Red'><b id = 'reconnect'>Connection lost - Please Refresh<b></a>",5000);
+	startBackOff();
 	
 	document.getElementById("VC-disconnect").removeEventListener("click",joinHandler);
 	document.getElementById("VC-connect").removeEventListener("click",leaveVC);
@@ -221,7 +245,8 @@ function makeSocket(){
 		vcInterval=setInterval(updateVC,1000);
 		pingInterval=setInterval(ping,8000);
 		document.querySelectorAll("[id='two']")[1].innerHTML="<a style = 'color:Lime'>Connected</div></a>";
-		
+		lastBackOff=3;
+		backOffTime=3;
 		//document.getElementById("leaveVC").removeAttribute("hidden");
 		//setInterval(()=>{sendToServer("hydar\n"+clientID+"\n"+<%out.print(board);%>+"\n")},2000);
 		document.getElementById("VC-disconnect").addEventListener("click",joinHandler);
@@ -234,10 +259,10 @@ function makeSocket(){
 	}
 	/**On close/error try to leave VC and reconnect.*/
 	connection.onclose=function(_evt){
+		canDc=true;
 		dcHandler();
 	}
 	connection.onerror = function(evt) {
-		dcHandler();
 		console.dir(evt);
 	}
 	/**Handle signaling packets.*/
