@@ -795,7 +795,7 @@ public class HydarEE{
 			onReset=s;
 		}
 		private void setDefaults() {
-			sc=builder.getHeader(":status")==null?200:Integer.parseInt(builder.getHeader(":status"));
+			sc=builder.getStatus()==null?200:Integer.parseInt(builder.getStatus());
 			setHeader("Content-Type",contentType);
 			setHeader("Expires","Thu, 01 Dec 1999 16:00:00 GMT");
 			String cc=builder.hydar.config.CACHE_CONTROL_JSP;

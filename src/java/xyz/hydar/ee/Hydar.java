@@ -70,6 +70,9 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
+import xyz.hydar.ee.HydarEE.HttpServletRequest;
+import xyz.hydar.ee.HydarEE.HttpServletResponse;
+
 
 /**
  * Represents a single client.
@@ -401,25 +404,7 @@ class ServerThread implements Runnable {
 			}
 		}
 		
-		/**
-		Set cookies, and set sessionID if found.
-		*/
-		String sessionID=null;
-		Map<String,String> cookies=new HashMap<>();
-		String cookieStr=headers.get("cookie");
-		if(cookieStr!=null){
-			for(String inc:cookieStr.split(";")){
-				String[] x = inc.split("=",2);
-				if(x.length==2){
-					String name = x[0].trim();
-					String value = x[1].trim();
-					if(name.equals("HYDAR_sessionID") && (sessionID==null || hydar.ee.get(client_addr,sessionID)==null)){
-						sessionID=value;
-					}
-					cookies.put(name,value);
-				}
-			}
-		}
+		
 		/**
 		 * Handle protocol upgrades.
 		 * (h2c, WS)
@@ -445,7 +430,7 @@ class ServerThread implements Runnable {
 						//maybe: add server max bits etc
 					}
 				}
-				this.wsInit(wsKey,wsDeflate,sessionID,path,search);
+				this.wsInit(wsKey,wsDeflate,headers,path,search);
 				return;
 			}else {
 				System.out.println("400 by websocket");
@@ -561,20 +546,8 @@ class ServerThread implements Runnable {
 					close();
 					return;
 				}
-				boolean fromCookie=true;
-				String servletName=path.substring(0,path.indexOf(".jsp"));
-				if(hydar.ee.jsp_needsSession(servletName)&&(sessionID==null||(session=hydar.ee.get(client_addr, sessionID))==null)) {
-					fromCookie=false;
-					//FIND IT FROM THE URL
-					String id=request.getParameter("HYDAR_sessionID");
-					if(id==null || (session=hydar.ee.get(client_addr, id))==null)
-						session=hydar.ee.create(client_addr);
-				}
-				final Optional<HStream> fhs=hstream;//copy
-				ret.onReset(()->newResponse(200,fhs));
-				request.withSession(session,fromCookie);
-				request.withAddr((InetSocketAddress)client.getRemoteSocketAddress());
-				ret.withRequest(request);
+				
+				String servletName = this.addSession(request, ret, path, hstream);
 				//run the stored method
 				long invokeTime=System.currentTimeMillis();
 				hydar.ee.jsp_dispatch(servletName,request, ret);
@@ -643,6 +616,46 @@ class ServerThread implements Runnable {
 	private final Hydar.Response UPGRADE(String protocol) {
 		return newResponse("101",Optional.empty()).version("HTTP/1.1").header("Upgrade",protocol).output(output).header("Connection","Upgrade");
 	}
+	/**
+	 * Load a session from the HTTPServletRequest request to the response 'ret', and set this.session as well.
+	 * 
+	 * */
+	public String addSession(HttpServletRequest request, HttpServletResponse ret, String path, Optional<HStream> hstream) {
+		/** 
+		Set sessionID to cookie if found.
+		*/
+		String sessionID=null;
+		String cookieStr=request.getHeader("cookie");
+		if(cookieStr!=null){
+			for(String inc:cookieStr.split(";")){
+				String[] x = inc.split("=",2);
+				if(x.length==2){
+					String name = x[0].trim();
+					String value = x[1].trim();
+					if(name.equals("HYDAR_sessionID") && (sessionID==null || hydar.ee.get(client_addr,sessionID)==null)){
+						sessionID=value;
+					}
+				}
+			}
+		}
+		
+		boolean fromCookie=true;
+		String servletName=path.substring(0,path.indexOf(".jsp"));
+		if(hydar.ee.jsp_needsSession(servletName)&&(sessionID==null||(session=hydar.ee.get(client_addr, sessionID))==null)) {
+			fromCookie=false;
+			//FIND IT FROM THE URL
+			String id=request.getParameter("HYDAR_sessionID");
+			if(id==null || (session=hydar.ee.get(client_addr, id))==null) {
+				session=hydar.ee.create(client_addr);
+			}
+		}
+		final Optional<HStream> fhs=hstream;//copy
+		ret.onReset(()->newResponse(200,fhs));
+		request.withSession(session,fromCookie);
+		request.withAddr((InetSocketAddress)client.getRemoteSocketAddress());
+		ret.withRequest(request);
+		return servletName;
+	}
 	/**H2C handshake. Rarely used, since H2 over TLS will use ALPN.*/
 	public HStream h2cInit(Map<String,String> headers) throws IOException{
 		UPGRADE("h2c")
@@ -669,20 +682,15 @@ class ServerThread implements Runnable {
 		return hs;
 	}
 	/**WebSocket handshake. HTTP/1.1 only(for now).*/
-	public void wsInit(String wsKey,boolean wsDeflate,String sessionID,String url, String search) throws IOException{
+	public void wsInit(String wsKey,boolean wsDeflate,Map<String,String> headers, String url, String search) throws IOException{
+		
+		HttpServletRequest request = new HttpServletRequest(headers, new byte[0], search);
 		wsKey+="258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 		MessageDigest md;
 		try {
 			md = MessageDigest.getInstance("SHA-1");
 		}catch(NoSuchAlgorithmException e) {throw new RuntimeException(e);}
 		
-		//Websockets require sessions, since endpoint responses are dynamic.
-		if(sessionID==null ||(session=hydar.ee.get(client_addr, sessionID))==null) {
-			//FIND IT FROM THE URL
-			String id=new HydarEE.HttpServletRequest("",search).getParameter("HYDAR_sessionID");
-			if(id==null || (session=hydar.ee.get(client_addr, id))==null)
-				session=hydar.ee.create(client_addr);
-		}
 		md.update(wsKey.getBytes(ISO_8859_1));
 		byte[] digest = md.digest();
 		wsKey= Base64.getEncoder().encodeToString(digest);
@@ -692,11 +700,17 @@ class ServerThread implements Runnable {
 			ext="permessage-deflate";
 		}
 		Hydar.Response resp = UPGRADE("websocket")
-			.header("Sec-WebSocket-Accept",wsKey)
-			.disableLength();
+				.header("Sec-WebSocket-Accept",wsKey)
+				.disableLength();
 		if(ext!=null)
 			resp.header("Sec-WebSocket-Extensions",ext);
-		resp.write();
+		HttpServletResponse ret = new HttpServletResponse(resp,0);
+		//Websockets require sessions, since endpoint responses are dynamic.
+		addSession(request, ret, url, Optional.empty());
+		
+		var rr=ret.toHTTP();
+		rr.write();
+		
 		//Create the context.
 		ws=new HydarWS(this,url,search,wsDeflate);
 		
@@ -1381,6 +1395,9 @@ public class Hydar {
 		public Response(String status){
 			this();
 			status(status);
+		}
+		public String getStatus() {
+			return responseStatus;
 		}
 		/**builder*/
 		public Response limiter(Limiter limiter) {

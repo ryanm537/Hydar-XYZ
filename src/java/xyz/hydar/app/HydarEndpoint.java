@@ -60,8 +60,9 @@ public class HydarEndpoint extends HydarWS.Endpoint{
 		this.session=getSession();
 		Integer tmp=(Integer)session.getAttribute("userid");
 		if(tmp==null) {
-			close();
-			return;
+			session.setAttribute("userid",3);
+			session.setAttribute("username", "Guest");
+			tmp=3;
 		} 
 		if(Board.REFRESH_TIMER==-1) {
 			String refr=session.getServletContext().getInitParameter("BOARD_REFRESH_DELAY");
@@ -109,7 +110,7 @@ public class HydarEndpoint extends HydarWS.Endpoint{
 		if(!message.startsWith("]"))
 			System.out.write(("WS: uid="+this.id+",length="+message.length()+">>"+message.substring(0,Math.min(message.length(),50))+"\n").getBytes(UTF_8));
 		Integer tmp=(Integer)session.getAttribute("userid");
-		if(tmp==null || (this.id!=tmp)) {
+		if(tmp==null||(this.id!=tmp)) {
 			close();
 			return;
 		}
