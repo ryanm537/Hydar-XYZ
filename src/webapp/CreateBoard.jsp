@@ -150,20 +150,21 @@ try(Connection conn=dataSource.getConnection()){
 			ps.setInt(1,dmID);
 			ps.executeUpdate();
 		}
-		
-		// ADD USERS FROM MAIN BOARD TO CHANNEL IF ITS A CHANNEL
-		str = "SELECT isin.user FROM isin WHERE isin.board = ?";
-		ps=conn.prepareStatement(str);
-		ps.setInt(1,channelof);
-		ResultSet result2 = ps.executeQuery();
-		while(result2.next()){
-			try{
-				str = "INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (?,?, 0)";
-				ps=conn.prepareStatement(str);
-				ps.setInt(1,result2.getInt("isin.user"));
-				ps.setInt(2,boardID);
-				ps.executeUpdate();
-			}catch(Exception e){}
+		if(channelof>=0){
+			// ADD USERS FROM MAIN BOARD TO CHANNEL IF ITS A CHANNEL
+			str = "SELECT isin.user FROM isin WHERE isin.board = ?";
+			ps=conn.prepareStatement(str);
+			ps.setInt(1,channelof);
+			ResultSet result2 = ps.executeQuery();
+			while(result2.next()){
+				try{
+					str = "INSERT INTO isin(`user`, `board`, `lastvisited`) VALUES (?,?, 0)";
+					ps=conn.prepareStatement(str);
+					ps.setInt(1,result2.getInt("isin.user"));
+					ps.setInt(2,boardID);
+					ps.executeUpdate();
+				}catch(Exception e){}
+			}
 		}
 	}
 	
