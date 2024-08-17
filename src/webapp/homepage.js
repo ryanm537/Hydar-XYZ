@@ -195,7 +195,9 @@ function dcHandler(){
 	reconnect.innerHTML="<a style = 'color:Red'>Connection lost - retrying in <a style = 'color:Red' id='reconnect'>...</a></div>";
 	reconnect.href="#";
 	reconnect.onclick=()=>tryReconnect(false);
-	leaveVC(false);
+	try{leaveVC(false);}catch(e){
+		//always continue
+	}
 	//pleaseRefresh=setTimeout(()=>document.querySelectorAll("[id='two']")[1].innerHTML="<a style = 'color:Red'><b id = 'reconnect'>Connection lost - Please Refresh<b></a>",5000);
 	startBackOff();
 	
