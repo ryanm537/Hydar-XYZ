@@ -1203,9 +1203,7 @@ public class Hydar {
 		}
 		Path q =p.normalize();
 		String e_=root.relativize(q).toString().replace("\\","/");
-		if(config.LOWERCASE_URLS)
-			e_=e_.toLowerCase();
-		String e=e_;
+		String e = config.LOWERCASE_URLS?e_.toLowerCase():e_;
 		Resource r=null;
 		long fmodif=0;
 		//System.out.println(p+" "+kind);
@@ -1219,31 +1217,33 @@ public class Hydar {
 			}else if(config.FORBIDDEN_REGEX.map(x->x.matcher(e+"/").find()).orElse(false)){
 				return null;
 				//problem: wasdirectory not isdirectory
-			}else if(Files.isDirectory(p) && kind != StandardWatchEventKinds.ENTRY_DELETE){
-				if(!KEYS.containsKey(p)&& HydarUtil.addKey(this,p,root)) {
+			}else if(Files.isDirectory(q) && kind != StandardWatchEventKinds.ENTRY_DELETE){
+				if(!KEYS.containsKey(q)&& HydarUtil.addKey(this,q,root)) {
 					System.out.println("Created folder listener on "+e);
-					Files.walk(p).sorted().forEach(path->updateResource(path.getFileName(),path.getParent(),dir,kind,now));
+					Files.walk(q).sorted().forEach(path->updateResource(path.getFileName(),path.getParent(),dir,kind,now));
 				}
 				return null;
 				//modify on folder is considered delete
-			}else if(KEYS.containsKey(p) || kind == StandardWatchEventKinds.ENTRY_DELETE) {
-				if(KEYS.remove(p)==null) {
+			}else if(KEYS.containsKey(q) || kind == StandardWatchEventKinds.ENTRY_DELETE) {
+				if(KEYS.remove(q)==null) {
 					resources.remove(e);
 					ee.servlets.remove(e+".jsp");
-					
 				}else {
 					System.out.println("Removed folder listener on "+e);
-					if(KEYS.keySet().removeIf(t->t.startsWith(e))) {
-						System.out.println("Subdirectory listeners removed");
-					}
+				}
+				//dont ignore case
+				if(KEYS.keySet().removeIf(t->t.startsWith(q))) {
+					System.out.println("Subdirectory listeners removed");
 				}
 				resources.keySet().removeIf(x->Path.of(x).startsWith(e));
 				ee.servlets.keySet().removeIf(x->Path.of(x).startsWith(e));
 				System.out.println("File "+e+" was removed from the server directory.");
+				System.out.println(KEYS);
+				System.out.println(q);
 				return null;
 			}
 			if((!config.USE_WATCH_SERVICE||config.LASTMODIFIED_FROM_FILE)) {
-				fmodif = Files.getLastModifiedTime(p).toMillis();
+				fmodif = Files.getLastModifiedTime(q).toMillis();
 				if((r=resources.get(e))!=null) {
 					long delta=fmodif-r.fmodif.toEpochMilli();
 					if(delta==0)

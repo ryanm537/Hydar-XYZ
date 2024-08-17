@@ -139,13 +139,13 @@ public class HydarUtil {
 				public FileVisitResult preVisitDirectory(Path dir,
 						BasicFileAttributes attrs) throws IOException {
 					if(!config.FORBIDDEN_REGEX
-							.filter(x->x.matcher(config.hydar.dir.relativize(dir).toString().replace("\\","/")+"/")
+							.filter(x->x.matcher(config.hydar.dir.relativize(dir).normalize().toString().replace("\\","/")+"/")
 									.find()
 								)
 							.isPresent()
 							) {
 						if(config.USE_WATCH_SERVICE) {
-							addKey(config.hydar,dir,root);
+							addKey(config.hydar,dir.normalize(),root);
 						}
 						return FileVisitResult.CONTINUE;
 					}else{
@@ -156,9 +156,9 @@ public class HydarUtil {
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
 					if(!config.FORBIDDEN_REGEX
-							.filter(x->x.matcher(config.hydar.dir.relativize(file).toString()).find())
+							.filter(x->x.matcher(config.hydar.dir.relativize(file).normalize().toString()).find())
 							.isPresent())
-						allFiles.add(file);
+						allFiles.add(file.normalize());
 					return FileVisitResult.CONTINUE;
 				}
 			});
