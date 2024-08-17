@@ -166,6 +166,7 @@ let reconnectInterval=null;
 function tryReconnect(shouldWait){
 	if(!reconnectInterval)return;
 	clearInterval(reconnectInterval);
+	reconnectInterval=null;
 	document.getElementById("reconnect").innerText="...";
 	if(!shouldWait){
 		lastBackOff=backOffTime=3;
