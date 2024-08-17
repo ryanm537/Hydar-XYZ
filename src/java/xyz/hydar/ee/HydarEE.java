@@ -708,8 +708,9 @@ public class HydarEE{
 		public boolean isRequestedSessionIdValid() {
 			return session!=null && session.valid;
 		}
+		/**TODO: gives incorrect context on session-excluded JSPs*/
 		public Context getServletContext(){
-			return session ==null ? null : session.hydar.ee.ctx;
+			return session ==null ? Hydar.hydars.get(0).ee.ctx : session.hydar.ee.ctx;
 		}
 		public HttpServletRequest withAddr(InetSocketAddress addr) {
 			this.addr=addr;
