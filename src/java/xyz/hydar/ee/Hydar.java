@@ -1238,8 +1238,6 @@ public class Hydar {
 				resources.keySet().removeIf(x->Path.of(x).startsWith(e));
 				ee.servlets.keySet().removeIf(x->Path.of(x).startsWith(e));
 				System.out.println("File "+e+" was removed from the server directory.");
-				System.out.println(KEYS);
-				System.out.println(q);
 				return null;
 			}
 			if((!config.USE_WATCH_SERVICE||config.LASTMODIFIED_FROM_FILE)) {
