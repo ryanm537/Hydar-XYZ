@@ -143,7 +143,6 @@ if(request.getMethod().equals("POST")){
 			return;
 		}
 		
-		//TODO: clean up -1 attachments
 		//3. syphon thing into a new file with limited buffer, and db
 		String path=null;
 		byte[] pathBytes = new byte[12];

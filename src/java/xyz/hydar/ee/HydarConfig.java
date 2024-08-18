@@ -425,7 +425,6 @@ class Config{
 	}
 	/**Return an appopriate error page, backed by HydarConfig.*/
 	public String getErrorPage(String code) {
-		//TODO:429 is almost never sent
 		return errorPages.getOrDefault(code,errorPages.get("default"));
 	}
 }

@@ -106,7 +106,6 @@ class ServerThread implements Runnable {
 	//Session obtained from cookies or URL.
 	public volatile HydarEE.HttpSession session=null;
 	
-	//FIXME:still not threadsafe, might change before response finishes writing
 	private volatile boolean isHead=false;//INCOMING hstream
 	public volatile Hydar hydar;
 	public volatile Config config=Hydar.hydars.get(0).config;

@@ -18,7 +18,7 @@ import java.util.stream.IntStream;
  * Requires an associated ServerThread(for now)
  * */
 public class HydarH2{
-	/**TODO: unimplemented: local window(maybe configurable)/priorities*/
+	/**TODO: unimplemented: priorities*/
 	/**TODO: server push - load deps based on rates, store in cookie(2 b64/etag?)*/
 	public static final byte[] MAGIC="PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n".getBytes(ISO_8859_1);
 	public final ServerThread thread;
