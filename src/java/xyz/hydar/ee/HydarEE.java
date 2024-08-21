@@ -240,10 +240,10 @@ public class HydarEE{
 								Path includePath;
 								if(value.startsWith("/")||value.startsWith("\\"))
 									includePath=hydar.dir.resolve(Path.of("."+value));
-								else if(Path.of(value).getParent()==null)
-									includePath=hydar.dir.resolve(Path.of("./"+value));
+								else if(p.getParent() == null)
+									includePath=hydar.dir.resolve(value).normalize();
 								else
-									includePath=hydar.dir.resolve(p.getParent()).resolve("./"+value).normalize();
+									includePath=p.getParent().resolve(value).normalize();
 								String included=Files.readString(includePath);
 								replacement.append(included);
 								break;
