@@ -616,7 +616,7 @@ function insertMessage(m){//given message object, add a new element
 				&& !cont.innerHTML.includes("<a href") 
 				&& !cont.innerHTML.includes("<img src")){
 			
-			toReply = cont.innerHTML;
+			toReply = cont.innerText;
 			
 		}else{
 			
@@ -629,7 +629,7 @@ function insertMessage(m){//given message object, add a new element
 				&& !element.innerHTML.includes("<a href") 
 				&& !element.innerHTML.includes("<img src")){
 			
-			toReply = element.innerHTML;
+			toReply = element.innerText;
 			
 		}else{
 			
