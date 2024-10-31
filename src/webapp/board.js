@@ -479,9 +479,9 @@ async function rescaleImage(file_) {
 						}
 						oc.remove();
 						canvas.remove();
-					},"image/jpeg",0.25);
+					},"image/jpeg",0.75);
 				}else{
-					canvas.convertToBlob({type:"image/jpeg",quality:0.25}).then(resolve);
+					canvas.convertToBlob({type:"image/jpeg",quality:0.75}).then(resolve);
 				}
 			}
 			workOnImageOrBlob(file,onImgLoad);
