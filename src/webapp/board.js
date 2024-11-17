@@ -504,13 +504,15 @@ window.addEventListener('paste', e => {
   fe.onchange();
 });
 document.body.addEventListener('dragover', (e) => {
-    e.preventDefault()
+  e.preventDefault()
 });
 document.body.addEventListener('drop', (e) => {
-	console.log(e);
+  console.log(e);
   fe.files = e.dataTransfer.files;
   fe.onchange();
-  e.preventDefault();
+  if(e.dataTransfer.files.length){
+  	e.preventDefault();
+  }
 });
 function wrapPosting(){
 	function label(){
