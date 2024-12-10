@@ -555,10 +555,10 @@ class Board{
 			int idx=inputText.indexOf("https://www.youtube.com/embed/");
 			if(inputText.indexOf(" ",idx)>0){
 				inputText = inputText.substring(0,idx) 
-						+ "<iframe width=853 height=505 src='" + inputText.substring(idx, inputText.indexOf(" ",idx)).replace("'","")+ "'></iframe>";
+						+ "<iframe style='z-index:0' width=853 height=505 src='" + inputText.substring(idx, inputText.indexOf(" ",idx)).replace("'","")+ "'></iframe>";
 			}else{
 				inputText = inputText.substring(0,idx) 
-						+ "<iframe width=853 height=505 src='" + inputText.substring(idx).replace("'","")  + "'></iframe>";
+						+ "<iframe style='z-index:0' width=853 height=505 src='" + inputText.substring(idx).replace("'","")  + "'></iframe>";
 
 			}
 		} else if(inputText.contains(".") && (u.perms.equals("great_white") || u.perms.equals("water_hydar")) && !inputText.contains("<img src")){
