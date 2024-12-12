@@ -82,8 +82,8 @@ try(Connection conn=dataSource.getConnection()){
 			AND user.permission_level='yeti'
 			AND (SELECT MAX(lastVisited) FROM isin WHERE user.id=isin.user) < ? 
 		""");
-		stmt.setLong(1,now-24*60*3600*1l);//1 day ago(account)
-		stmt.setLong(2,now-24*60*3600*30l);//30 days ago(hasnt used a board)
+		stmt.setLong(1,now-24l*3600*1000*1);//1 day ago(account)
+		stmt.setLong(2,now-24l*3600*1000*30);//30 days ago(hasnt used a board)
 		stmt.executeUpdate();
 	}
 	
