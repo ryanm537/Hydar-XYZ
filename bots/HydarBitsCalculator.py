@@ -3,18 +3,23 @@
 # WRITTEN BY SOCKS_M and GLENN M
 
 import os, time
-import urllib.request, json
+import urllib.request, json, gzip, io
+def fetch(url):#in case requests not present
+    req = urllib.request.Request(url, headers={'Accept-Encoding': 'gzip'})
+    resp = urllib.request.urlopen(req)
+    data = resp.read() if resp.info().get('Content-Encoding') != 'gzip' else gzip.decompress(resp.read())
+    return json.loads(data.decode("utf-8"))
 def refresh():
     rare=["forceful","strong","godly","zealous","demonic","hurtful","superior","keen"]
     skeleman=["cer sword","reaper scyt","summoning ring"]
     if(os.path.exists('auctions.txt')):
         os.remove('auctions.txt')
-    data = json.loads(urllib.request.urlopen("https://api.hypixel.net/skyblock/auctions?page=0").read().decode())
+    data = fetch("https://api.hypixel.net/skyblock/auctions?page=0")
     if(not data['success']):
         exit(0)
     auctions = []
     for i in range(data['totalPages']):
-        e = json.loads(urllib.request.urlopen("https://api.hypixel.net/skyblock/auctions?page="+str(i)).read().decode())
+        e = fetch("https://api.hypixel.net/skyblock/auctions?page="+str(i))
         ms = int(time.time()*1000)
         for auction in e['auctions']: 
             if "water hydra" in auction['item_name'].lower():
@@ -42,7 +47,7 @@ def refresh():
     hydar.close()
     if(os.path.exists('bazaar.txt')):
         os.remove('bazaar.txt')
-    data = json.loads(urllib.request.urlopen("https://api.hypixel.net/skyblock/bazaar").read().decode())
+    data = fetch("https://api.hypixel.net/skyblock/bazaar")
     if(not data['success']):
         exit(0)
     prices = []
