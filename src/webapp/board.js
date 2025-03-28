@@ -732,8 +732,8 @@ function updateInfo(){//update general board info(things other than msgs p much)
 	}
 	
 	test=document.getElementById("profileName");
-	if(me && test.innerHTML!=me.username)
-		test.innerHTML=me.username;
+	if(me && test.innerText!=me.username)
+		test.innerText=me.username;
 	let inlink=document.getElementById("login_link");
 	let outlink=document.getElementById("logout_link");
 	if(me && me.id!=3){
@@ -743,26 +743,31 @@ function updateInfo(){//update general board info(things other than msgs p much)
 		outlink.setAttribute("hidden","");
 		inlink.removeAttribute("hidden");
 	}
-	
-	var chStr=wrapChannels();
-	var paStr=wrapPostArea();
-	var posting=wrapPosting();
+	//TODO: replace and show/hide elements using the data that actually changed instead of this
+	let chStr=wrapChannels(), chHash = hashCode(chStr);
+	let paStr=wrapPostArea(), paHash = hashCode(paStr);
+	let posting=wrapPosting(), postingHash = hashCode(posting);
 	
 	test=document.getElementById("channelslist");
-	if(test&&test.innerHTML!=chStr){
-		test.innerHTML=chStr;
+	if(test && test.dataset.hash != chHash){
+		test.innerHTML = chStr;
+		test.dataset.hash = chHash;
 		document.getElementById("showChannels").innerText=!isDm?"Channels":"";
 	}
 	if(chStr.length==0){
 		members();
 	}
 	test=document.getElementById("postArea");
-	if(test.innerHTML.lastIndexOf('<')!=paStr.lastIndexOf('<'))
+	if(test.dataset.hash != paHash){
 		test.innerHTML=paStr;
+		test.dataset.hash = paHash;
+	}
 		
 	test=document.getElementById("posting");
-	if(test.innerHTML!=posting)
+	if(test.dataset.hash != postingHash)	{
 		test.innerHTML=posting;
+		test.dataset.hash = postingHash;
+	}
 	updateVC();
 }
 
