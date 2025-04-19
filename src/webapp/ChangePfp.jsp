@@ -10,7 +10,8 @@
 <head>
 <meta charset="ISO-8859-1">
 <title>Changing Profile Picture ...</title>
-<link rel="shorcut icon" href="favicon.ico"/>
+<link rel="icon" href="/favicon.ico"/>
+<link rel="shorcut icon" href="/favicon.ico"/>
 </head>
 
 <body>

@@ -10,8 +10,11 @@
 <head>
 <meta charset="ISO-8859-1">
 <link rel="stylesheet" href="homepage.css">
+<%-- TODO: add this(will make mobile load faster) --%>
+<%-- meta name="viewport" content="width=device-width, initial-scale=0.5"--%>
 <title>Home - Hydar</title>
-<link rel="shorcut icon" href="favicon.ico"/>
+<link rel="icon" href="/favicon.ico"/>
+<link rel="shorcut icon" href="/favicon.ico"/>
 </head> 
 
 <body style = "background-color:rgb(51, 57, 63);"> 

@@ -34,7 +34,8 @@ byte[] addr=InetAddress.getByName(ip).getAddress();
 <head>
 <meta charset="ISO-8859-1">
 <title>Logging in as Anonymous...</title>
-<link rel="shorcut icon" href="favicon.ico"/>
+<link rel="icon" href="/favicon.ico"/>
+<link rel="shorcut icon" href="/favicon.ico"/>
 </head>
 <body>
 <%

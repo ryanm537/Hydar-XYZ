@@ -10,7 +10,8 @@
 <head>
 <meta charset="ISO-8859-1">
 <title>Creating Board ...</title>
-<link rel="shorcut icon" href="favicon.ico"/>
+<link rel="icon" href="/favicon.ico"/>
+<link rel="shorcut icon" href="/favicon.ico"/>
 </head>
 
 <body style = "background-color:rgb(51, 57, 63);"> 
