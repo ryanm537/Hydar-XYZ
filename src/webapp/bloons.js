@@ -2880,6 +2880,16 @@ function bloons($_p) {
       $_p.textAlign($_p.CENTER);
       $_p.text('you losed', 200, 50)
     } else if (lost === 2) {
+      $_p.background(62, 117, 20);
+      if ($_p.mouseIsPressed && $_p.mouseX < 200) {
+        mapid = 0
+      }
+      if ($_p.mouseIsPressed && $_p.mouseX > 200) {
+        mapid = 1
+      }
+      if ($_p.keyIsPressed || ($_p.mouseButton == $_p.RIGHT)) {
+        lost = 0
+      }
       track();
       $_p.fill(0, 0, 0);
       $_p.rect(200, 0, 5, 400);
@@ -2887,18 +2897,7 @@ function bloons($_p) {
       $_p.noStroke();
       $_p.text('map 1', 60, 60);
       $_p.text('map 2', 260, 60);
-      $_p.text('press any $_p.keyto confirm', 45, 300);
-      if ($_p.mouseIsPressed && $_p.mouseX < 200) {
-        $_p.background(62, 117, 20);
-        mapid = 0
-      }
-      if ($_p.mouseIsPressed && $_p.mouseX > 200) {
-        $_p.background(0, 0, 0);
-        mapid = 1
-      }
-      if ($_p.keyIsPressed) {
-        lost = 0
-      }
+      $_p.text('press any key or right click \nto confirm', 45, 300);
     }
   };
 }
