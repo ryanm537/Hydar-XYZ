@@ -2819,15 +2819,15 @@ function bloons($_p) {
   }
   
   $_p.draw = function () {
+    if ($_p.mouseIsPressed) {
+   	  mouseTicks++
+    } else {
+   	  mouseTicks = 0
+    }
     if (lost === 0) {
       frames++;
       scroll();
       updateHp();
-      if ($_p.mouseIsPressed) {
-        mouseTicks++
-      } else {
-        mouseTicks = 0
-      }
       $_p.background(62, 117, 20);
       if (m > 15) {
         if (frames <= 650) {
@@ -2881,13 +2881,13 @@ function bloons($_p) {
       $_p.text('you losed', 200, 50)
     } else if (lost === 2) {
       $_p.background(62, 117, 20);
-      if ($_p.mouseIsPressed && $_p.mouseX < 200) {
+      if ($_p.mouseIsPressed && $_p.mouseX < 200 && mouseTicks < 30) {
         mapid = 0
       }
-      if ($_p.mouseIsPressed && $_p.mouseX > 200) {
+      if ($_p.mouseIsPressed && $_p.mouseX > 200 && mouseTicks < 30) {
         mapid = 1
       }
-      if ($_p.keyIsPressed || ($_p.mouseButton == $_p.RIGHT)) {
+      if ($_p.keyIsPressed || (mouseTicks >= 30)) {
         lost = 0
       }
       track();
@@ -2897,7 +2897,7 @@ function bloons($_p) {
       $_p.noStroke();
       $_p.text('map 1', 60, 60);
       $_p.text('map 2', 260, 60);
-      $_p.text('press any key or right click \nto confirm', 45, 300);
+      $_p.text('press any key or hold\nto confirm', 45, 300);
     }
   };
 }
