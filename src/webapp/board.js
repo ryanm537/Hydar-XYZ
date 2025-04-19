@@ -304,79 +304,70 @@ function ping(){//hydar hydar hydar
 	sendToServer("]");
 }
 fe.onchange=()=>{
-	try{
-		if( !me || (me.username=="Guest" || me.username=="Anonymous")){
+	if( !me || (me.username=="Guest" || me.username=="Anonymous")){
+		return;
+	}
+	let posting=document.getElementById("posting");
+	for(let file of fe.files){
+		if(allFiles.length>=MAX_FILE_PER_MSG){
 			return;
 		}
-		for(let file of fe.files){
-			if(allFiles.length>=MAX_FILE_PER_MSG){
+		let currentOrd = String.fromCharCode(ordinal++);
+		if(ordinal>97+25 || (ordinal<97 && ordinal>65+25)){
+			ordinal=65;
+		}
+		let id="attachment_"+Math.round(Math.random()*1E9);
+		let fileObj = {"prog":0,"file":file,"path":null,"id":id};
+		allFiles.push(fileObj);
+		posting.innerHTML = wrapPosting();
+		rescaleImage(file).then(thumbnail=>{
+			fileObj.file=file;
+			let target='/UploadFile.jsp?board='+boardId+"&filename="+file.name+"&thumbsize="+thumbnail.size+"&ordinal="+currentOrd;
+			let newFile = (thumbnail&&thumbnail.size>0)?
+				new Blob([file,thumbnail],{"type":"application/octet-stream"}):
+				file;
+			let request = new XMLHttpRequest();
+			fileObj.request = request;
+			if(fileObj.cancelled)
 				return;
-			}
-			let currentOrd = String.fromCharCode(ordinal++);
-			if(ordinal>97+25 || (ordinal<97 && ordinal>65+25)){
-				ordinal=65;
-			}
-			let id="attachment_"+Math.round(Math.random()*1E9);
-			let fileObj = {"prog":0,"file":file,"path":null,"id":id};
-			allFiles.push(fileObj);
-			var posting=wrapPosting();
-			let test=document.getElementById("posting");
-			if(test.innerHTML!=posting)
-				test.innerHTML=posting;
-			rescaleImage(file).then(thumbnail=>{
-				fileObj.file=file;
-				let target='/UploadFile.jsp?board='+boardId+"&filename="+file.name+"&thumbsize="+thumbnail.size+"&ordinal="+currentOrd;
-				let newFile = (thumbnail&&thumbnail.size>0)?
-					new Blob([file,thumbnail],{"type":"application/octet-stream"}):
-					file;
-				let request = new XMLHttpRequest();
-				fileObj.request = request;
-				if(fileObj.cancelled)
-					return;
-			    request.upload.addEventListener('progress', function (e) {
-		            var percent = Math.round(e.loaded / (newFile.size/0.99) * 100);
-		            fileObj.prog=percent;
-		            let attElem = document.getElementById(id);
-		            if(attElem)
-		           	 	attElem.children[0].innerHTML = percent + '%';
-			    });    
-			    request.addEventListener('loadend', function (_) {
-		            let attElem = document.getElementById(id);
+			request.upload.addEventListener('progress', function (e) {
+				var percent = Math.round(e.loaded / (newFile.size/0.99) * 100);
+				fileObj.prog=percent;
+				let attElem = document.getElementById(id);
+				if(attElem)
+					attElem.children[0].innerHTML = percent + '%';
+			});    
+			//chain http request into the current then block
+			return new Promise(resolve=>{
+				request.addEventListener('loadend', function (_) {
+					let attElem = document.getElementById(id);
 					if(request.status==200){
-			            fileObj.prog=100;
+						fileObj.prog=100;
 						if(attElem)attElem.children[0].innerHTML = '100%';
 						let text=request.responseText;
-				        fileObj.path=text;
-				        if(attElem)attElem.setAttribute("href",ATTACHMENT_PATH+text);
-						
-						let statusElem=document.getElementById("postingFiles").children[0];
-						if(statusElem){
-							let len=allFiles.length;
-							let doneLen = allFiles.filter(x=>x.path).length;
-							let fileText= `Files (${doneLen}/${len}): `;
-							statusElem.innerText=fileText;
-						}
-				        console.log(text);
-				        //TODO: img preview and stuff
-			        }else{
+						fileObj.path=text;
+						if(attElem)
+							attElem.setAttribute("href",ATTACHMENT_PATH+text);
+						console.log(text);
+						//TODO: img preview and stuff
+					}else{
 						allFiles.pop(fileObj);
-						try{
-							document.getElementById("postingFiles").removeChild(attElem);
-						}catch(e){}
-						console.log(request.status);
 					}
-			    }); 
-			    request.open('post', target);
-			    request.timeout = 30000;
-			    request.send(newFile);
+					resolve();
+				}); 
+				request.open('post', target);
+				request.timeout = 30000;
+				request.send(newFile);
 			});
-		}
-	}catch(e){
-		console.log(e);
-	}finally{
-		//document.getElementById('fileElem').files=[];
-    	fe.value='';
+		}).catch(err=>{
+			allFiles.pop(fileObj);
+			console.log(err);
+		}).finally(()=>{
+			posting.dataset.hash = hashCode(posting.innerHTML);
+			posting.innerHTML = wrapPosting();
+		});
 	}
+	fe.value = '';
 }
 function videoToImg(file){
 	if(probeType(file.name)=="image"){
@@ -514,6 +505,10 @@ document.body.addEventListener('drop', (e) => {
   	e.preventDefault();
   }
 });
+function wrapPostingFile(f){
+	link=f.path?`href='${ATTACHMENT_PATH+f.path}'`:"";
+	return ` <a ${link} target='_blank' id="${f.id}">(<b>${f.prog}%</b>) ${encodeURIComponent(f.file.name)}, ${formatSize(f.file.size)}</a>`;
+}
 function wrapPosting(){
 	function label(){
 		if(channelof == -1){
@@ -534,8 +529,7 @@ function wrapPosting(){
 		out=`
 		<div id='postingFiles'> ${out} | <b> Files (${doneLen}/${len}): </b>`;
 		for (let f of allFiles.sort(x=>-x.prog)){
-			link=f.path?`href='${ATTACHMENT_PATH+f.path}'`:"";
-			out+=` <a ${link} target='_blank' id="${f.id}">(<b>${f.prog}%</b>) ${encodeURIComponent(f.file.name)}, ${formatSize(f.file.size)}</a>`;
+			out += wrapPostingFile(f);
 		}
 		out+=`&nbsp;</div><a href='#' class='clearFiles' onclick='return clearFiles();'>(remove)</a>`
 	}
