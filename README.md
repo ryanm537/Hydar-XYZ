@@ -1,4 +1,4 @@
-<h1>What <i>is</i> Hydar?</h1>
+# What <i>is</i> Hydar?
 Hydar is a web application which primarily offers chat services, which are centered around boards. Users can create <b>boards</b>, 
 		which can be set to either public or private. Public boards can be joined by anyone who is given the board's 
 		unique ID, whereas private boards (the default) are invite-only. As of now, there are certain 
@@ -31,3 +31,13 @@ Finally, the <b>frontend code</b> contains the client aspects of these, ensuring
 <br><br>
 In addition to the above main components, Hydar includes additional, optional modules to improve user experience. These include a pure Java implementation of the <b>STUN/TURN</b> protocol for relaying calls, as well as advanced, custom <b>JDBC connection and statement pooling</b>, which ensures prepared statements are closed properly and connections are reused, and is loaded through JNDI similarly to in other servlet containers. Finally, Hydar can optionally <b>rate limit</b> expensive servlet code through the HydarLimiter API.
 <br><br>
+# Build Instructions
+Prerequisites: JDK 21, MySQL 8, Python 3
+
+1. Download the source. `git clone https://github.com/ryanm537/Hydar-XYZ/ && cd Hydar-XYZ-main`
+2. Load the database: `mysql -uroot -p` then `source chatRoom.sql`
+3. (if necessary) Edit hydar.properties to use your database password, and other config as necessary. See default.properties for all possible options. 
+4. Run the server using `compile_hydar.bat` or `compile_hydar.sh` depending on your system.
+5. All done! The server will run on `http://localhost:3349/` by default, but this can be configured.
+
+If voice calls do not work, try [creating a keystore](https://docs.oracle.com/cd/E19798-01/821-1841/gjrgy/) and enabling SSL in hydar.properties, as this is needed for deployment anyways.
