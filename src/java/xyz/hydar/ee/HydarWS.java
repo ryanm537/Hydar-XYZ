@@ -7,7 +7,9 @@ import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.LongBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -341,25 +343,25 @@ public class HydarWS extends OutputStream{
 		});
 	}
 	/**Endpoint builders can be used to convert JSPs into websocket endpoints. See the example*/
-	public static void registerEndpoint(String path,EndpointBuilder builder){
-		for(Hydar hydar:Hydar.hydars) {
-			if(hydar.ee == hydar.ee.lastToCompile) {
-				recompileEndpoint(hydar,path);
-				if(hydar.config.LOWERCASE_URLS)
-					path=path.toLowerCase();
-				endpoints.put(path,builder);
-			}
-		}
-		throw new IllegalStateException("This must be called at compile time of a JSP.");
+	public static void registerEndpoint(String path, EndpointBuilder builder){
+		registerAnyEndpoint(path, builder);
 	}
 	/**Provide an endpoint class, if state that a builder can't handle is needed*/
 	public static void registerEndpoint(String path,Class<? extends Endpoint> classObject){
-		for(Hydar hydar:Hydar.hydars) {
-			if(hydar.ee == hydar.ee.lastToCompile) {
+		registerAnyEndpoint(path, classObject);
+	}
+	/**Endpoint argument must be Class<? extends Endpoint> or EndpointBuilder.*/
+	private static void registerAnyEndpoint(String path, Object endpoint){
+		//Include possibility of Hydar in its constructor.
+		List<Hydar> allPossibleHydars = new ArrayList<>(Hydar.hydars);
+		if(HydarEE.lastToCompile != null)
+			allPossibleHydars.add(HydarEE.lastToCompile.hydar);
+		for(Hydar hydar : allPossibleHydars) {
+			if(hydar.ee == HydarEE.lastToCompile) {
 				recompileEndpoint(hydar,path);
 				if(hydar.config.LOWERCASE_URLS)
 					path=path.toLowerCase();
-				endpoints.put(path,classObject);
+				endpoints.put(path,endpoint);
 				return;
 			}
 		}

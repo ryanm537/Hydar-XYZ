@@ -114,8 +114,8 @@ class Config{
 	public String TC_PERMANENT_STATE, TC_IN, TC_OUT, TC_SLOW_API, TC_FAST_API;
 	
 	public String WEB_ROOT = ".";
-	public boolean LAZY_COMPILE=false;
-	public boolean LAZY_FILES=false;
+	public boolean LAZY_COMPILE=true;
+	public boolean LAZY_FILES=true;
 	public boolean TRY_UNSAFE_WATCH_SERVICE=true;
 	public Map<String,String> errorPages=new HashMap<>();
 	private static final Map<String,Object> jndi = new ConcurrentHashMap<>();

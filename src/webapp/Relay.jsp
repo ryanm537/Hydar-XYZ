@@ -14,5 +14,9 @@ static{
 			.onClose((output)->System.out.println("Closing..."))
 			);*/
 			//hydar
-	xyz.hydar.ee.HydarWS.registerEndpoint("Relay.jsp",xyz.hydar.app.HydarEndpoint.class);
+	try{
+		xyz.hydar.ee.HydarWS.registerEndpoint("Relay.jsp",xyz.hydar.app.HydarEndpoint.class);
+	}catch(Exception e){
+		e.printStackTrace();
+	}
 }%>

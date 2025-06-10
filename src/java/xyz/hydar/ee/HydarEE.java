@@ -85,7 +85,7 @@ public class HydarEE{
 	public final Context ctx;
 	public final Hydar hydar;
 	public final Config config;
-	public volatile HydarEE lastToCompile = null;
+	public static volatile HydarEE lastToCompile = null;
 	//only run shutdown hook if needed
 	public volatile boolean persisted=false;
 	/**

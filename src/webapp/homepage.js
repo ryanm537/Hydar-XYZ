@@ -363,7 +363,7 @@ function makeSocket(){
 				return;
 			case '@'://my id and TURN cred
 				me={id:parseInt(q[1])};
-				turnCred=q[2];
+				turnCred="hydar";
 				return;
 			default:
 				return;
@@ -401,7 +401,7 @@ async function closeVc(target){
 	if (thePC) {
 		console.log("--> Closing the peer connection");
 		tar.active=false;
-		for(var s1 of thePC.getSenders())
+		for(let s1 of thePC.getSenders())
 			thePC.removeTrack(s1);
 		thePC.ontrack = null;
 		thePC.onnicecandidate = null;
@@ -412,10 +412,10 @@ async function closeVc(target){
 		await thePC.close();
 		tar.pc=null;
 		//transceivers.splice(targets.indexOf(target),1);
-		var remoteAudio = document.getElementById("hydar_audio"+target);
+		let remoteAudio = document.getElementById("hydar_audio"+target);
 		if(remoteAudio)
 			remoteAudio.remove();
-		var remoteVideo = document.getElementById("hydar_video"+target);
+		let remoteVideo = document.getElementById("hydar_video"+target);
 		if(remoteVideo)
 			remoteVideo.remove();
 		try{

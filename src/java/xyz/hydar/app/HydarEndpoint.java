@@ -72,8 +72,8 @@ public class HydarEndpoint extends HydarWS.Endpoint{
 		int uid = parseInt(ids[1]);
 		//TODO: users/members should not be public
 		return boards.get(board).users
-				.stream().filter(x -> x.id == uid)
-				.findFirst().orElseThrow().tc;
+				.stream().filter(x -> x.id == uid && x.vc)
+				.findFirst().map(x->x.tc).orElseThrow();
 		
 	}
 	@Override
