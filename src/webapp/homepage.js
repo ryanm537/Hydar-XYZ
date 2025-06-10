@@ -363,7 +363,7 @@ function makeSocket(){
 				return;
 			case '@'://my id and TURN cred
 				me={id:parseInt(q[1])};
-				turnCred="hydar";
+				turnCred=q[2];
 				return;
 			default:
 				return;
