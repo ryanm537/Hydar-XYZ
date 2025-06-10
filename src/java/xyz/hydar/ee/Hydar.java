@@ -103,11 +103,11 @@ class ServerThread implements Runnable {
 	//set this field so we don't 408 them on SocketTimeoutExceptions.
 	private boolean h1use=false;
 	private boolean willClose=false;//Connection: close header
-	//Session obtained from cookies or URL.
-	public volatile HydarEE.HttpSession session=null;
 	
 	private volatile boolean isHead=false;//INCOMING hstream
+	//FIXME: below should be request-specific, not thread-specific
 	public volatile Hydar hydar;
+	public volatile HydarEE.HttpSession session=null; //Session obtained from cookies or URL.
 	public volatile Config config=Hydar.hydars.get(0).config;
 	/**
 	 * Create a new ServerThread based on a given client Socket
@@ -611,7 +611,7 @@ class ServerThread implements Runnable {
 	protected void sendError(String code, Optional<HStream> hs) throws IOException{
 		getError(code,hs).write();
 	}
-	/**Build an upgrade reponse(convenience). HTTP/1.1 only.*/
+	/**Build an upgrade response(convenience). HTTP/1.1 only.*/
 	private final Hydar.Response UPGRADE(String protocol) {
 		return newResponse("101",Optional.empty()).version("HTTP/1.1").header("Upgrade",protocol).output(output).header("Connection","Upgrade");
 	}
@@ -1019,7 +1019,6 @@ public class Hydar {
 			ioe.printStackTrace();
 			return;	
 		}
-		
 	}
 	/**
 	 * Check a socket against the associated Limiter.
@@ -1095,7 +1094,11 @@ public class Hydar {
 				}
 			}).start();
 	}
-	/**Make the server socket, including SSL initialization if applicable.*/
+	/**
+	 * Make the server socket, including SSL initialization if applicable.
+	 * Static because multi-port operation isn't supported(same socket is always used)
+	 * -->only vary HOST and SERVLET_PATH to uniquely classify requests
+	 * */
 	static ServerSocket makeSocket() throws IOException {
 		ServerSocket server=null;
 		boolean loopback = hydars.stream().allMatch(x->x.config.HOST==null);
@@ -1148,7 +1151,16 @@ public class Hydar {
 			System.out.println("Cannot open port " + Config.PORT);
 			if(server!=null)server.close();
 		}
-		
+		for(Hydar hydar: hydars) {
+			System.out.println("Hydar " + hydar.config.configPath + " listening on: "
+				+ (server instanceof SSLServerSocket ? "https://" : "http://")
+				+ hydar.config.HOST
+					//.filter(h -> !loopback) forgot why this might be better
+					.map(Object::toString)
+					.orElse("localhost:" + server.getLocalPort())
+				+ hydar.config.SERVLET_PATH
+			);
+		}
 		return server;
 	}
 	/**Check the time and perform file reading and other interval-based tasks.*/
