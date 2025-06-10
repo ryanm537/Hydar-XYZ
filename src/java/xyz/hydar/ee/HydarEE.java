@@ -814,10 +814,6 @@ public class HydarEE{
 			if((session=request.getSession())!=null) {
 				String cookieAge=session.cookieTtl>=0?";Max-Age="+(session.cookieTtl/1000):"";
 				builder.header("Set-Cookie","HYDAR_sessionID="+session.id+";Path="+config.SERVLET_PATH+";SameSite=Strict;"+(Config.SSL_ENABLED?"Secure":"")+cookieAge);
-				if(config.TURN_ENABLED){
-					builder.header("Set-Cookie","HYDAR_turnUser="+session.id.substring(15,24)+";Path="+config.SERVLET_PATH+";SameSite=Strict;"+(Config.SSL_ENABLED?"Secure":"")+cookieAge);
-					builder.header("Set-Cookie","HYDAR_turnCred="+session.tc+";Path="+config.SERVLET_PATH+";SameSite=Strict;"+(Config.SSL_ENABLED?"Secure":"")+cookieAge);
-				}
 			}
 			return this;
 		}
@@ -960,7 +956,6 @@ public class HydarEE{
 		public volatile long ttl=2_592_000_000l;//server sided lifetime
 		public volatile long cookieTtl=-1;//cookie lifetime, -1=session
 		public volatile long lastUsed=System.currentTimeMillis();
-		public final String tc;
 		public volatile boolean valid=true;
 		public transient volatile Hydar hydar;
 		private final InetAddress addr;
@@ -1004,7 +999,6 @@ public class HydarEE{
 			//count.computeIfAbsent()
 			this.addr=addr;
 			this.hydar=hydar;
-			tc= hydar.config.TURN_ENABLED?hydar.ee.tc():null;
 			id=hydar.ee.id();
 			hydar.ee.sessions.put(id,this);
 		}

@@ -931,18 +931,7 @@ public class Hydar {
 		config = new Config(this);
 		config.load(configPath);
 		ee = new HydarEE(this);
-		if(config.TURN_ENABLED){
-			try {
-				Class<?> clazz=Class.forName("xyz.hydar.turn.HydarTURN");
-				UnaryOperator<String> auth=this::authenticate;
-				int port =config.TURN_PORT;
-				clazz.getConstructor(UnaryOperator.class,int.class)
-					.newInstance(auth,port);
-			}catch(Exception e) {
-				e.printStackTrace();
-				System.out.println("TURN module not found.");
-			}
-		}
+		
 		final ExecutorService exec;
 		exec = config.PARALLEL_COMPILE ? newCachedThreadPool() : newSingleThreadExecutor();
 		watcher = dir.getFileSystem().newWatchService();
@@ -1282,15 +1271,6 @@ public class Hydar {
 		}
 		System.out.println("Failed to replace: "+e);
 		return r;
-	}
-	//Used for TURN authentication.
-	//TODO: hashing or something at least.
-	public String authenticate(String user){
-		for(String key:ee.sessions.keySet()){
-			if(key.substring(15,24).equals(user))
-				return ee.sessions.get(key).tc;
-		}
-		return null;
 	}
 	public static void inputLoop(){
 		BufferedReader s = new BufferedReader(new InputStreamReader(System.in));

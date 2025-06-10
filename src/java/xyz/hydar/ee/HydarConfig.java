@@ -39,8 +39,6 @@ class Config{
 	public static String SSL_CONTEXT_NAME = "TLS";
 	public List<String> CLASSPATH=new ArrayList<>(List.of(System.getProperty("java.class.path")));
 	public static String[] SSL_ENABLED_PROTOCOLS = new String[]{"TLSv1.2","TLSv1.3"};
-	public boolean TURN_ENABLED=false;
-	public int TURN_PORT=3478;
 	public static int SSL_REDIRECT_FROM=-1;
 	public boolean CREATE_JAVA_FILES=false;
 	public int REFRESH_TIMER=2000;

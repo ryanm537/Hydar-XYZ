@@ -19,6 +19,7 @@ let muted=false;
 let pleaseRefresh=-1;
 let userAudio=null;
 let userVideo=null;
+let turnCred=null;
 /**Add mic and local screenshare(if already active) to a peer connection*/
 async function addLocalMedia(target){
 	let stream = await getUserAudio();
@@ -360,8 +361,9 @@ function makeSocket(){
 				updateChannels(q[1]);
 				updateInfo();
 				return;
-			case '@'://my id
+			case '@'://my id and TURN cred
 				me={id:parseInt(q[1])};
+				turnCred=q[2];
 				return;
 			default:
 				return;
@@ -617,14 +619,14 @@ function getCookie(name) {
 function createPeerConnection(target) {
 	return new Promise((resolve)=>{
 		console.log("Setting up a connection...");
-		var thePC=new RTCPeerConnection({
+		let thePC=new RTCPeerConnection({
 			iceServers: [ // Information about ICE servers - Use your own!
-			{ urls: ["stun:"+myHostname+":3501"]},
-				{ "urls": ["turn:"+myHostname+":3501"],
-				"credential":getCookie("HYDAR_turnCred"),
-				"username":getCookie("HYDAR_turnUser")
+				{ "urls": ["stun:" + myHostname+":3501"]},
+				{ 
+					"urls": ["turn:" + myHostname+":3501"],
+					"credential" : turnCred,
+					"username" : ""+boardId+","+me.id
 				}
-				
 				 // ,
 				 // {urls: ["stun:stun3.l.google.com:19302"]}
 			]

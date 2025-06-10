@@ -27,6 +27,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -36,16 +37,20 @@ import xyz.hydar.ee.HydarWS;
 import xyz.hydar.ee.HydarEE.HttpServletRequest;
 import xyz.hydar.ee.HydarEE.HttpServletResponse;
 import xyz.hydar.ee.HydarEE.HttpSession;
+import xyz.hydar.ee.HydarUtil;
 
 public class HydarEndpoint extends HydarWS.Endpoint{
 	int id;
 	Board board;
 	HydarEE.HttpSession session;
 	public static Map<Integer,Board> boards = new ConcurrentHashMap<>();//board id => board
-	static volatile String PYTHON_PATH=null;
+	static volatile String PYTHON_PATH = null;
+	static volatile int TURN_PORT = -1;
 	boolean vc=false;
 	public final Hydar hydar;
+	private final String tc;
 	public static volatile HydarEE.HttpSession RAYE;
+
 	public HydarEndpoint(HydarWS websocket) {
 		super(websocket);
 		hydar=websocket.hydar;
@@ -54,23 +59,53 @@ public class HydarEndpoint extends HydarWS.Endpoint{
 			RAYE.setMaxInactiveInterval(Integer.MAX_VALUE);
 			RAYE.setAttribute("userid",2);
 		}
+		tc = HydarUtil.noise(16);
+	}
+
+	//Used for TURN authentication.
+	//TODO: hashing or something at least.
+	public static String authenticate(String user){
+		String[] ids = user.split(",",2);
+		if(ids.length != 2)
+			throw new IllegalArgumentException("Invalid user format");
+		int board = parseInt(ids[0]);
+		int uid = parseInt(ids[1]);
+		//TODO: users/members should not be public
+		return boards.get(board).users
+				.stream().filter(x -> x.id == uid)
+				.findFirst().orElseThrow().tc;
+		
 	}
 	@Override
 	public void onOpen() throws IOException{
 		this.session=getSession();
-		Integer tmp=(Integer)session.getAttribute("userid");
-		if(tmp==null) {
+		Integer tmpId=(Integer)session.getAttribute("userid");
+		if(tmpId==null) {
 			session.setAttribute("userid",3);
 			session.setAttribute("username", "Guest");
-			tmp=3;
+			tmpId=3;
 		} 
 		if(Board.REFRESH_TIMER==-1) {
 			String refr=session.getServletContext().getInitParameter("BOARD_REFRESH_DELAY");
-			Board.REFRESH_TIMER=refr==null?45000:Long.parseLong(refr);
+			Board.REFRESH_TIMER=refr==null ? 45000 : Long.parseLong(refr);
 		}
 		if(PYTHON_PATH==null){
 			String path=session.getServletContext().getInitParameter("PYTHON_PATH");
-			PYTHON_PATH=path==null?"python":path;
+			PYTHON_PATH=path==null ? "python" : path;
+		}
+		//TODO: start earlier?
+		if(TURN_PORT==-1){
+			String port=session.getServletContext().getInitParameter("TURN_PORT");
+			TURN_PORT=port==null ? 3478 : parseInt(port);
+			try {
+				Class<?> clazz=Class.forName("xyz.hydar.turn.HydarTURN");
+				UnaryOperator<String> auth = HydarEndpoint::authenticate;
+				clazz.getConstructor(UnaryOperator.class,int.class)
+					.newInstance(auth, TURN_PORT);
+			}catch(Exception e) {
+				e.printStackTrace();
+				System.out.println("TURN module failed to start. VC may not work.");
+			}
 		}
 		//TODO: better way to do this
 		HttpServletRequest req = new HttpServletRequest("PermCheck", search+"&last_id=0")
@@ -78,7 +113,7 @@ public class HydarEndpoint extends HydarWS.Endpoint{
 				.withSession(this.session,true);
 		HydarEE.HttpServletResponse ret = hydar.ee.jsp_invoke(req);
 		//only guests have ip attr
-		if(tmp==3) {
+		if(tmpId==3) {
 			session.setAttribute("ip",getRemoteAddress());
 		}else
 			session.removeAttribute("ip");
@@ -87,8 +122,8 @@ public class HydarEndpoint extends HydarWS.Endpoint{
 			close();
 			return;
 		}
-		print("@,"+tmp);
-		this.id = tmp;
+		print("@,"+tmpId+","+tc);
+		this.id = tmpId;
 		
 		int boardNum = parseInt(search.substring(search.indexOf("board=")+6));
 		board = HydarEndpoint.boards.computeIfAbsent(boardNum,Board::new);
