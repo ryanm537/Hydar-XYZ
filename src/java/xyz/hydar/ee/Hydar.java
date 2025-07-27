@@ -335,8 +335,8 @@ class ServerThread implements Runnable {
 		}
 		
 		String path=path_.substring(hydar.config.SERVLET_PATH.length());
-		if(path.isEmpty()) {
-			path="/";
+		if(!path.startsWith("/")) {
+			path="/"+path;
 		}
 		if (path.equals("/")) {
 			path = config.HOMEPAGE;
