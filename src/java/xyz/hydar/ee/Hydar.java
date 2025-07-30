@@ -57,6 +57,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.UnaryOperator;
+import java.util.regex.Pattern;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -302,6 +303,7 @@ class ServerThread implements Runnable {
 	/**
 	 * Process a request(could be called by http1 or 2)
 	 * Method and path are included in 'headers'.
+	 * TODO: split functionality to multiple methods of a request context
 	 * */
 	public void hparse(Map<String,String> headers, Optional<HStream> hstream, byte[] body,int bodyLength) throws IOException{
 		String method = headers.get(":method");
@@ -336,15 +338,13 @@ class ServerThread implements Runnable {
 		
 		String path=path_.substring(hydar.config.SERVLET_PATH.length());
 		if(!path.startsWith("/")) {
-			path="/"+path;
+			path="/" + path;
 		}
 		if (path.equals("/")) {
 			path = config.HOMEPAGE;
 		}
 
-		for(var s:config.links.entrySet()){
-			path=path.replaceAll(s.getKey(),s.getValue());
-		}
+		
 		String search = "";
 		String[] splitUrl=path.split("\\?",2);
 		if(splitUrl.length==2){
@@ -354,7 +354,23 @@ class ServerThread implements Runnable {
 		
 		path = config.LOWERCASE_URLS?path.toLowerCase():path;
 		path = URLDecoder.decode(path,StandardCharsets.UTF_8);
-		System.out.println(""+client_addr+"> " + method + " " + path + " " + version);
+		
+		//process links, add params if needed
+		for(var s:config.links.entrySet()){
+			Pattern link = s.getKey();
+			if(link.matcher(path).find()) {
+				List<String> pathParams = config.linkParams.get(link);
+				String[] pathElements = path.split("\\/");
+				for(int i=0; i < Math.min(pathElements.length, pathParams.size()); i++) {
+					if(pathParams.get(i) != null) {
+						search = search + (search.isEmpty()? "":"&") + pathParams.get(i) + "=" + pathElements[i];	
+					}
+				}
+				path = link.matcher(path).replaceAll(s.getValue());
+			}
+		}
+		
+		System.out.println("" + client_addr+"> " + method + " " + path + (search.isEmpty() ? "" : "?") + search + " " + version);
 		//Virtual links(see default.properties).
 		//These are useful for turning path params into request params.
 		//Reject multipart. TODO: support it.

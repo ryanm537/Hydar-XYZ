@@ -49,7 +49,7 @@ class Config{
 	public Optional<Pattern> HOST=Optional.empty();//empty=anything allowed
 	public Optional<Pattern> FORBIDDEN_REGEX=Optional.empty();//empty=anything allowed
 	public Optional<Pattern> CACHE_OFF_REGEX=Optional.empty();//empty=anything allowed 
-	public Optional<Pattern> CACHE_ON_REGEX=Optional.of(Pattern.compile(".*"));//empty=anything allowed 
+	public Optional<Pattern> CACHE_ON_REGEX=Optional.of(HydarUtil.MATCH_ALL);//empty=anything allowed 
 	public boolean CACHE_ENABLED=true;
 	public List<String> ZIP_ALGS=List.of("gzip","deflate");
 	public Set<String> ZIP_MIMES = Set.of("text/html", "text/css", "text/plain", "text/xml", "text/x-component",
@@ -95,7 +95,8 @@ class Config{
 	public String CACHE_CONTROL_NO_JSP="public, max-age=604800, must-revalidate";
 
 	public static boolean TC_ENABLED=false;
-	public Map<String,String> links = new HashMap<>();
+	public Map<Pattern,String> links = new HashMap<>();
+	public Map<Pattern,List<String>> linkParams = new HashMap<>();
 	
 	public static int H2_LIFETIME=30000;
 	public static String H2_HPACK_TREE_STRATEGY="ARRAY";
@@ -138,8 +139,32 @@ class Config{
 		}
 		return ret.toArray(new String[0]);
 	}
+	/**
+	*	Adds a new link to the config, which will redirect requests.
+	*	Path params in the regex, k, will become URL params if enclosed with /{}/.
+	*	After that, k is compiled as a regex which is replaced with v.
+	*	See default.properties for examples.
+	*/
 	public void link(String k, String v){
-		links.put(k,v);
+		List<String> params = new ArrayList<>();
+		String parsedPattern = Arrays.stream(k.split("\\/")).
+			map(element -> {
+				if(element.startsWith("{") && element.endsWith("}")) {
+					String newRegex = "[^\\/]*";
+					if(element.contains("}{")) {
+						newRegex = element.substring(element.indexOf("}{")+2, element.length()-1);
+					}
+					String paramName = element.substring(1,element.indexOf("}"));
+					params.add(paramName);
+					return newRegex;
+				}
+				params.add(null); //pad out non-params
+				return element;
+			})
+			.collect(Collectors.joining("/"));
+		Pattern linkPattern = p(parsedPattern).orElse(HydarUtil.MATCH_ALL);
+		links.put(linkPattern, v);
+		linkParams.put(linkPattern, params);
 	}
 	private static Map<Long,Long> tasks(String s){
 		if(s==null)return Map.of();

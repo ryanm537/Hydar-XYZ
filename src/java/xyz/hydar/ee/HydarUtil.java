@@ -54,6 +54,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import javax.naming.Reference;
@@ -70,6 +71,7 @@ public class HydarUtil {
 		.toFormatter(Locale.US)
 		.withZone(ZoneId.of("GMT"));
 	private static final WatchEvent.Modifier UNSAFE_MODIFIER;
+	public static final Pattern MATCH_ALL = Pattern.compile(".*");
 	static final ThreadFactory TFAC;
 	//'conditional compile' for 19+
 	static {
