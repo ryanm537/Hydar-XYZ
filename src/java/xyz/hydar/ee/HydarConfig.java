@@ -163,7 +163,7 @@ class Config{
 			})
 			.collect(Collectors.joining("/"));
 		Pattern linkPattern = p(parsedPattern).orElse(HydarUtil.MATCH_ALL);
-		links.put(linkPattern, v);
+		links.put(linkPattern, LOWERCASE_URLS ? v.toLowerCase() : v);
 		linkParams.put(linkPattern, params);
 	}
 	private static Map<Long,Long> tasks(String s){
