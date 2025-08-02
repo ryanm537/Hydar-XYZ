@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -95,8 +96,8 @@ class Config{
 	public String CACHE_CONTROL_NO_JSP="public, max-age=604800, must-revalidate";
 
 	public static boolean TC_ENABLED=false;
-	public Map<Pattern,String> links = new HashMap<>();
-	public Map<Pattern,List<String>> linkParams = new HashMap<>();
+	public Map<Pattern,String> links = new LinkedHashMap<>();
+	public Map<Pattern,List<String>> linkParams = new LinkedHashMap<>();
 	
 	public static int H2_LIFETIME=30000;
 	public static String H2_HPACK_TREE_STRATEGY="ARRAY";
