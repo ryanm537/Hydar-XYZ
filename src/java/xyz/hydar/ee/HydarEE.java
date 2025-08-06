@@ -424,8 +424,7 @@ public class HydarEE{
 				  String line1=diagnostic.getKind()+": "+diagnostic.getCode();
 				  String sLine=fullSource.substring(startPos,endPos).trim();
 				  String src=diagnostic.getSource()==null?"":
-						  
-						  "hydar:/"+((JavaFileObject)(diagnostic.getSource())).getName()+ignoredWarnings;
+						  "hydar:/" + diagnostic.getSource().getName() + ignoredWarnings;
 				 // int maxLen=Math.max(Math.max(Math.max(sLine.length(),line1.length()),line0.length()),src.length());
 				  int maxLen=Stream.of(sLine,line1,line0,src)
 						  .mapToInt(String::length)
@@ -458,6 +457,7 @@ public class HydarEE{
 						servlets.put(n,servlet);
 						return diagList.size();
 					}else{
+						servlets.put(n, new ErrorServlet(p));
 						double r = ThreadLocalRandom.current().nextDouble();
 						if(r<0.25)
 							System.err.println(e+": Compilation failed. You are fat");
@@ -520,7 +520,7 @@ public class HydarEE{
 		var resp=response;
 		resp.request=request;
 		JspServlet meth = (JspServlet)servlets.get(name);
-		if(meth instanceof EmptyServlet lazy) {
+		if(!(meth instanceof ErrorServlet) && meth instanceof EmptyServlet lazy) {
 			synchronized(meth) {
 				compile(lazy.getPath());
 				meth=(JspServlet)servlets.get(name);
@@ -581,6 +581,18 @@ public class HydarEE{
 		@Override
 		public void _jspService(HydarEE.HttpServletRequest request, HydarEE.HttpServletResponse response) {
 			
+		}
+		
+	}
+	/**Holds a place for a jspservlet that has failed to compile.*/
+	public static class ErrorServlet extends EmptyServlet{
+		public ErrorServlet(Path sourcePath) {
+			super(sourcePath);
+		}
+		@Override
+		public void _jspService(HydarEE.HttpServletRequest request, HydarEE.HttpServletResponse response) {
+			response.sendError(500);
+			response.getWriter().print(request.getServletContext().hydar.config.getErrorPage("500"));
 		}
 		
 	}
