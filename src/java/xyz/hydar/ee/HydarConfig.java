@@ -118,7 +118,7 @@ class Config{
 	public String WEB_ROOT = ".";
 	public boolean LAZY_COMPILE=true;
 	public boolean LAZY_FILES=true;
-	public boolean TRY_UNSAFE_WATCH_SERVICE=true;
+	public boolean TRY_UNSAFE_WATCH_SERVICE=false;
 	public Map<String,String> errorPages=new HashMap<>();
 	private static final Map<String,Object> jndi = new ConcurrentHashMap<>();
 	public final Hydar hydar;

@@ -448,7 +448,12 @@ public class HydarEE{
 					if(success){
 						//load class and update hash table
 						Class<?> c= ucl.loadClass(q);
-						JspServlet servlet=(JspServlet)c.getConstructor().newInstance();
+						JspServlet servlet;
+						try {
+							servlet = (JspServlet)c.getConstructor().newInstance();
+						}catch(ExceptionInInitializerError eie) {
+							throw new RuntimeException(eie.getCause());
+						}
 						servlet.doesSessions=doesSessions;
 						servlets.put(n,servlet);
 						return diagList.size();
