@@ -602,7 +602,7 @@ public class HydarEE{
 		public void service(HttpServletRequest request, HttpServletResponse response) throws IOException;
 		
 	}
-	/**A singular JSP page.*/
+	/**A singular JSP page. TODO: interface?*/
 	public static abstract class JspServlet implements HttpServlet{
 		boolean doesSessions=true;
 		@Override
