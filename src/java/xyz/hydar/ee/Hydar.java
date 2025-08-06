@@ -332,6 +332,10 @@ class ServerThread implements Runnable {
 			sendError(matchingHost.isEmpty()?"400":"404",hstream);
 			return;
 		}else {
+			if(this.hydar!=null && matchingHydar.orElseThrow() != this.hydar) {
+				sendError("400",hstream);//TODO: this shouldn't be necessary if the fixme above is resolved
+				return;
+			}
 			this.hydar = matchingHydar.orElseThrow();
 			this.config = hydar.config;
 		}
