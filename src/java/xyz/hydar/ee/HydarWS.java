@@ -37,10 +37,10 @@ public class HydarWS extends OutputStream{
 	
 	//endpoint params
 	public final ServerThread thread;
-	public final Config config;
 	private final String search;
 	private final String path;
 	private final Endpoint endpoint;
+	private volatile boolean alive = false;
 
 	//empty DEFLATE block(for reuse)
 	private static final byte[] EMPTY_BLOCK=new byte[]{0x00,0x00,(byte)0xff,(byte)0xff};
@@ -55,16 +55,12 @@ public class HydarWS extends OutputStream{
 	private BAOS deflate_baos;
 	private DeflaterOutputStream deflate_dos;
 	static final LongBuffer empty=LongBuffer.allocate(0);
-	private volatile boolean alive=true;
-	public final Hydar hydar;
 	
 	/**Initialize this context and its endpoint, if one is available.*/
 	public HydarWS(ServerThread thread, String path,String search,boolean deflate) throws IOException{
 		
 		this.thread=thread;
-		this.hydar=thread.hydar;
-		this.config=thread.config;
-		thread.client.setSoTimeout(config.WS_LIFETIME);
+		thread.client.setSoTimeout(thread.config().WS_LIFETIME);
 		this.path=path;
 		this.search=search;
 		this.deflate=deflate;
@@ -83,7 +79,7 @@ public class HydarWS extends OutputStream{
 		}
 		input=new byte[1024];
 		if(!hasEndpoint(path)) {
-			hydar.ee.jsp_invoke(path.substring(0,path.indexOf(".jsp")),thread.session,search);
+			thread.hydar().ee.jsp_invoke(path.substring(0,path.indexOf(".jsp")),thread.session,search);
 		}
 		endpoint=constructEndpoint(path,this);
 		if(endpoint==null) {
@@ -299,7 +295,7 @@ public class HydarWS extends OutputStream{
 				}
 				line = new String(pl,0,(int)length,StandardCharsets.UTF_8);
 				//on session expire, end the connection
-				if(thread.session==null || thread.session!=hydar.ee.get(thread.client_addr, thread.session.id)) {
+				if(thread.session==null || thread.session!=thread.hydar().ee.get(thread.client_addr, thread.session.id)) {
 					thread.session=null;
 					close();
 					return;

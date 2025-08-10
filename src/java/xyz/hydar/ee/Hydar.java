@@ -104,12 +104,9 @@ class ServerThread implements Runnable {
 	//set this field so we don't 408 them on SocketTimeoutExceptions.
 	private boolean h1use=false;
 	private boolean willClose=false;//Connection: close header
-	
 	private volatile boolean isHead=false;//INCOMING hstream
-	//FIXME: below should be request-specific, not thread-specific
-	public volatile Hydar hydar;
-	public volatile HydarEE.HttpSession session=null; //Session obtained from cookies or URL.
-	public volatile Config config=Hydar.hydars.get(0).config;
+	public final ThreadLocal<Hydar> hydar = new ThreadLocal<>();//TODO: scoped value?
+	public volatile HydarEE.HttpSession session = null; //Session obtained from cookies or URL.
 	/**
 	 * Create a new ServerThread based on a given client Socket
 	 * */
@@ -296,6 +293,21 @@ class ServerThread implements Runnable {
 	private static boolean modifiedAfter(Instant modifInstant, String date) {
 		return modifInstant.isAfter(Instant.from(HydarUtil.SDF3.parse(date)));
 	}
+	/** 
+	 * Returns a request-specific Hydar. 
+	 * The Hydar may be different for each HStream.
+	 * */
+	public Hydar hydar() {
+		return hydar.get();
+	}
+	/** 
+	 * Returns a request-specific Config. 
+	 * The Config may be different for each HStream.
+	 * */
+	public Config config() {
+		Hydar h = hydar.get();
+		return h!=null ? h.config : Hydar.hydars.get(0).config;
+	}
 	//TODO: request/response exchange in its own object => stop passing stream everywhere
 	public void hparse(Map<String,String> headers, Optional<HStream> hstream, byte[] body) throws IOException{
 		hparse(headers,hstream,body,body.length);
@@ -327,25 +339,19 @@ class ServerThread implements Runnable {
 				.filter(x->path_.startsWith(x.config.SERVLET_PATH))
 				.findFirst();
 		if(matchingHydar.isEmpty()) {
-			hydar=Hydar.hydars.get(0);
-			config=hydar.config;
+			hydar.set(Hydar.hydars.get(0));
 			sendError(matchingHost.isEmpty()?"400":"404",hstream);
 			return;
 		}else {
-			if(this.hydar!=null && matchingHydar.orElseThrow() != this.hydar) {
-				sendError("400",hstream);//TODO: this shouldn't be necessary if the fixme above is resolved
-				return;
-			}
-			this.hydar = matchingHydar.orElseThrow();
-			this.config = hydar.config;
+			this.hydar.set(matchingHydar.orElseThrow());
 		}
 		
-		String path=path_.substring(hydar.config.SERVLET_PATH.length());
+		String path=path_.substring(hydar().config.SERVLET_PATH.length());
 		if(!path.startsWith("/")) {
 			path="/" + path;
 		}
 		if (path.equals("/")) {
-			path = config.HOMEPAGE;
+			path = config().HOMEPAGE;
 		}
 
 		
@@ -356,14 +362,14 @@ class ServerThread implements Runnable {
 			search = splitUrl[1];
 		}
 		
-		path = config.LOWERCASE_URLS?path.toLowerCase():path;
+		path = config().LOWERCASE_URLS?path.toLowerCase():path;
 		path = URLDecoder.decode(path,StandardCharsets.UTF_8);
 		
 		//process links, add params if needed
-		for(var s:config.links.entrySet()){
+		for(var s:config().links.entrySet()){
 			Pattern link = s.getKey();
 			if(link.matcher(path).find()) {
-				List<String> pathParams = config.linkParams.get(link);
+				List<String> pathParams = config().linkParams.get(link);
 				String[] pathElements = path.split("\\/");
 				for(int i=0; i < Math.min(pathElements.length, pathParams.size()); i++) {
 					if(pathParams.get(i) != null) {
@@ -389,18 +395,18 @@ class ServerThread implements Runnable {
 		//Check last modified for the requested Resource.
 		//Also sends 403/404 for invalid resources.
 		path=path.startsWith("/")?path.substring(1):path;
-		Resource r = hydar.resources.get(path);
-		for(String ext:config.AUTO_APPEND_URLS) {
+		Resource r = hydar().resources.get(path);
+		for(String ext:config().AUTO_APPEND_URLS) {
 			if(r==null) {
-				r=hydar.resources.get(path+ext);
+				r=hydar().resources.get(path+ext);
 				if(r!=null)
 					path+=ext;
 			}else break;
 		}
 		if(r==null){
 			//Don't use filter() since 'path' isn't final
-			if(!config.FORBIDDEN_SILENT && config.FORBIDDEN_REGEX.isPresent()
-					&& config.FORBIDDEN_REGEX.orElseThrow().matcher(path).find()){
+			if(!config().FORBIDDEN_SILENT && config().FORBIDDEN_REGEX.isPresent()
+					&& config().FORBIDDEN_REGEX.orElseThrow().matcher(path).find()){
 				sendError("403",hstream);
 			}else sendError("404",hstream);
 			return;
@@ -434,7 +440,7 @@ class ServerThread implements Runnable {
 				hstream=Optional.of(h2cInit(headers));
 				//continue responding to the request on the new stream
 				//(it has ID 1)
-			}else if(protocol.equals("websocket")&&h2==null && config.WS_ENABLED){
+			}else if(protocol.equals("websocket")&&h2==null && config().WS_ENABLED){
 				/**
 				set websocket params
 				*/
@@ -464,7 +470,7 @@ class ServerThread implements Runnable {
 		 * if-match present => if-unmodif ignored
 		 * if-nonematch present => if-modif ignored
 		 */
-		Encoding enc=Encoding.compute(config.ZIP_ALGS,headers.get("accept-encoding"));
+		Encoding enc=Encoding.compute(config().ZIP_ALGS,headers.get("accept-encoding"));
 		String mime = r.mime;
 		Instant resourceInstant = r.modifiedInstant;
 		String timestamp = r.formattedTime;
@@ -473,8 +479,8 @@ class ServerThread implements Runnable {
 			boolean check304 = false;
 			String unmodif = headers.get("if-unmodified-since");
 			String modif = headers.get("if-modified-since");
-			String ifnone = config.RECEIVE_ETAGS?headers.get("if-none-match"):null;
-			String ifmatch = config.RECEIVE_ETAGS?headers.get("if-match"):null;
+			String ifnone = config().RECEIVE_ETAGS?headers.get("if-none-match"):null;
+			String ifmatch = config().RECEIVE_ETAGS?headers.get("if-match"):null;
 			String ifrange = headers.containsKey("range")?headers.get("if-range"):null;
 			try {
 				//etags
@@ -514,7 +520,7 @@ class ServerThread implements Runnable {
 				var resp = newResponse("304",hstream)
 					.version(version)
 					.disableLength();
-				String cc=isJsp?config.CACHE_CONTROL_JSP:config.CACHE_CONTROL_NO_JSP;
+				String cc=isJsp?config().CACHE_CONTROL_JSP:config().CACHE_CONTROL_NO_JSP;
 				if(cc.length()>0){
 					resp.header("Cache-Control",cc);
 				}
@@ -536,7 +542,7 @@ class ServerThread implements Runnable {
 					resp.disableData();
 				
 				String range=headers.get("range");
-				if(range!=null&&config.RANGE_NO_JSP&&!resp.parseRange(range)) {
+				if(range!=null&&config().RANGE_NO_JSP&&!resp.parseRange(range)) {
 					getError("416",hstream)
 						.header("Content-Range","bytes */"+length)
 						.write();
@@ -548,7 +554,7 @@ class ServerThread implements Runnable {
 					.header("Content-Type",mime)
 					.header("Accept-Ranges","bytes");
 				
-				String cc=config.CACHE_CONTROL_NO_JSP;
+				String cc=config().CACHE_CONTROL_NO_JSP;
 				if(cc.length()>0){
 					resp.header("Cache-Control",cc);
 				}
@@ -569,7 +575,7 @@ class ServerThread implements Runnable {
 				String servletName = this.addSession(request, ret, path, hstream);
 				//run the stored method
 				long invokeTime=System.currentTimeMillis();
-				hydar.ee.jsp_dispatch(servletName,request, ret);
+				hydar().ee.jsp_dispatch(servletName,request, ret);
 				if(!limiter.acquire(Token.SLOW_API, (int)(System.currentTimeMillis()-invokeTime))) {
 					sendError("429",hstream);
 					close();
@@ -611,7 +617,7 @@ class ServerThread implements Runnable {
 	}
 	/**Utility to build a response from the current context, with as much information as possible.*/
 	protected Hydar.Response newResponse(String code, Optional<HStream> hs) {
-		var tmpHydar=hydar==null?Hydar.hydars.get(0):hydar;
+		var tmpHydar=hydar()==null?Hydar.hydars.get(0):hydar();
 		var build=tmpHydar.new Response(code).version(h2==null?"HTTP/1.1":"HTTP/2.0").hstream(hs).output(output).limiter(limiter);
 		boolean isHead2=hs.map(x->x.isHead(isHead)).orElse(isHead);
 		if(isHead2) {//prioritize h2 if present
@@ -622,7 +628,7 @@ class ServerThread implements Runnable {
 	
 	/**Build an error response from Response::getErrorPage, which loads from HydarConfig.*/
 	protected Hydar.Response getError(String code, Optional<HStream> hs) {
-		String error=config.getErrorPage(code);
+		String error=config().getErrorPage(code);
 		boolean isHead2=hs.map(x->x.isHead(isHead)).orElse(isHead);
 		var builder = !isHead2?newResponse(code,hs).data(error.getBytes()):newResponse(code,hs);
 		return builder;
@@ -651,7 +657,7 @@ class ServerThread implements Runnable {
 				if(x.length==2){
 					String name = x[0].trim();
 					String value = x[1].trim();
-					if(name.equals("HYDAR_sessionID") && (sessionID==null || hydar.ee.get(client_addr,sessionID)==null)){
+					if(name.equals("HYDAR_sessionID") && (sessionID==null || hydar().ee.get(client_addr,sessionID)==null)){
 						sessionID=value;
 					}
 				}
@@ -660,12 +666,12 @@ class ServerThread implements Runnable {
 		
 		boolean fromCookie=true;
 		String servletName=path.substring(0,path.indexOf(".jsp"));
-		if(hydar.ee.jsp_needsSession(servletName)&&(sessionID==null||(session=hydar.ee.get(client_addr, sessionID))==null)) {
+		if(hydar().ee.jsp_needsSession(servletName)&&(sessionID==null||(session=hydar().ee.get(client_addr, sessionID))==null)) {
 			fromCookie=false;
 			//FIND IT FROM THE URL
 			String id=request.getParameter("HYDAR_sessionID");
-			if(id==null || (session=hydar.ee.get(client_addr, id))==null) {
-				session=hydar.ee.create(client_addr);
+			if(id==null || (session=hydar().ee.get(client_addr, id))==null) {
+				session=hydar().ee.create(client_addr);
 			}
 		}
 		final Optional<HStream> fhs=hstream;//copy
@@ -713,7 +719,7 @@ class ServerThread implements Runnable {
 		md.update(wsKey.getBytes(ISO_8859_1));
 		byte[] digest = md.digest();
 		wsKey= Base64.getEncoder().encodeToString(digest);
-		wsDeflate = wsDeflate && config.WS_DEFLATE;
+		wsDeflate = wsDeflate && config().WS_DEFLATE;
 		String ext=null;
 		if(wsDeflate){
 			ext="permessage-deflate";
@@ -1063,7 +1069,7 @@ public class Hydar {
 						public void hparse(Map<String,String> headers, Optional<HStream> hstream, byte[] body, int bodyLength) throws IOException {
 							String path = headers.get(":path");
 							String host = hstream.isPresent() ? headers.get(":authority") : headers.get("host");
-							this.hydar=hydars.get(0);
+							this.hydar.set(hydars.get(0));
 							if(host==null) {
 								sendError("400",hstream);
 								close();

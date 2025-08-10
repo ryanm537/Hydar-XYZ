@@ -22,7 +22,6 @@ public class HydarH2{
 	/**TODO: server push - load deps based on rates, store in cookie(2 b64/etag?)*/
 	public static final byte[] MAGIC="PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n".getBytes(ISO_8859_1);
 	public final ServerThread thread;
-	public final Config config;
 	public final Map<Integer,HStream> streams= new HashMap<>();
 	public final HydarHP compressor;
 	public final HydarHP decompressor;
@@ -50,7 +49,6 @@ public class HydarH2{
 	public static final Frame SETTINGS_ACK=Frame.of(Frame.SETTINGS).ackFlag();
 	public HydarH2(ServerThread thread) throws IOException {
 		this.thread=thread;
-		this.config=thread.config;
 		localSettings=new int[]{
 			0,//unused
 			Config.H2_HEADER_TABLE_SIZE,//SETTINGS_HEADER_TABLE_SIZE 
