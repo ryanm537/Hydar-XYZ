@@ -403,9 +403,12 @@ class Config{
 						} catch (Exception e) {}
 						Pattern HOST_p=null;
 						if(HOST!=null)
-							HOST_p=Pattern.compile(Arrays.stream(v.split(","))
+							HOST_p=Pattern.compile(
+									"^("+
+									Arrays.stream(v.split(","))
 									.map(x->"("+x.trim().replace(".","\\.").replace("*",".*")+")")
-									.collect(Collectors.joining("||")));
+									.collect(Collectors.joining("|"))
+									+")$");
 						HOST=Optional.ofNullable(HOST_p).filter(p->!p.toString().trim().equals("(.*)"));
 					return;
 				}
