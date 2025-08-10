@@ -409,7 +409,7 @@ class Config{
 									.map(x->"("+x.trim().replace(".","\\.").replace("*",".*")+")")
 									.collect(Collectors.joining("|"))
 									+")$");
-						HOST=Optional.ofNullable(HOST_p).filter(p->!p.toString().trim().equals("(.*)"));
+						HOST=Optional.ofNullable(HOST_p).filter(p->!p.toString().trim().equals("^((.*))$"));
 					return;
 				}
 				switch(field.getType().getCanonicalName()) {
