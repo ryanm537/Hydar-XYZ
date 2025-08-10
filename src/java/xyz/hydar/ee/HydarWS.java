@@ -88,7 +88,13 @@ public class HydarWS extends OutputStream{
 			endpoint.onOpen();
 		}
 	}
-
+	/**
+	 * Returns a request-specific Hydar. 
+	 * In a WS context, this should be stable.
+	 * */
+	public Hydar hydar() {
+		return thread.hydar();
+	}
 	/**
 	 * Extending outputstream allows for endpoint overrides to use PrintStream.
 	 * Single writes should normally never be used.

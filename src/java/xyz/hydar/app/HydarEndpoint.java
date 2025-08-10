@@ -53,7 +53,7 @@ public class HydarEndpoint extends HydarWS.Endpoint{
 
 	public HydarEndpoint(HydarWS websocket) {
 		super(websocket);
-		hydar=websocket.hydar;
+		hydar=websocket.hydar();
 		if(RAYE==null) {
 			RAYE=hydar.ee.create(InetAddress.getLoopbackAddress());
 			RAYE.setMaxInactiveInterval(Integer.MAX_VALUE);
