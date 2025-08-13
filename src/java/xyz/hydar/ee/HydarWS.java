@@ -86,6 +86,7 @@ public class HydarWS extends OutputStream{
 			close();
 		}else {
 			endpoint.onOpen();
+			this.alive=true;
 		}
 	}
 	/**
@@ -212,6 +213,7 @@ public class HydarWS extends OutputStream{
 		}
 		do{//TODO: does this account for multiple packets being queued?
 			len=read_();
+			System.out.println(len);
 		}while(len>=0&&(len==800||length>(payloadSize-4-off))&&thread.limiter.checkBuffer(payloadSize));
 		if(len<0) {
 			close();return;
