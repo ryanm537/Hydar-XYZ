@@ -82,11 +82,11 @@ public class HydarWS extends OutputStream{
 			ServerThread.hydar().ee.jsp_invoke(path.substring(0,path.indexOf(".jsp")),thread.session,search);
 		}
 		endpoint=constructEndpoint(path,this);
+		this.alive=true;
 		if(endpoint==null) {
 			close();
 		}else {
 			endpoint.onOpen();
-			this.alive=true;
 		}
 	}
 	/**
