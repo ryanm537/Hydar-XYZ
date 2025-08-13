@@ -60,7 +60,7 @@ public class HydarWS extends OutputStream{
 	public HydarWS(ServerThread thread, String path,String search,boolean deflate) throws IOException{
 		
 		this.thread=thread;
-		thread.client.setSoTimeout(thread.config().WS_LIFETIME);
+		thread.client.setSoTimeout(ServerThread.config().WS_LIFETIME);
 		this.path=path;
 		this.search=search;
 		this.deflate=deflate;
@@ -79,7 +79,7 @@ public class HydarWS extends OutputStream{
 		}
 		input=new byte[1024];
 		if(!hasEndpoint(path)) {
-			thread.hydar().ee.jsp_invoke(path.substring(0,path.indexOf(".jsp")),thread.session,search);
+			ServerThread.hydar().ee.jsp_invoke(path.substring(0,path.indexOf(".jsp")),thread.session,search);
 		}
 		endpoint=constructEndpoint(path,this);
 		if(endpoint==null) {
@@ -93,7 +93,7 @@ public class HydarWS extends OutputStream{
 	 * In a WS context, this should be stable.
 	 * */
 	public Hydar hydar() {
-		return thread.hydar();
+		return ServerThread.hydar();
 	}
 	/**
 	 * Extending outputstream allows for endpoint overrides to use PrintStream.
@@ -301,7 +301,7 @@ public class HydarWS extends OutputStream{
 				}
 				line = new String(pl,0,(int)length,StandardCharsets.UTF_8);
 				//on session expire, end the connection
-				if(thread.session==null || thread.session!=thread.hydar().ee.get(thread.client_addr, thread.session.id)) {
+				if(thread.session==null || thread.session!=ServerThread.hydar().ee.get(thread.client_addr, thread.session.id)) {
 					thread.session=null;
 					close();
 					return;

@@ -343,7 +343,7 @@ class ServerThread implements Runnable {
 			sendError(matchingHost.isEmpty()?"400":"404",hstream);
 			return;
 		}else {
-			this.hydar.set(matchingHydar.orElseThrow());
+			hydar.set(matchingHydar.orElseThrow());
 		}
 		
 		String path=path_.substring(hydar().config.SERVLET_PATH.length());
@@ -1069,7 +1069,7 @@ public class Hydar {
 						public void hparse(Map<String,String> headers, Optional<HStream> hstream, byte[] body, int bodyLength) throws IOException {
 							String path = headers.get(":path");
 							String host = hstream.isPresent() ? headers.get(":authority") : headers.get("host");
-							this.hydar.set(hydars.get(0));
+							hydar.set(hydars.get(0));
 							if(host==null) {
 								sendError("400",hstream);
 								close();
