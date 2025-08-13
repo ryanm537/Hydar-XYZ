@@ -171,10 +171,12 @@ public class HydarWS extends OutputStream{
 	/**Partial read. TODO: optimize*/
 	private int read_() throws IOException{
 		int len = thread.input.read(input,size-1024,800);
-		thread.limiter.force(Token.IN,len);
-		size+=len;
-		payloadSize+=len;
-		input = Arrays.copyOf(input,size);
+		if(len>=0) {
+			thread.limiter.force(Token.IN,len);
+			size+=len;
+			payloadSize+=len;
+			input = Arrays.copyOf(input,size);
+		}
 		return len;
 	}
 	/**
