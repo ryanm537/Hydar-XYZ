@@ -119,7 +119,7 @@ class ServerThread implements Runnable {
 		this.output = output_;
 				//new BufferedOutputStream(output_,32768);
 		this.client_addr = this.client.getInetAddress();
-		this.client.setSoTimeout(Config.HTTP_LIFETIME);
+		this.client.setSoTimeout(Config.HTTP_INITIAL_LIFETIME);
 		limiter=Limiter.from(client_addr);
 		this.input = new BufferedDIS(input_,limiter,16420);
 	}
@@ -187,7 +187,7 @@ class ServerThread implements Runnable {
 			}
 			//tests http version
 			if (!(firstLine[2].equals("HTTP/1.0")) && !(firstLine[2].equals("HTTP/1.1")) && !(firstLine[2].equals("HTTP/2.0"))) {
-
+				client.setSoTimeout(Config.HTTP_KEEPALIVE_LIFETIME);
 				sendError("505",Optional.empty());
 				return;
 			}//default
@@ -201,7 +201,8 @@ class ServerThread implements Runnable {
 			//reads rest of the request(headers)
 			String header = firstLineString;
 			boolean overflow=false;
-			this.h1use=true;
+			this.h1use=true;//NOTE: this also applies to h2 and WS, since protocol switches happen later.
+			client.setSoTimeout(Config.HTTP_KEEPALIVE_LIFETIME);
 			//read until limiter doesn't allow buffer to get larger, or a double CRLF
 			for(int totalRead=0;header.length()>0&&!(overflow=!limiter.checkBuffer(totalRead));){
 				header=input.readLineCRLFLatin1();
