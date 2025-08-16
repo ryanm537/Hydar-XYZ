@@ -76,7 +76,6 @@ class Config{
 	public static int H2_MAX_FRAME_SIZE=16384;
 	public static int H2_MAX_HEADER_LIST_SIZE=8192;
 	
-	//TODO: separate initial vs keep-alive
 	public static int HTTP_INITIAL_LIFETIME=45000;
 	public static int HTTP_KEEPALIVE_LIFETIME=5000;
 	
