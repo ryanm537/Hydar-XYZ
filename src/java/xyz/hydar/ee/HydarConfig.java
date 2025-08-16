@@ -76,8 +76,8 @@ class Config{
 	public static int H2_MAX_FRAME_SIZE=16384;
 	public static int H2_MAX_HEADER_LIST_SIZE=8192;
 	
-	
-	public static int HTTP_LIFETIME=5000;
+	//TODO: separate initial vs keep-alive
+	public static int HTTP_LIFETIME=60000;
 	
 	public boolean SEND_ETAG=true;
 	public boolean SEND_DATE=true;
