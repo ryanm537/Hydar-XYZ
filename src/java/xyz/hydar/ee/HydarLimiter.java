@@ -121,7 +121,7 @@ public class HydarLimiter extends Limiter{
 			long used=0;
 			long total=t.getCount(time);
 			try {
-				if((used=counter.sum())>total) {
+				if((used=counter.sum()) >= total) {
 					if(time<0)return false;
 					long delta=(resetMap.get(time)+time-(now));
 					//time until the next update
@@ -140,7 +140,7 @@ public class HydarLimiter extends Limiter{
 						sleep((int)delta+250);
 					}
 				}else if(used>total/2) {
-					long left=total-used;
+					long left=total-used;//must not be 0
 					int smoothFactor=(int)(1024*left/total);
 					int sleepTime=(int)Math.min(1000,(1024*(smoothFactor+amount)/(left+smoothFactor)));
 					//int sleepTime=(int)Math.min(1000,((1024*amount)/(left)));
