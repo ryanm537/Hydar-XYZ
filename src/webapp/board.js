@@ -375,51 +375,77 @@ function videoToImg(file){
 	}else if(probeType(file.name)!="video"){
 		return new Promise((resolve,_)=>resolve(null));
 	}
+	
 	let video = document.createElement("video");
 	let source = document.createElement("source");
 	let ref=URL.createObjectURL(file);
-	source.setAttribute('src', ref);
-    video.appendChild(source);
 	video.setAttribute('crossorigin', 'anonymous');
-    video.setAttribute('preload', 'metadata');
+	video.setAttribute('preload', 'metadata');
 	video.setAttribute('muted', 'true');
-    video.style.display = 'none';
-    document.body.appendChild(video);
-	var p = new Promise((resolve,_)=>{
-		video.currentTime = 0.001;
-		video.load();
+	video.style.display = 'none';
+
+	document.body.appendChild(video);
+	source.setAttribute('src', ref);
+	video.appendChild(source);
+	video.currentTime = 0.001;
+	let p = new Promise((resolve,_)=>{
+		let giveUp = _ => {
+			//URL.revokeObjectURL(ref);
+			video.remove();
+			resolve(null);
+		};
+		if(!video.canPlayType(file.type))
+			giveUp();
 		video.addEventListener('loadedmetadata', function() {
-	        video.oncanplay=function(){
+	        video.oncanplay = function(){
 				setTimeout(()=>{
-					createImageBitmap(video).then(x=>{
-						resolve(x);
-						URL.revokeObjectURL(ref);
-						video.remove();
-					});
+					try{
+						createImageBitmap(video).then(x=>{
+							resolve(x);
+							URL.revokeObjectURL(ref);
+							video.remove();
+						}).catch(giveUp);
+					}catch(e){
+						giveUp();
+					}
 				},2000);
-			}
+			};
 		});
+		video.addEventListener('abort', giveUp);
+		video.addEventListener('error', giveUp);
+		video.addEventListener('stalled', giveUp);	
+		video.load();
 	});
 	return p;
 }
 async function removeTransparent(file){
 	return new Promise((resolve,_)=>{
-		if(!file || file.length==0)
+		if(!file || file.length==0){
 			resolve(file);
+			return;
+		}
 		let onImgLoad=function(img) {
-			let canvas = newCanvas(img.width,img.height), ctx = canvas.getContext("2d");
-			ctx.fillStyle="rgb(51, 57, 63)";
-			ctx.fillRect(0,0,canvas.width,canvas.height);
-			ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-			createImageBitmap(canvas).then(x=>{
-				resolve(x);
-				if(img.remove){
-					img.remove();
-					URL.revokeObjectURL(img.src);
-				}
-				if(canvas.remove)
-					canvas.remove();
-			});
+			if(!img.width){
+				resolve(file);
+				return;
+			}
+			try{
+				let canvas = newCanvas(img.width,img.height), ctx = canvas.getContext("2d");
+				ctx.fillStyle="rgb(51, 57, 63)";
+				ctx.fillRect(0,0,canvas.width,canvas.height);
+				ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+				createImageBitmap(canvas).then(x=>{
+					resolve(x);
+					if(img.remove){
+						img.remove();
+						URL.revokeObjectURL(img.src);
+					}
+					if(canvas.remove)
+						canvas.remove();
+				});
+			}catch(e){
+				resolve(file);
+			}
 		};
 		workOnImageOrBlob(file,onImgLoad);
 	});
@@ -431,7 +457,7 @@ function workOnImageOrBlob(file, onImgLoad){
 	if(file instanceof Blob){
 		let img = document.createElement("img");
 		img.src=file instanceof Blob? URL.createObjectURL(file):file;
-		img.onerror=()=>resolve(new Blob());
+		img.onerror=()=>onImgLoad(new Blob());
 		img.addEventListener('load', _=>onImgLoad(img));
 	}else{
 		onImgLoad(file);
@@ -446,33 +472,42 @@ async function rescaleImage(file_) {
 				return;
 			}
 			let onImgLoad=function(img) {
-				let canvas = newCanvas(width, width * img.height / img.width), ctx = canvas.getContext("2d");
-				var cur = {
-					width: Math.floor(img.width * 0.5),
-					height: Math.floor(img.height * 0.5)
-				};
-				let oc = newCanvas(cur.width,cur.height), octx = oc.getContext('2d');
-				octx.drawImage(img, 0, 0, cur.width, cur.height);
-				while (cur.width * 0.5 > width) {
-					cur = {
-						width: Math.floor(cur.width * 0.5),
-						height: Math.floor(cur.height * 0.5)
-					};
-					octx.drawImage(oc, 0, 0, cur.width * 2, cur.height * 2, 0, 0, cur.width, cur.height);
+				if(!img.width){
+					resolve(file);
+					return;
 				}
-				ctx.drawImage(oc, 0, 0, cur.width, cur.height, 0, 0, canvas.width, canvas.height);
-				if(!OffscreenCanvas){
-					canvas.toBlob(x=>{
-						resolve(x);
-						if(img.remove){
-							img.remove();
-							URL.revokeObjectURL(img.src);
-						}
-						oc.remove();
-						canvas.remove();
-					},"image/jpeg",0.75);
-				}else{
-					canvas.convertToBlob({type:"image/jpeg",quality:0.75}).then(resolve);
+				try{
+					let canvas = newCanvas(width, width * img.height / img.width), ctx = canvas.getContext("2d");
+					var cur = {
+						width: Math.floor(img.width * 0.5),
+						height: Math.floor(img.height * 0.5)
+					};
+					let oc = newCanvas(cur.width,cur.height), octx = oc.getContext('2d');
+					octx.drawImage(img, 0, 0, cur.width, cur.height);
+					while (cur.width * 0.5 > width) {
+						cur = {
+							width: Math.floor(cur.width * 0.5),
+							height: Math.floor(cur.height * 0.5)
+						};
+						octx.drawImage(oc, 0, 0, cur.width * 2, cur.height * 2, 0, 0, cur.width, cur.height);
+					}
+					ctx.drawImage(oc, 0, 0, cur.width, cur.height, 0, 0, canvas.width, canvas.height);
+					if(!OffscreenCanvas){
+						canvas.toBlob(x=>{
+							resolve(x);
+							if(img.remove){
+								img.remove();
+								URL.revokeObjectURL(img.src);
+							}
+							oc.remove();
+							canvas.remove();
+						},"image/jpeg",0.75);
+					}else{
+						canvas.convertToBlob({type:"image/jpeg",quality:0.75}).then(resolve);
+					}
+				}catch(e){
+					resolve(file);
+					return;
 				}
 			}
 			workOnImageOrBlob(file,onImgLoad);
