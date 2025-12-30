@@ -27,12 +27,13 @@ public class HydarLimiter extends Limiter{
 	private final Map<Token,Map<Long,LongAdder>> tokensLeft=new EnumMap<>(Token.class);//only the integer changes or something
 	static {
 		for(var token:Token.values()) {
-			var map=new HashMap<Long,Long>();
+			var map=new HashMap<Long,Long>(token.tasks().size());
 			for(var task:token.tasks().keySet()) {
 				map.put(task,0L);
 			}
 			lastReset.put(token,map);
 		}
+		System.out.println(lastReset);
 		Limiter.setProvider(HydarLimiter::from);
 	}
 	
@@ -114,7 +115,8 @@ public class HydarLimiter extends Limiter{
 		var leftMap = tokensLeft.get(t);
 		var resetMap = lastReset.get(t);
 		for(var task:t.tasks().entrySet()) {
-			Long time=task.getKey();
+			//System.out.println("Task:" + task);
+			long time=task.getKey();
 			
 			long now=System.currentTimeMillis();
 			var counter=leftMap.get(time);
