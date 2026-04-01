@@ -97,7 +97,7 @@ out.print("<p style = \"color:rgb(255,255,255); font-family:calibri, arial; font
 Welcome to Hydar</b><br><br>
 Returning users login 
 <br>
-<form method="get" action="Verify.jsp"  >
+<form method="post" action="Verify.jsp"  >
 <p style = "color:rgb(255,255,255); font-family:calibri, arial; z-index:1; position:fixed; position:absolute; text-align:left; left:50%; display:block; top:calc(50% - 70px);">
 
 <input  type="text" name="username" size = "20px" style="background-color:rgb(71, 77, 83);color:white;border:none;padding:8px 10px;border-radius:8px;" placeholder = "Username" autofocus><br>

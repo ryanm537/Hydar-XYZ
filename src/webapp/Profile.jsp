@@ -500,7 +500,7 @@ try(Connection conn=dataSource.getConnection()){
 	
 	
 	
-	<form id = "changeUsername" method="get" action="#">
+	<form id = "changeUsername" method="post" action="#">
 		<div class="usernameText">Change Username: 
 			<%
 			if(request.isRequestedSessionIdFromURL()){
@@ -519,7 +519,7 @@ try(Connection conn=dataSource.getConnection()){
 	<div id='bar' class='bar'  style='width: 720px; height: 20px; border-bottom: 2px solid rgb(51, 57, 63); text-align: center;'>
 	</div>
 	
-	<form id = "changePassword" method="get" action="#">
+	<form id = "changePassword" method="post" action="#">
 		<div class="passwordText">Change Password:
 			<%
 			if(request.isRequestedSessionIdFromURL()){
