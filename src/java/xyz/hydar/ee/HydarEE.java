@@ -674,7 +674,7 @@ public class HydarEE{
 			String ct = headers.get("content-type");
 			if(ct==null||!method.equals("POST")) {}
 			else if(ct.equals("application/x-www-form-urlencoded")) {
-				query+="&"+new String(body,StandardCharsets.ISO_8859_1);
+				query+="&"+new String(body,0,bodyLength,StandardCharsets.ISO_8859_1);
 			}
 			this.query=query;
 			this.body=body;
