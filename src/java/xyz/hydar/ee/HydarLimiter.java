@@ -33,7 +33,7 @@ public class HydarLimiter extends Limiter{
 			}
 			lastReset.put(token,map);
 		}
-		System.out.println(lastReset);
+		//System.out.println(lastReset);
 		Limiter.setProvider(HydarLimiter::from);
 	}
 	
