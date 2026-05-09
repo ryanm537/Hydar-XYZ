@@ -53,6 +53,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -272,7 +273,21 @@ public class HydarUtil {
 		}
 		return null;
 	}
-
+	//better idea: just add inbytes and outbytes to hydarlimiter
+	//then dont need to pass around the longadders too much
+	//implementation won't even know
+	//is that even much faster than grain approach though??????
+	//it isn't, just 1 map access
+	//problem - grain is only for time rn
+	//-->inbytes and outbytes allows for not doing anything
+	//we do fast api every frame anyways though...
+	
+	static void maybeForce(Limiter limiter, LongAdder shouldLimit, Limiter.AbstractToken token, int amount, int grain) throws IOException {
+		long oldVal = shouldLimit.sum();
+		shouldLimit.add(amount);
+		if(oldVal + amount / grain > oldVal / grain)
+			limiter.force(token, Math.max(grain, amount));
+	}
 
 }
 @SuppressWarnings("sync-override")
@@ -397,21 +412,23 @@ class BAOS extends ByteArrayOutputStream {
  * */
 class BufferedDIS extends InputStream{
 	final InputStream in;
-	final Limiter limiter;
 	protected byte[] buf;
 	protected int pos;
 	protected int count;
-	public BufferedDIS(InputStream in, Limiter limiter) {
-		this.in=in;
-		buf=new byte[16384];
-		this.limiter=limiter;
-	}
-	public BufferedDIS(InputStream in, Limiter limiter, int i) {
-		this.in=in;
-		buf=new byte[i];
-		this.limiter=limiter;
-	}
+	private final int limit;
 	boolean skipLF=false;
+
+	public BufferedDIS(InputStream in, int limit) {
+		this.in = in;
+		buf = new byte[16384];
+		this.limit = limit>0 ? limit : Integer.MAX_VALUE;
+	}
+
+	public BufferedDIS(InputStream in, int limit, int i) {
+		this.in = in;
+		buf = new byte[i];
+		this.limit = limit>0 ? limit : Integer.MAX_VALUE;
+	}
     private void ensureOpen() throws IOException {
         if (in == null)
             throw new IOException("Stream closed");
@@ -451,9 +468,8 @@ class BufferedDIS extends InputStream{
         if (len == 0) {
             return 0;
         }
-		limiter.forceBuffer(len);
-		if(!limiter.acquire(Token.IN,len))
-			return -1;
+		if(len>limit)
+			throw new HttpTimeoutException("Rate limit");
 
         int n = read1(cbuf, off, len);
         if (n <= 0) return n;
@@ -489,7 +505,6 @@ class BufferedDIS extends InputStream{
         pos = 0;
         count = pos;
         int n = in.read(buffer, pos, buffer.length - pos);
-        limiter.force(Token.IN,n);
         if (n > 0)
             count = n + pos;
     }
@@ -499,9 +514,9 @@ class BufferedDIS extends InputStream{
 	}
 	public String readCRLFLine(Charset ch) throws IOException{
 		String line= readCRLFLineImpl(ch);
-		if(line!=null && !limiter.checkBuffer(line.length())) {
-			line=null;
-		}
+
+		if(line!=null && line.length()>limit)
+			throw new HttpTimeoutException("Rate limit");
 		return line;
 	}
 	private String readCRLFLineImpl(Charset cs) throws IOException{
@@ -586,7 +601,7 @@ class BufferedDIS extends InputStream{
 			
 			BAIS bais=new BAIS(b);
 			//BufferedDIS reader = new BufferedDIS(bais,l);
-			var reader=new BufferedDIS(bais,Limiter.UNLIMITER);
+			var reader=new BufferedDIS(bais,-1);
 			//DIS reader = new DIS(bdis,Limiter.UNLIMITER);
 			//DataInputStream reader = new DataInputStream(bdis);
 			//reader.noText();
@@ -615,7 +630,7 @@ class BufferedDIS extends InputStream{
 			//DIS reader = new DIS(new BufferedInputStream(bais,16384),Limiter.UNLIMITER);
 			//BufferedReader reader = new BufferedReader(new InputStreamReader(new BufferedInputStream(bais),StandardCharsets.ISO_8859_1),16384);
 			//DIS reader = new DIS(bais, Limiter.UNLIMITER);
-			BufferedDIS bdis = new BufferedDIS(bais,Limiter.UNLIMITER);
+			BufferedDIS bdis = new BufferedDIS(bais,-1);
 			//DIS reader = new DIS(bdis, Limiter.UNLIMITER);
 			String line;
 			while((line=bdis.readCRLFLine(ISO_8859_1))!=null) {
@@ -888,6 +903,9 @@ enum Token implements Limiter.AbstractToken{
 	OUT(),
 	FAST_API(),
 	SLOW_API();
+	//list of pairs instead of map?
+	//can tokensLeft be implemented here??? no
+	//lastReset can be though
 	private Map<Long,Long> tasks; 
 	public void setTasks(Map<Long,Long> tasks) {
 		this.tasks=tasks;

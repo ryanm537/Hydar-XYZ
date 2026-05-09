@@ -356,7 +356,7 @@ fe.onchange=()=>{
 					resolve();
 				}); 
 				request.open('post', target);
-				request.timeout = 30000;
+				request.timeout = 1000 * (newFile.size/10240) + 5000;
 				request.send(newFile);
 			});
 		}).catch(err=>{

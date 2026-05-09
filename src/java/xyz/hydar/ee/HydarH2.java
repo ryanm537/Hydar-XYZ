@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.Lock;
 import java.util.stream.IntStream;
 
@@ -114,6 +115,7 @@ public class HydarH2{
 	}
 	public void read() throws IOException{
 		try {
+			//TODO: every 100 frames check this
 			Frame.parse(thread.input,thread.h2);
 		}catch(HttpTimeoutException e) {
 			goaway(0xb,"");
@@ -344,8 +346,8 @@ class HStream{
 						Frame.of(Frame.WINDOW_UPDATE).withData(WINDOW_INC).writeToH2(h2,false);
 					}
 					//skip length calculation if limiter disabled, and only every 100 frames
-					if((++dataBlockCount%100==0)&&h2.thread.limiter!=null && !(h2.thread.limiter.checkBuffer(Integer.MAX_VALUE))) {
-						if(!h2.thread.limiter.checkBuffer(dataBlock.size() * h2.senders.get())) {
+					if((++dataBlockCount%100==0)&&h2.thread.limiter!=null) {
+						if(!(h2.thread.limiter.checkBuffer(Integer.MAX_VALUE)) && !h2.thread.limiter.checkBuffer(dataBlock.size() * h2.senders.get())) {
 							close(0xb);//ENHANCE_YOUR_CALM
 							return;
 						}
@@ -754,7 +756,7 @@ class Frame{
 		//push promise contains request headers for the response being pushed
 		//System.out.println(frame);
 		//implicitly done in buffereddis methods
-		//t.limiter.force(Token.IN, frame.length+9);
+		t.limiter.force(Token.IN, frame.length+9);
 		h=h2.input(frame.length).position(0);
 		if(is.readNBytes(h.array(),0,frame.length)<frame.length) {
 			h2.goaway(0,"hydar(eof)");

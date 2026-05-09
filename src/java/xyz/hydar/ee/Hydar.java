@@ -55,8 +55,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPOutputStream;
@@ -99,7 +99,6 @@ class ServerThread implements Runnable {
 	
 	//Controls rate limiting - specified in HydarUtil, implemented in HydarLimiter
 	public final Limiter limiter;
-	
 	//If the client has already successfully sent a request,
 	//set this field so we don't 408 them on SocketTimeoutExceptions.
 	private boolean h1use=false;
@@ -121,7 +120,7 @@ class ServerThread implements Runnable {
 		this.client_addr = this.client.getInetAddress();
 		this.client.setSoTimeout(Config.HTTP_INITIAL_LIFETIME);
 		limiter=Limiter.from(client_addr);
-		this.input = new BufferedDIS(input_,limiter,16420);
+		this.input = new BufferedDIS(input_,Config.TC_MAX_BUFFER,16420);
 	}
 	/**
 	 * Run the client - infinitely call 'read'
@@ -1717,7 +1716,10 @@ public class Hydar {
 			defaults();
 			writeHeaders(output,this.hs,limiter);
 			final InputStream stream;  
-			var limiter=hs.map(h->h.h2.thread.limiter).orElse(Limiter.UNLIMITER);
+			//var limiter=hs.map(h->h.h2.thread.limiter).orElse(this.limiter);
+			//??? why doesn't h1 use token.out
+			//var outBytes = 
+			
 			if(sendData&&data==null&&resource!=null) {
 				stream = resource.asStream(enc);
 				stream.skip(offset);
