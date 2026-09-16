@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -741,7 +742,8 @@ public class HydarEE{
 			return this.session;
 		}
 		public String getHeader(String header){
-			return headers.get(header);
+			Objects.requireNonNull(header);
+			return headers.get(header.toLowerCase());
 		}
 		public String getMethod(){
 			return method;
@@ -829,7 +831,7 @@ public class HydarEE{
 			HttpSession session;
 			if((session=request.getSession())!=null) {
 				String cookieAge=session.cookieTtl>=0?";Max-Age="+(session.cookieTtl/1000):"";
-				builder.header("Set-Cookie","HYDAR_sessionID="+session.id+";Path="+config.SERVLET_PATH+";SameSite=Strict;"+(Config.SSL_ENABLED?"Secure":"")+cookieAge);
+				setHeader("Set-Cookie","HYDAR_sessionID="+session.id+";Path="+config.SERVLET_PATH+";SameSite=Strict;"+(Config.SSL_ENABLED?"Secure":"")+cookieAge);
 			}
 			return this;
 		}
@@ -854,13 +856,13 @@ public class HydarEE{
 			out.print(location);
 		}
 		public void setHeader(String name, String value){
-			builder.header(name,value);
+			builder.header(name.toLowerCase(),value);
 		}
 		public void setIntHeader(String name, int value){
-			builder.header(name,""+value);
+			setHeader(name,""+value);
 		}
 		public void setDateHeader(String name, long value){
-			builder.header(name,HydarUtil.SDF.format(Instant.ofEpochMilli(value)));
+			setHeader(name,HydarUtil.SDF.format(Instant.ofEpochMilli(value)));
 		}
 		public int getIntHeader(String name){
 			return Integer.parseInt(getHeader(name));
@@ -921,9 +923,11 @@ public class HydarEE{
 			baos.reset();
 		}
 		public String getHeader(String header) {
+			Objects.requireNonNull(header);
+			header = header.toLowerCase();
 			String value=builder.getHeader(header);
 			return value==null ? null: 
-				header.equals("Set-Cookie")?value.split(",")[0]:value;
+				header.equals("set-cookie")?value.split(",")[0]:value;
 		}
 		public String encodeRedirectURL(String url) {
 			return encodeURL(url.isEmpty()?request.getRequestURI():url);
