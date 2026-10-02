@@ -193,10 +193,13 @@ public class HydarWS extends OutputStream{
 							.withData(WS_CLOSE)
 							.endStream();
 					frame.writeToH2(hs.h2, false);
-					hs.close(0);
 				}
 			} finally {
-				thread.close();
+				if(hs==null) {
+					thread.close();
+				}else {
+					hs.close(0);
+				}
 			}
 		}
 	}
