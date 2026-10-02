@@ -350,7 +350,7 @@ public class HydarWS extends OutputStream{
 				for(int i=0;i<length;i++){
 					input[i+off+4]=(byte)((input[i+off+4])^(input[off+(i%4)]));
 				}
-				if(hs!=null) {
+				if(hs==null) {
 					thread.output.write(input,0,(int)length+off+4);
 					thread.output.flush();
 				}else {
