@@ -427,8 +427,10 @@ class ServerThread implements Runnable {
 				upgrade=true;
 				protocol = headers.get("upgrade");
 			}
+		}else if(h2!=null && method.equals("CONNECT")){
+			upgrade=true;
+			protocol =  headers.get(":protocol");
 		}
-		
 		
 		/**
 		 * Handle protocol upgrades.
@@ -440,7 +442,7 @@ class ServerThread implements Runnable {
 				hstream=Optional.of(h2cInit(headers));
 				//continue responding to the request on the new stream
 				//(it has ID 1)
-			}else if(protocol.equals("websocket")&&h2==null && config().WS_ENABLED){
+			}else if(protocol.equals("websocket")/*&&h2==null*/ && config().WS_ENABLED){
 				/**
 				set websocket params
 				*/
@@ -455,7 +457,7 @@ class ServerThread implements Runnable {
 						//maybe: add server max bits etc
 					}
 				}
-				this.wsInit(wsKey,wsDeflate,headers,path,search);
+				this.wsInit(hstream, wsKey,wsDeflate,headers,path,search);
 				return;
 			}else {
 				System.out.println("400 by websocket");
@@ -707,26 +709,32 @@ class ServerThread implements Runnable {
 		return hs;
 	}
 	/**WebSocket handshake. HTTP/1.1 only(for now).*/
-	public void wsInit(String wsKey,boolean wsDeflate,Map<String,String> headers, String url, String search) throws IOException{
-		
+	public void wsInit(Optional<HStream> hstream,String wsKey,boolean wsDeflate,Map<String,String> headers, String url, String search) throws IOException{
+
 		HttpServletRequest request = new HttpServletRequest(headers, new byte[0], search);
-		wsKey+="258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-		MessageDigest md;
-		try {
-			md = MessageDigest.getInstance("SHA-1");
-		}catch(NoSuchAlgorithmException e) {throw new RuntimeException(e);}
-		
-		md.update(wsKey.getBytes(ISO_8859_1));
-		byte[] digest = md.digest();
-		wsKey= Base64.getEncoder().encodeToString(digest);
+		Hydar.Response resp;
+		if(wsKey!=null) {
+			wsKey+="258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+			MessageDigest md;
+			try {
+				md = MessageDigest.getInstance("SHA-1");
+			}catch(NoSuchAlgorithmException e) {throw new RuntimeException(e);}
+			
+			md.update(wsKey.getBytes(ISO_8859_1));
+			byte[] digest = md.digest();
+			wsKey= Base64.getEncoder().encodeToString(digest);
+			resp = UPGRADE("websocket")
+					.header("Sec-WebSocket-Accept",wsKey)
+					.disableLength();
+		}else {
+			resp = newResponse(200, hstream).disableLength().disableData()
+					.header(":protocol","websocket");		
+			}
 		wsDeflate = wsDeflate && config().WS_DEFLATE;
 		String ext=null;
 		if(wsDeflate){
 			ext="permessage-deflate";
 		}
-		Hydar.Response resp = UPGRADE("websocket")
-				.header("Sec-WebSocket-Accept",wsKey)
-				.disableLength();
 		if(ext!=null)
 			resp.header("Sec-WebSocket-Extensions",ext);
 		HttpServletResponse ret = new HttpServletResponse(resp,0);
@@ -737,8 +745,9 @@ class ServerThread implements Runnable {
 		rr.write();
 		
 		//Create the context.
-		ws=new HydarWS(this,url,search,wsDeflate);
-		
+		var ws=new HydarWS(this,hstream,url,search,wsDeflate);
+		if(hstream.isEmpty())
+			this.ws = ws;
 		
 	}
 	/**Public getter for status checks*/
@@ -1663,10 +1672,13 @@ public class Hydar {
 				final var lock = thread.lock;
 				boolean huffman=Hydar.threadCount.get()>Config.MAX_THREADS/2;
 				boolean noData=length==0||!this.sendData;
+				boolean wsInit = "websocket".equals(getHeader(":protocol"));
+				if(wsInit)
+					headers.remove(":protocol");
 				Frame hf=Frame.of(Frame.HEADERS,h)
 						.limiter(limiter)
 						.endHeaders()
-						.endStream(noData);
+						.endStream(noData && !wsInit);
 				var compressor=h.h2.compressor;
 				
 				lock.lock();

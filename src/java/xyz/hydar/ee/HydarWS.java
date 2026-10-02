@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -37,7 +38,9 @@ public class HydarWS extends OutputStream{
 	
 	//endpoint params
 	public final ServerThread thread;
+	public volatile HStream hs;
 	private final String search;
+	private final Hydar hydar;
 	private final String path;
 	private final Endpoint endpoint;
 	private volatile boolean alive = false;
@@ -57,13 +60,14 @@ public class HydarWS extends OutputStream{
 	static final LongBuffer empty=LongBuffer.allocate(0);
 	
 	/**Initialize this context and its endpoint, if one is available.*/
-	public HydarWS(ServerThread thread, String path,String search,boolean deflate) throws IOException{
+	public HydarWS(ServerThread thread, Optional<HStream> hs, String path,String search,boolean deflate) throws IOException{
 		
 		this.thread=thread;
 		thread.client.setSoTimeout(ServerThread.config().WS_LIFETIME);
 		this.path=path;
 		this.search=search;
 		this.deflate=deflate;
+		this.hydar = ServerThread.hydar();
 		if(deflate) {
 			deflate_baos=new BAOS(256);
 			deflate_dos=new DeflaterOutputStream(deflate_baos,new Deflater(Deflater.DEFAULT_COMPRESSION, true),true);
@@ -79,9 +83,10 @@ public class HydarWS extends OutputStream{
 		}
 		input=new byte[1024];
 		if(!hasEndpoint(path)) {
-			ServerThread.hydar().ee.jsp_invoke(path.substring(0,path.indexOf(".jsp")),thread.session,search);
+			hydar.ee.jsp_invoke(path.substring(0,path.indexOf(".jsp")),thread.session,search);
 		}
 		endpoint=constructEndpoint(path,this);
+		hs.ifPresent(x->x.addWS(this));
 		this.alive=true;
 		if(endpoint==null) {
 			close();
@@ -94,7 +99,7 @@ public class HydarWS extends OutputStream{
 	 * In a WS context, this should be stable.
 	 * */
 	public Hydar hydar() {
-		return ServerThread.hydar();
+		return hydar;
 	}
 	/**
 	 * Extending outputstream allows for endpoint overrides to use PrintStream.
@@ -139,9 +144,25 @@ public class HydarWS extends OutputStream{
 					(byte)(len&0x7F)
 				};
 			//System.arraycopy(ub,0,w,off2,l2);
-			thread.output.write(header);
-			thread.output.write(data,start,len);
-			thread.output.flush();
+			if(hs!=null) {
+				BAOS fullData = new BAOS(len+2);
+				fullData.write(header);
+				fullData.write(data, start, len);
+				var frame = Frame.of(Frame.DATA)
+						.limiter(hs.h2.thread.limiter)
+						.stream(hs)
+						.withData(fullData);
+				//System.out.println("S%%%%"+len);
+				//System.out.println("F%%%%"+frame.length);
+				//System.out.println(new String(data,start,len));
+				frame.writeToH2(hs.h2, true);
+			} else {
+				//System.out.println("???"+len);
+				//System.out.println("1"+new String(data,start,len));
+				thread.output.write(header);
+				thread.output.write(data,start,len);
+				thread.output.flush();
+			}
 			if(deflate)
 				deflate_baos.reset();
 		}finally {
@@ -162,8 +183,18 @@ public class HydarWS extends OutputStream{
 					endpoint.onClose();
 				}
 				super.close();
-				if(thread.alive())
-					thread.output.write(WS_CLOSE);
+				if(hs==null) {
+					if(thread.alive()) {
+						thread.output.write(WS_CLOSE);
+					}
+				}else if(thread.alive() && hs.canSend()){
+					var frame = new Frame(Frame.DATA)
+							.stream(hs)
+							.withData(WS_CLOSE)
+							.endStream();
+					frame.writeToH2(hs.h2, false);
+					hs.close(0);
+				}
 			} finally {
 				thread.close();
 			}
@@ -200,11 +231,26 @@ public class HydarWS extends OutputStream{
 		}
 		return pl;
 	}
+	public void readBuffer(ByteBuffer buf, int lenTotal) throws IOException{
+		int len;
+		do{//TODO: does this account for multiple packets being queued?
+			len=Math.min(lenTotal, 800);
+			buf.get(input, size-1024, len);
+			if(len>=0) {
+				thread.limiter.force(Token.IN,len);
+				size+=len;
+				payloadSize+=len;
+				input = Arrays.copyOf(input,size);
+			}
+			lenTotal -= len;
+		}while(len>=0&&(len==800||payloadSize<6)&&thread.limiter.checkBuffer(payloadSize));
+		if(len<0) {
+			close();return;
+		}
+		onData(len);
+	}
 	public void read() throws IOException{
 		int len=0;
-		int off=2;
-		long length=0;
-		String line="";
 		//on error just die
 		if(--ping==0||!thread.alive()){//nothing sent for a while
 			System.out.println("L bozi,");
@@ -213,12 +259,20 @@ public class HydarWS extends OutputStream{
 		}
 		do{//TODO: does this account for multiple packets being queued?
 			len=read_();
-		}while(len>=0&&(len==800||length>(payloadSize-4-off))&&thread.limiter.checkBuffer(payloadSize));
+		}while(len>=0&&(len==800||payloadSize<6)&&thread.limiter.checkBuffer(payloadSize));
 		if(len<0) {
 			close();return;
 		}
+		//START FROM HERE ON H2
 		//Calculate length as specified by the rfc
+		onData(len);
+		
+	}
+	public void onData(int len) throws IOException{
+		String line="";
 		int l = (input[1])&0b01111111;
+		int off=2;
+		long length=0;
 		if(l==126){
 			length=((input[2]&0xff)<<8)|(input[3]&0xff);
 			off=4;
@@ -231,9 +285,8 @@ public class HydarWS extends OutputStream{
 		}else{
 			length=l;
 		}
-		
-		
 		if(size>0&&input[offset]<0){
+			//what if multiple frames in same tcp read???
 			offset+=size+len;
 			input = Arrays.copyOf(input,size);
 		}else {
@@ -294,8 +347,16 @@ public class HydarWS extends OutputStream{
 				for(int i=0;i<length;i++){
 					input[i+off+4]=(byte)((input[i+off+4])^(input[off+(i%4)]));
 				}
-				thread.output.write(input,0,(int)length+off+4);
-				thread.output.flush();
+				if(hs!=null) {
+					thread.output.write(input,0,(int)length+off+4);
+					thread.output.flush();
+				}else {
+					var frame = Frame.of(Frame.DATA)
+							.limiter(hs.h2.thread.limiter)
+							.stream(hs)
+							.withData(input,0,(int)length+off+4);
+					frame.writeToH2(hs.h2, true);
+				}
 				return;
 			}else{
 				if(thread.alive()==false){
@@ -303,8 +364,9 @@ public class HydarWS extends OutputStream{
 					return;
 				}
 				line = new String(pl,0,(int)length,StandardCharsets.UTF_8);
+				//System.out.println("<<"+line);
 				//on session expire, end the connection
-				if(thread.session==null || thread.session!=ServerThread.hydar().ee.get(thread.client_addr, thread.session.id)) {
+				if(thread.session==null || thread.session!=hydar().ee.get(thread.client_addr, thread.session.id)) {
 					thread.session=null;
 					close();
 					return;

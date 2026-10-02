@@ -40,7 +40,7 @@ public class HydarH2{
 		16384,//SETTINGS_MAX_FRAME_SIZE
 		8192//SETTINGS_MAX_HEADER_LIST_SIZE
 	};
-	public int[] localSettings;
+	public final int[] localSettings;
 	public volatile int localWindow;
 	//longadder might be better but this saves memory
 	public final AtomicInteger remoteWindow = new AtomicInteger(remoteSettings[Setting.SETTINGS_INITIAL_WINDOW_SIZE]);
@@ -57,7 +57,9 @@ public class HydarH2{
 			Config.H2_MAX_CONCURRENT_STREAMS,//SETTINGS_MAX_CONCURRENT_STREAMS 
 			65535,//SETTINGS_INITIAL_WINDOW_SIZE
 			Config.H2_MAX_FRAME_SIZE,//SETTINGS_MAX_FRAME_SIZE
-			Config.H2_MAX_HEADER_LIST_SIZE//SETTINGS_MAX_HEADER_LIST_SIZE
+			Config.H2_MAX_HEADER_LIST_SIZE,//SETTINGS_MAX_HEADER_LIST_SIZE
+			-1,//7 unused
+			1//SETTINGS_ENABLE_CONNECT_PROTOCOL
 		};
 		localWindow= localSettings[Setting.SETTINGS_INITIAL_WINDOW_SIZE];
 		compressor = new HydarHP.Compressor(localSettings[Setting.SETTINGS_HEADER_TABLE_SIZE]);
@@ -105,11 +107,12 @@ public class HydarH2{
 		
 		var baos =ByteBuffer.allocate(6*localSettings.length);
 		for(short i=1;i<localSettings.length;i++){
+			if(localSettings[i]<0)continue;
 			baos.putShort(i).putInt(localSettings[i]);
 		}
 		Frame.of(Frame.SETTINGS)
 			.limiter(thread.limiter)
-			.withData(baos.array(),0,baos.limit())
+			.withData(baos.array(),0,baos.position())
 			.writeToH2(this, false);
 		Frame.of(Frame.WINDOW_UPDATE).withData(HStream.WINDOW_INC).writeToH2(this,false);
 	}
@@ -155,6 +158,7 @@ class HStream{
 	public State state;
 	public final HydarH2 h2;
 	public final int number;
+	public volatile HydarWS ws = null;
 	private Map<String,String> heads=null;
 	public int blockType;
 	public int padLength;
@@ -278,7 +282,7 @@ class HStream{
 		}
 	}
 	public void recv(Frame frame, ByteBuffer dis, InputStream more) throws IOException{
-		
+		boolean shouldConnect = false;
 		switch(frame.type){
 			case Frame.HEADERS:
 				if(blockType!=-1&&blockType!=Frame.HEADERS){
@@ -305,6 +309,10 @@ class HStream{
 						more.skip(padLength);
 						padLength=0;
 						parseHeaders();
+						
+						if("CONNECT".equals(heads.get(":method"))) {
+							shouldConnect = true;
+						}
 					}else{
 						h2.expects=Frame.CONTINUATION;
 					}
@@ -314,7 +322,7 @@ class HStream{
 				}
 				break;
 			case Frame.DATA:
-				if(blockType!=Frame.DATA){
+				if(blockType!=Frame.DATA && ws!=null){
 					//error
 					h2.goaway(1,"Unexpected DATA block");
 					break;
@@ -352,7 +360,11 @@ class HStream{
 							return;
 						}
 					}
-					dataBlock().write(dis.array(), dis.position(), frame.length);
+					if(ws==null) {
+						dataBlock().write(dis.array(), dis.position(), frame.length);
+					}else {
+						ws.readBuffer(dis, frame.length);
+					}
 					if(frame.endStream){
 						more.skip(padLength);
 						padLength=0;
@@ -400,16 +412,17 @@ class HStream{
 				return;
 		}
 
-		if(frame.endStream){
+		if(frame.endStream || shouldConnect) {
 			if(!canReceive())return;
 			if(state==State.half_closed_local) {
 				this.close(0);
 				return;
 			}
-			state=State.half_closed_remote;
-			blockType=-1;
-			h2.expects=-1; 
-			
+			if(!shouldConnect) {
+				state=State.half_closed_remote;
+				blockType=-1;
+				h2.expects=-1; 
+			}
 			//System.out.println("read headers took "+(new Date().getTime()-t1)+" ms");
 				//System.out.println(heads);
 				//System.out.println("\""+heads.get(":path")+"\" "+heads.get(":path").length());
@@ -453,6 +466,11 @@ class HStream{
 		}
 	}
 	//
+
+	public void addWS(HydarWS ws) {
+		this.ws=ws;
+		ws.hs=this;
+	}
 }
 
 //ServerThread has SETTINGS(record probably)
@@ -464,6 +482,7 @@ class Setting{
 	public static final int SETTINGS_INITIAL_WINDOW_SIZE=4;
 	public static final int SETTINGS_MAX_FRAME_SIZE=5;
 	public static final int SETTINGS_MAX_HEADER_LIST_SIZE=6;
+	public static final int SETTINGS_ENABLE_CONNECT_PROTOCOL=8;
 }
 
 //ServerThread has SETTINGS(record probably)
