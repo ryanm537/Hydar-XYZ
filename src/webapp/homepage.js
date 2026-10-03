@@ -545,8 +545,9 @@ function stopWatching(target){
 		//document.getElementById("hydar_video"+target).setAttribute("hidden","true");
 		videoE.style.display="none";
 	}
-	for(var e of document.getElementById("susRectangle").children){
-		if(e.getAttribute("class")!="rectSUS"&&e.style.display!="none")
+	for(let e of document.getElementById("susRectangle").children){
+		console.log(e);
+		if(e.getAttribute("class")!="rectSUS"&&e.tagName=="video" && e.style.display!="none")
 			shouldHide=false;
 	}
 	if(shouldHide){
