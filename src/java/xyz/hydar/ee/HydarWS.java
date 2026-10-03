@@ -216,24 +216,10 @@ public class HydarWS extends OutputStream{
 		}
 		return len;
 	}
-	/**
-	 * Unmask using bytebuffers. 
-	 * Simple loops usually get vectorized so this might not be necessary
-	 * */
 	static byte[] unmask(byte[] sb, byte[] pl, int off) {
-		var plb=ByteBuffer.wrap(pl);//output
-		var buf=ByteBuffer.wrap(sb);//input
-		var lbuf=plb.remaining()<8?empty:buf.slice(off+4,buf.limit()-(off+4)).asLongBuffer();
-		long mask=buf.getInt(off);
-		mask = (mask<<32) | (mask&0xffffffffl);
-		while(plb.remaining()>=8) {
-			plb.putLong(lbuf.get()^mask);
-		}
-		buf.position(off+4+lbuf.position()*8);
-		while(plb.hasRemaining()){
-			mask=Long.rotateLeft(mask,8);
-			plb.put((byte)(buf.get()^mask));
-		}
+		for(int i=0;i<pl.length;i++){
+			pl[i]=(byte)((sb[i+off+4])^(sb[off+(i%4)]));
+		} 
 		return pl;
 	}
 	public void readBuffer(ByteBuffer buf, int lenTotal) throws IOException{
@@ -346,7 +332,6 @@ public class HydarWS extends OutputStream{
 				close();
 				return;
 			}else if(op == 0x09){
-				//TODO: make this use buffers as well maybe
 				System.out.println("aaa i got pinged");
 				input[0]+=1;
 				for(int i=0;i<length;i++){
