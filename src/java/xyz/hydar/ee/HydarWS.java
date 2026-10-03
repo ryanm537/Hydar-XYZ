@@ -63,11 +63,12 @@ public class HydarWS extends OutputStream{
 	public HydarWS(ServerThread thread, Optional<HStream> hs, String path,String search,boolean deflate) throws IOException{
 		
 		this.thread=thread;
-		thread.client.setSoTimeout(ServerThread.config().WS_LIFETIME);
 		this.path=path;
 		this.search=search;
 		this.deflate=deflate;
 		this.hydar = ServerThread.hydar();
+		if(hs.isEmpty() || ServerThread.config().WS_LIFETIME > thread.client.getSoTimeout())
+			thread.client.setSoTimeout(ServerThread.config().WS_LIFETIME);
 		if(deflate) {
 			deflate_baos=new BAOS(256);
 			deflate_dos=new DeflaterOutputStream(deflate_baos,new Deflater(Deflater.DEFAULT_COMPRESSION, true),true);
@@ -145,13 +146,14 @@ public class HydarWS extends OutputStream{
 				};
 			//System.arraycopy(ub,0,w,off2,l2);
 			if(hs!=null) {
-				BAOS fullData = new BAOS(len+2);
-				fullData.write(header);
-				fullData.write(data, start, len);
+				ByteBuffer fullData = hs.h2.output(len+9+header.length)
+						.position(9)
+						.put(header)
+						.put(data, start, len);
 				var frame = Frame.of(Frame.DATA)
 						.limiter(hs.h2.thread.limiter)
 						.stream(hs)
-						.withData(fullData);
+						.withPaddedData(fullData, len+header.length);
 				//System.out.println("S%%%%"+len);
 				//System.out.println("F%%%%"+frame.length);
 				//System.out.println(new String(data,start,len));

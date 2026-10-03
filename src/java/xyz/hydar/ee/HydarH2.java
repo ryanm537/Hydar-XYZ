@@ -1,6 +1,8 @@
 package xyz.hydar.ee;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
+import java.io.ByteArrayInputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -78,19 +80,27 @@ public class HydarH2{
 	ByteBuffer input(int length) {
 		return (length>input.capacity())?(input=ByteBuffer.allocate(length)):input;
 	}
+	public void closeAllWS() {
+		for(HStream stream:streams.values()) {
+			if(stream.ws != null)
+				try{stream.ws.close();}catch(IOException ioe){}
+		}
+	}
 	public void goaway(int error, String info){
+		//new RuntimeException().fillInStackTrace().printStackTrace();
+
 		for(HStream stream:streams.values()) {
 			if(stream!=null)
 				stream.state=HStream.State.closed;
 		}
+		closeAllWS();//wont send since state closed cant send
 		streams.clear();
 		System.out.println("go away "+error+" "+info+" ");
-		//new RuntimeException().fillInStackTrace().printStackTrace();
+		var dos = ByteBuffer.allocate(info.length()+8)
+			.putInt(maxStream&0x7fffffff)
+			.putInt(error)
+			.put(info.getBytes(ISO_8859_1));
 		try{
-			var dos = ByteBuffer.allocate(info.length()+8)
-				.putInt(maxStream&0x7fffffff)
-				.putInt(error)
-				.put(info.getBytes(ISO_8859_1));
 			Frame.of(Frame.GOAWAY)
 				.withData(dos.array(),0,dos.limit())
 				.writeToH2(thread.h2, true);
@@ -207,10 +217,14 @@ class HStream{
 		return first;
 	}
 	public void close(int reason) throws IOException{
-		if(cleanup() && reason>=0)
-			Frame.of(Frame.RST_STREAM, this)
-				.withData(CLOSE_REASONS[reason])
-				.writeToH2(h2, true);
+		if(cleanup() && reason>=0) {
+			if(reason>=0)
+				Frame.of(Frame.RST_STREAM, this)
+					.withData(CLOSE_REASONS[reason])
+					.writeToH2(h2, true);
+			if(ws!=null)
+				ws.close();
+		}
 	}
 	//check if request on this stream is HEAD, default to prev
 	public boolean isHead(boolean prev) {
@@ -573,6 +587,15 @@ class Frame{
 		this.endHeaders=flag;
 		return this;
 	}
+	public Frame withPaddedData(ByteBuffer transferBuffer, int dataLength) {
+		this.streamBuffer=Optional.of(transferBuffer);
+		this.data = transferBuffer.array();
+		if(this.data.length < dataLength + 9) 
+			throw new IllegalArgumentException("buffer not large enough");
+		this.offset = 9;
+		this.length = dataLength;
+		return this;
+	}
 	public Frame withData(InputStream data,int length, ByteBuffer transferBuffer) {
 		this.dataStream=data;
 		this.length=length;
@@ -703,6 +726,8 @@ class Frame{
 					buf.position(buf.position()+l);
 					cap-=l;
 				}
+			}else if(data == buf.array()) {
+				//data is fine
 			}else if(data!=null){
 				buf.put(data,offset,length);
 			}
