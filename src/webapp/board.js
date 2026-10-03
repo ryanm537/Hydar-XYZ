@@ -79,6 +79,7 @@ function preview(x){//show big sus rectangle with thing
 	}else{
 		vwr.style.overflow="visible";
 		let frame=document.createElement('iframe');
+		frame.setAttribute("sandbox","true");
 		frame.src=ATTACHMENT_PATH+x;
 		frame.style.width="100%";
 		frame.style.height="100%";
