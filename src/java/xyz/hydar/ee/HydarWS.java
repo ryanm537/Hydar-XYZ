@@ -146,18 +146,26 @@ public class HydarWS extends OutputStream{
 				};
 			//System.arraycopy(ub,0,w,off2,l2);
 			if(hs!=null) {
-				ByteBuffer fullData = hs.h2.output(len+9+header.length)
-						.position(9)
-						.put(header)
-						.put(data, start, len);
+				int maxFrame = hs.h2.remoteSettings[Setting.SETTINGS_MAX_FRAME_SIZE];
+				int toSend = Math.min(len, maxFrame-header.length);
+				ByteBuffer buffer = hs.h2.output(toSend+9+header.length);
 				var frame = Frame.of(Frame.DATA)
 						.limiter(hs.h2.thread.limiter)
-						.stream(hs)
-						.withPaddedData(fullData, len+header.length);
+						.stream(hs);
+				buffer.position(9)
+					.put(header);
+				int sent=0;
+				while(sent<len) {
+					buffer.put(data, start+sent, toSend);
+					frame.withPaddedData(buffer, toSend+(sent==0?header.length:0));
+					sent += toSend;
+					frame.writeToH2(hs.h2, sent==len);
+					toSend = Math.min(len-sent, maxFrame);
+					buffer.position(9);
+				}
 				//System.out.println("S%%%%"+len);
 				//System.out.println("F%%%%"+frame.length);
 				//System.out.println(new String(data,start,len));
-				frame.writeToH2(hs.h2, true);
 			} else {
 				//System.out.println("???"+len);
 				//System.out.println("1"+new String(data,start,len));
