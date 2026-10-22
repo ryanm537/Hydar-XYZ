@@ -9,6 +9,7 @@ import java.io.OutputStream;
 import java.net.SocketTimeoutException;
 import java.net.http.HttpTimeoutException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -81,7 +82,7 @@ public class HydarH2{
 		return (length>input.capacity())?(input=ByteBuffer.allocate(length)):input;
 	}
 	public void closeAllWS() {
-		for(HStream stream:streams.values()) {
+		for(HStream stream:streams.values().stream().toList()) {
 			if(stream.ws != null)
 				try{stream.ws.close();}catch(IOException ioe){}
 		}
