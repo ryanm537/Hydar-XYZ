@@ -110,25 +110,30 @@ public class HydarEE{
 		ctx = new Context(hydar);
 		ctx.init = Map.copyOf(config.macros);
 		Path sessionsPath = Path.of(config.configPath+".sessions.bin");
-		try {
-			if(config.PERSIST_SESSIONS) {
+		if(config.PERSIST_SESSIONS) {
 				Runtime.getRuntime().addShutdownHook(new Thread(this::persistSessions));
 				if(Files.exists(sessionsPath)) {
-					System.out.println("Loading sessions from "+sessionsPath+"...");
+					try {
+						System.out.println("Loading sessions from "+sessionsPath+"...");
 						var ois = new ObjectInputStream(Files.newInputStream(sessionsPath));
 						this.sessions = (Map<String, HttpSession>) ois.readObject();
 						for(HttpSession s: this.sessions.values()) {
 							s.hydar=hydar;
 						}
 						Files.delete(sessionsPath);
-					
+					}catch(Exception e) {
+						System.out.println("Failed to parse "+sessionsPath+"...");
+						e.printStackTrace();
+					}
 				}
 			}else {
-				Files.deleteIfExists(sessionsPath);
+				try {
+					Files.deleteIfExists(sessionsPath);
+				}catch(IOException e) {
+					System.out.println("Failed to delete "+sessionsPath+"...");
+					e.printStackTrace();
+				}
 			}
-		} catch (ClassNotFoundException | IOException e) {
-			throw new RuntimeException(e);
-		}
 		System.out.println("Service loader finished.");
 	}
 	/**Saves sessions to a file.*/
